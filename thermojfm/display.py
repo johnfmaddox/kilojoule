@@ -3,7 +3,7 @@ from sympy import sympify, latex
 import re
 from .organization import PropertyTable
 
-from thermoJFM import units
+from .units import units
 
 
 pre_sympy_latex_substitutions = {
