@@ -1,5 +1,5 @@
 
-__version__ = "0.0.2"
+__version__ = "0.0.4"
 
 import warnings
 from functools import partialmethod
@@ -13,6 +13,7 @@ from matplotlib.patches import Polygon
 import re
 import collections
 from CoolProp.CoolProp import PropsSI, PhaseSI, HAPropsSI
+import pyromat as pm
 
 from pint import UnitRegistry
 units = UnitRegistry()
@@ -238,6 +239,19 @@ CP_HA_type_to_symb = {
 }
 CP_HA_symb_to_type = invert_dict(CP_HA_type_to_symb)
 
+# Default PYroMat units for symbols
+pm_units_to_symb = {
+    'K':['T'],
+    'bar':['p'],
+    'kg/m^3':['d'],
+    'm^3/kg':['v'],
+    'kJ/kg/K':['Cp','Cv','cp','cv','C','c','s','R'],
+    'kg/kmol':['M','MW','m','mw'],
+    'kJ/kg':['h','u','e'],
+    ' ':['gamma','gam','k'],
+}
+pm_symb_to_units = invert_dict(pm_units_to_symb)
+
 predefined_unit_types = {
     'T':'temperature',
     'p':'pressure',
@@ -280,12 +294,12 @@ predefined_unit_systems = {
         'specific entropy':'kJ/kg/delta_degC',
         'molar specific entropy':'kJ/kmol/delta_degC',
         'entropy':'kJ/delta_degC',
-        'vapor quality':None,
+        'vapor quality':' ',
         'mass':'kg',
         'molar mass':'kg/kmol',
         'mass flow rate':'kg/s',
         'volumetric flow rate':'m^3/s',
-        'string':None,
+        'string':' ',
         'specific heat':'kJ/kg/delta_degC',
         'molar specific heat':'kJ/kmol/delta_degC',
         'velocity':'m/s',
@@ -301,7 +315,7 @@ predefined_unit_systems = {
         'humid air specific entropy':'kJ/kg_humid_air/delta_degC',
         'water mole fraction':'mole_water/mole_humid_air',
         'humidity ratio':'kg_water/kg_dry_air',
-        'dimensionless':None
+        'dimensionless':' '
     },
     'SI_K':{
         'temperature':'K',
@@ -317,12 +331,12 @@ predefined_unit_systems = {
         'specific entropy':'kJ/kg/K',
         'molar specific entropy':'kJ/kmol/K',
         'entropy':'kJ/K',
-        'vapor quality':None,
+        'vapor quality':' ',
         'mass':'kg',
         'molar mass':'kg/kmol',
         'mass flow rate':'kg/s',
         'volumetric flow rate':'m^3/s',
-        'string':None,
+        'string':' ',
         'specific heat':'kJ/kg/K',
         'molar specific heat':'kJ/kmol/K',
         'velocity':'m/s',
@@ -338,7 +352,7 @@ predefined_unit_systems = {
         'humid air specific entropy':'kJ/kg_humid_air/K',
         'water mole fraction':'mole_water/mole_humid_air',
         'humidity ratio':'kg_water/kg_dry_air',
-        'dimensionless':None
+        'dimensionless':' '
     },
     'English_F':{
         'temperature':'degF',
@@ -353,12 +367,12 @@ predefined_unit_systems = {
         'energy':'Btu',
         'specific entropy':'Btu/lb/delta_degF',
         'entropy':'Btu/delta_degF',
-        'vapor quality':None,
+        'vapor quality':' ',
         'mass':'lb',
         'molar mass':'lb/lbmol',
         'mass flow rate':'lb/s',
         'volumetric flow rate':'m^3/s',
-        'string':None,
+        'string':' ',
         'specific heat':'Btu/lb/delta_degF',
         'molar specific heat':'Btu/lbmol/delta_degF',
         'velocity':'ft/s',
@@ -374,7 +388,7 @@ predefined_unit_systems = {
         'humid air specific entropy':'Btu/lb_humid_air/delta_degF',
         'water mole fraction':'mole_water/mole_humid_air',
         'humidity ratio':'lb_water/lb_dry_air',
-        'dimensionless':None
+        'dimensionless':' '
     },
     'English_R':{
         'temperature':'degR',
@@ -389,12 +403,12 @@ predefined_unit_systems = {
         'energy':'Btu',
         'specific entropy':'Btu/lb/degR',
         'entropy':'Btu/degR',
-        'vapor quality':None,
+        'vapor quality':' ',
         'mass':'lb',
         'molar mass':'lb/lbmol',
         'mass flow rate':'lb/s',
         'volumetric flow rate':'m^3/s',
-        'string':None,
+        'string':' ',
         'specific heat':'Btu/lb/degR',
         'molar specific heat':'Btu/lbmol/degR',
         'velocity':'ft/s',
@@ -410,7 +424,7 @@ predefined_unit_systems = {
         'humid air specific entropy':'Btu/lb_humid_air/degR',
         'water mole fraction':'mole_water/mole_humid_air',
         'humidity ratio':'lb_water/lb_dry_air',
-        'dimensionless':None
+        'dimensionless':' '
     }
 }
 
@@ -433,7 +447,7 @@ pre_sympy_latex_substitutions = {
 #     'delta*':'delta_',
     'Delta__':'Delta',
     'delta__':'delta ',
-    'math.log':'ln'
+    'math.log':'log'
 }
 
 post_sympy_latex_substitutions = {
@@ -723,6 +737,7 @@ def HAPropertyLookup(desired, unit_system=None, verbose=False, **kwargs):
         result = Q_(result,CP_return_units).to(result_units)
     return result
 
+
 class FluidProperties:
     def __init__(self, fluid, unit_system='SI_C'):
         self.fluid = fluid
@@ -749,6 +764,236 @@ class HumidAirProperties:
 
     for CP_symb, local_symb in CP_HA_symb_to_local.items():
         exec(f"{local_symb} = partialmethod(_lookup, '{CP_symb}')")
+
+class IdealGasProperties:
+    def __init__(self, fluid, unit_system='SI_C', verbose=False):
+        self.verbose = verbose
+        self.unit_system = unit_system
+        if fluid.lower() == 'air':
+            fluid = 'air'
+        self.pm=pm.get(f'ig.{fluid}')
+        self.pm.config = pm.config
+
+    def _to_quantity(self, pm_symb, pm_result, pm_result_type):
+        try:
+            pm_result = pm_result[0]
+        except Exception as e:
+            if self.verbose: print(e)
+        preferred_units = preferred_units_from_type(pm_result_type, self.unit_system)
+        result_units = pm_symb_to_units[pm_symb]
+        return Q_(pm_result,result_units).to(preferred_units)
+
+    def _get_p_from_others(self, T=None, d=None, v=None, s=None, **kwargs):
+        if (d or v) and T:
+            if v:
+                d = 1/v.to('m^3/kg')
+            try:
+                p = self.pm.p_d(T=T.to('K').magnitude, d=d.to('kg/m^3').magnitude)[0]
+            except Exception as e:
+                if self.verbose: print(e)
+                p = ((8.31446261815324/self.pm.mw())*T.to('K').magnitude*d.to('kg/m^3').magnitude)*.01
+        elif s and T:
+            try:
+                p = self.pm.p_s(T=T.to('K').magnitude, s=s.to('kJ/kg/K').magnitude)[0]
+            except Exception as e:
+                if self.verbose: print(e)
+                p = self._p_s(T=T.to('K').magnitude, s=s.to('kJ/kg/K').magnitude)[0]
+        elif (d or v) and s:
+            if v:
+                d = 1/v.to('m^3/kg')
+            T,p = self._invTp_sd(s=s.to('kJ/kg/K').magnitude, d=d.to('kg/m^3').magnitude)
+#         else:
+#             T = Q_(300,'K')
+        return p
+
+    def _get_T_from_others(self, p=None, d=None, v=None, h=None, s=None, **kwargs):
+        if h is not None:
+            T = self.pm.T_h(h=h.to('kJ/kg').magnitude)[0]
+        elif (d or v) and p:
+            if v:
+                d = 1/v.to('m^3/kg')
+            try:
+                T = self.pm.T_d(p=p.to('bar').magnitude, d=d.to('kg/m^3').magnitude)[0]
+            except Exception as e:
+                if self.verbose: print(e)
+                T = p.to('kPa').magnitude / ((8.31446261815324/self.pm.mw())*d.to('kg/m^3').magnitude)
+        elif s and p:
+            T_tmp = self.pm.T_s(p=p.to('bar').magnitude, s=s.to('kJ/kg/K').magnitude)
+            try:
+                T = T_tmp[0]
+            except IndexError as e:
+                if self.verbose: print(e)
+                T = T_tmp
+        elif (d or v) and s:
+            if v:
+                d = 1/v.to('m^3/kg')
+            T,p = self._invTp_sd(s=s.to('kJ/kg/K').magnitude, d=d.to('kg/m^3').magnitude)
+#         else:
+#             T = Q_(300,'K')
+        return T
+
+    def _invTp_sd(self, s=None, d=None):
+        """Inverse temperature from entropy and density"""
+        # Generic iteration parameters
+        N = 100 # Maximum iterations
+        small = 1e-8    # A "small" number
+        epsilon = 1e-6  # Iteration precision
+
+        scale_factor = 0.01*d*8.31446261815324/self.pm.mw()
+        def p_from_T(T):
+            return scale_factor*T
+
+        Tmin,Tmax = self.pm.Tlim()
+
+        it = np.nditer((None,s),op_flags=[['readwrite','allocate'],['readonly','copy']],op_dtypes='float')
+        for T_,s_ in it:
+            # Use Tk as the iteration parameter.  We will write to T_ later.
+            # Initialize it to be in the center of the species' legal range.
+            Tk = 0.5*(Tmin + Tmax)
+            Tk1 = Tk
+            # Initialize dT - the change in T
+            dT = 0.
+            # Calculate an error threshold
+            thresh = max(small, abs(epsilon * s_))
+            # Initialize absek1 - the absolute error from the last iteration
+            #    Using +infty will force the error reduction criterion to be met
+            abs_ek1 = float('inf')
+            fail = True
+            for count in range(N):
+                ## CALL THE PROPERTY FUNCTION ##
+                p_ = p_from_T(Tk)
+                sk = self.pm.s(T=Tk,p=p_)
+                # Calculate error
+                ek = sk-s_
+                abs_ek = abs(ek)
+                # Test for convergence
+                #print(f'T: {Tk}, p: {p_}, s: {sk}, abs(error): {abs_ek}')
+                if abs_ek < thresh:
+                    T_[...] = Tk
+                    fail = False
+                    break
+                # If the error did not reduce from the last iteration
+                elif abs_ek > abs_ek1:
+                    dT /= 2.
+                    Tk = Tk1 + dT
+                # Continue normal iteration
+                else:
+                    # Shift out the old values
+                    abs_ek1 = abs_ek
+                    Tk1 = Tk
+                    ## ESTIMATE THE DERIVATIVE ##
+                    dT = max(small, epsilon*Tk)    # Make a small perturbation
+                    dsdx = (self.pm.s(T=Tk+dT,p=p_from_T(Tk+dT)) - sk)/dT
+                    # Calculate the next step size
+                    dT = -ek / dsdx
+                    # Produce a tentative next value
+                    Tk = Tk1 + dT
+                    # Test the guess for containment in the temperature limits
+                    # Shrink the increment until Tk is contained
+                    while Tk<Tmin or Tk>Tmax:
+                        dT /= 2.
+                        Tk = Tk1 + dT
+            if fail:
+                raise pyro.utility.PMAnalysisError('_invT() failed to converge!')
+        return Tk[0], p_[0]
+#         return it.operands[0]
+
+    def _p_s(self,s,T=None):
+        """Pressure as a function of entropy: This is an overload of the PYroMat implementation to enable this functionality for mixtures"""
+        def_p = pm.config['def_p']
+        s0 = self.pm.s(T=T,p=def_p)
+        return def_p * np.exp((s0 - s)/self.R().to('kJ/kg/K').magnitude)
+
+    def T(self,**kwargs):
+        pm_result = self._get_T_from_others(**kwargs)
+        return self._to_quantity('T',pm_result,'temperature')
+
+    def p(self,**kwargs):
+        pm_result = self._get_p_from_others(**kwargs)
+        return self._to_quantity('p',pm_result,'pressure')
+
+    def Cp(self, T=None, **kwargs):
+        if T is None:
+            T = self._get_T_from_others(**kwargs)
+        else:
+            T = T.to('K').magnitude
+        pm_result = self.pm.cp(T)[0]
+        return self._to_quantity('Cp',pm_result,'specific heat')
+
+    def Cv(self, T=None, **kwargs):
+        if T is None:
+            T_pm = self._get_T_from_others(**kwargs)
+        else:
+            T_pm = T.to('K').magnitude
+        pm_result = self.pm.cv(T=T_pm)[0]
+        return self._to_quantity('Cv',pm_result,'specific heat')
+
+    def k(self, T=None, **kwargs):
+        if T is None:
+            T_pm = self._get_T_from_others(**kwargs)
+        else:
+            T_pm = T.to('K').magnitude
+        pm_result = self.pm.gam(T=T_pm)
+        return self._to_quantity('k',pm_result,'dimensionless')
+
+    def d(self, T=None, p=None, **kwargs):
+        if T is None:
+            T_pm = self._get_T_from_others(p=p, **kwargs)
+        else:
+            T_pm = T.to('K').magnitude
+        if p is None:
+            p_pm = self._get_p_from_others(T=T, **kwargs)
+        else:
+            p_pm = p.to('bar').magnitude
+        pm_result = self.pm.d(T=T_pm,p=p_pm)[0]
+        return self._to_quantity('d',pm_result,'density')
+
+    def v(self, **kwargs):
+        d = self.d(**kwargs)
+        return 1/d
+
+    def u(self, T=None, **kwargs):
+        if T is None:
+            T_pm = self._get_T_from_others(**kwargs)
+        else:
+            T_pm = T.to('K').magnitude
+        pm_result = self.pm.e(T=T_pm)[0]
+        return self._to_quantity('e',pm_result,'specific energy')
+
+    def h(self, T=None, **kwargs):
+        if T is None:
+            T_pm = self._get_T_from_others(**kwargs)
+        else:
+            T_pm = T.to('K').magnitude
+        pm_result = self.pm.h(T=T_pm)[0]
+        return self._to_quantity('h',pm_result,'specific energy')
+
+    def s(self, T=None, p=None, **kwargs):
+        if T is None:
+            T_pm = self._get_T_from_others(p=p, **kwargs)
+        else:
+            T_pm = T.to('K').magnitude
+        if p is None:
+            p_pm = self._get_p_from_others(T=T, **kwargs)
+        else:
+            p_pm = p.to('bar').magnitude
+        pm_result = self.pm.s(T=T_pm,p=p_pm)[0]
+        return self._to_quantity('s',pm_result,'specific entropy')
+
+    def R(self,*args,**kwargs):
+        try:
+            pm_result = self.pm.R()
+        except Exception as e:
+            if self.verbose:
+                print(e)
+                print('Calculation from universal gas constant and molecular weight')
+            pm_result = 8.31446261815324/self.pm.mw()
+        return self._to_quantity('R', pm_result, 'specific heat')
+
+    def mw(self,*args,**kwargs):
+        pm_result = self.pm.mw()
+        return self._to_quantity('mw', pm_result, 'molar mass')
+
 
 
 class ThermoPropertyDict:
@@ -1051,6 +1296,148 @@ class FluidPropertyPlot:
         else:
             y = PropertyLookup(self.y_symb, T=self.T_critical, x=0, fluid=self.fluid)
         self.plot_point(x, y, label=label, label_loc=label_loc, **kwargs)
+
+    def plot_process(self, begin_state=None, end_state=None, path=None, iso_symb=None, color='black', arrow=False, **kwargs):
+        x1 = begin_state[self.x_symb]
+        x2 = end_state[self.x_symb]
+        y1 = begin_state[self.y_symb]
+        y2 = end_state[self.y_symb]
+        def plot_straight_line(**kwargs):
+            return self.ax.plot([x1.to(self.x_units).magnitude, x2.to(self.x_units).magnitude], [y1.to(self.y_units).magnitude, y2.to(self.y_units).magnitude],**kwargs)
+        if iso_symb is None:
+            if path is None:
+                property_keys = ['T','p','v','d','u','h','x','rho','u_molar','h_molar','s_molar','d_molar']
+                iso_dict={}
+                for k in property_keys:
+                    if k in begin_state and k in end_state:
+                        if begin_state[k] == end_state[k]:
+                            iso_dict[k] = begin_state[k]
+                if self.x_symb in iso_dict.keys() or self.y_symb in iso_dict.keys():
+                    path = 'straight'
+                elif not iso_dict:
+                    path = 'unknown'
+                else:
+                    path = 'iso_symb'
+                    iso_symb = list(iso_dict.keys())[0]
+        else:
+            path = 'iso_symb'
+        if path.lower() == 'unknown':
+            process_line = plot_straight_line(color=color,**kwargs, linestyle='--') # if none of the parameters matched between the states, draw a straight dashed line between the point
+        elif path.lower() == 'straight':
+            process_line = plot_straight_line(color=color,**kwargs) # if one of the primary variable is constant, just draw a straight line between the points
+        elif path.lower() == 'iso_symb':
+            #process_line = self.plot_iso_line(iso_symb, iso_value=begin_state[iso_symb], x_range=[x1,x2], **kwargs)
+            process_line = self.plot_iso_line(iso_symb, iso_value=begin_state[iso_symb], alt_symb='p', alt_range=[begin_state['p'],end_state['p']],color=color, **kwargs)
+        elif path.lower() in ['isotherm','isothermal','constant temperature']:
+            if self.x_symb == 'T' or self.y_symb == 'T': process_line = plot_straight_line(color=color,**kwargs)
+            else: process_line = self.plot_iso_line('T', begin_state['T'],color=color, x_range=[x1,x2], **kwargs)
+        elif path.lower() in ['isobar','isobaric','constant pressure']:
+            if self.x_symb == 'p' or self.y_symb == 'p': process_line = plot_straight_line(color=color,**kwargs)
+            else: process_line = self.plot_iso_line('p', begin_state['p'],color=color, x_range=[x1,x2], **kwargs)
+        elif path.lower() in ['isochor','isochoric','isomet','isometric','constant volume']:
+            if self.x_symb == 'v' or self.y_symb == 'v': process_line = plot_straight_line(color=color,**kwargs)
+            else: process_line = self.plot_iso_line('v', begin_state['v'],color=color, x_range=[x1,x2], **kwargs)
+        elif path.lower() in ['isenthalp','isenthalpic','constant enthalpy']:
+            if self.x_symb == 'h' or self.y_symb == 'h': process_line = plot_straight_line(**kwargs)
+            else: process_line = self.plot_iso_line('h', begin_state['h'],color=color, x_range=[x1,x2], **kwargs)
+        elif path.lower() in ['isentropic','isentrop','constant entropy']:
+            if self.x_symb == 's' or self.y_symb == 's': process_line = plot_straight_line(color=color,**kwargs)
+            else: process_line = self.plot_iso_line('s', begin_state['s'],color=color, x_range=[x1,x2], **kwargs)
+        else:
+            process_line = plot_straight_line(color=color,linestyle='--', **kwargs)
+        if arrow:
+            if x1<x2: arrow_dir='right'
+            elif x1>x2: arrow_dir='left'
+            self.add_arrow(process_line, direction=arrow_dir)
+        return process_line
+
+class IdealGasPropertyPlot:
+    def __init__(self, x=None, y=None, x_units=None, y_units=None, fluid=None, unit_system='SI_C', **kwargs):
+        self.fluid = fluid
+        self.props = IdealGasProperties(self.fluid,unit_system=unit_system)
+        self.unit_system = unit_system
+        self.x_symb = x; self.y_symb = y
+        self.x_units = x_units or preferred_units_from_symbol(self.x_symb, self.unit_system)
+        self.y_units = y_units or preferred_units_from_symbol(self.y_symb, self.unit_system)
+        units.setup_matplotlib()
+        self.fig,self.ax=plt.subplots()
+        self.ax.set_ylabel(f'${self.y_symb}$ [{Q_(1,self.y_units).units:~P}]')
+        self.ax.set_xlabel(f'${self.x_symb}$ [{Q_(1,self.x_units).units:~P}]')
+        self.ax.spines['right'].set_visible(False)
+        self.ax.spines['top'].set_visible(False)
+
+    def plot_point(self, x, y, *args, marker='o', color='black', label=None, label_loc='north', offset=10, **kwargs):
+        x = x.to(self.x_units).magnitude
+        y = y.to(self.y_units).magnitude
+        self.ax.plot(x, y, *args, marker=marker, color=color, **kwargs)
+        if label is not None:
+            ha = 'center'
+            va = 'center'
+            xytext = [0,0]
+            if 'north' in label_loc:
+                xytext[1] = offset
+                va = 'bottom'
+            elif 'south' in label_loc:
+                xytext[1] = -offset
+                va = 'top'
+            if 'east' in label_loc:
+                xytext[0] = offset
+                ha = 'left'
+            elif 'west' in label_loc:
+                xytext[0] = -offset
+                ha = 'right'
+        self.ax.annotate(label, # this is the text
+                 (x,y), # this is the point to label
+                 textcoords="offset points", # how to position the text
+                 xytext=xytext, # distance from text to points (x,y)
+                 ha='left') # horizontal alignment can be left, right or center
+
+    def plot_state(self, state_dict, *args, **kwargs):
+        x = state_dict[self.x_symb]
+        y = state_dict[self.y_symb]
+        if 'label' not in kwargs.keys():
+            kwargs['label'] = state_dict['ID']
+        self.plot_point(x, y, *args, **kwargs)
+
+    def plot_iso_line(self, iso_symb=None, iso_value=None, x_range=None, y_range=None, alt_symb=None, alt_range=None, n_points=500, **kwargs):
+        if x_range is not None:
+            if len(x_range) == 2:
+                x1 = x_range[0].to(self.x_units).magnitude
+                x2 = x_range[1].to(self.x_units).magnitude
+                x = np.linspace(x1, x2, n_points)*units(self.x_units)
+                y = np.array([])
+                for i in x:
+                    prop_lookup_dict = {iso_symb: iso_value, self.x_symb: i}
+                    y = np.append(y, getattr(self.props,self.y_symb)(**prop_lookup_dict).to(self.y_units).magnitude)
+            else:
+                print('Expected a list with two values for x_range')
+        elif y_range is not None:
+            if len(y_range) == 2:
+                y1 = y_range[0].to(self.y_units).magnitude
+                y2 = y_range[1].to(self.y_units).magnitude
+                y = np.linspace(y1, y2, n_points)*units(self.y_units)
+                x = np.array([])
+                for i in y:
+                    prop_lookup_dict = {iso_symb: iso_value, self.y_symb: i}
+                    x = np.append(x, getattr(self.props,self.x_symb)(**prop_lookup_dict, fluid=self.fluid).to(self.x_units).magnitude)
+            else:
+                print('Expected a list with two values for y_range')
+        elif alt_range is not None:
+            if len(alt_range) == 2:
+                alt_units = alt_range[0].units
+                alt1 = alt_range[0].to(alt_units).magnitude
+                alt2 = alt_range[1].to(alt_units).magnitude
+                alt = np.linspace(alt1, alt2, n_points)*alt_units
+                x = np.array([])
+                y = np.array([])
+                for i in alt:
+                    prop_lookup_dict = {iso_symb: iso_value, alt_symb: i}
+                    x = np.append(x, getattr(self.props,self.x_symb)(**prop_lookup_dict, fluid=self.fluid).to(self.x_units).magnitude)
+                    y = np.append(y, getattr(self.props,self.y_symb)(**prop_lookup_dict, fluid=self.fluid).to(self.y_units).magnitude)
+            else:
+                print('Expected a list with two values for alt_range')
+        isoline = self.ax.plot(x,y, **kwargs)
+        return isoline
 
     def plot_process(self, begin_state=None, end_state=None, path=None, iso_symb=None, color='black', arrow=False, **kwargs):
         x1 = begin_state[self.x_symb]
