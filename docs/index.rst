@@ -1,8 +1,8 @@
 =========
-thermoJFM
+thermojfm
 =========
 
-This is the documentation of **thermoJFM**.
+This is the documentation of **thermojfm**.
 
 .. note::
 

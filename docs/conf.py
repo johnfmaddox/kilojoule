@@ -19,7 +19,7 @@ __location__ = os.path.join(os.getcwd(), os.path.dirname(
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.join(__location__, '../src'))
+sys.path.insert(0, os.path.join(__location__, '../'))
 
 # -- Run sphinx-apidoc ------------------------------------------------------
 # This hack is necessary since RTD does not issue `sphinx-apidoc` before running
@@ -35,7 +35,7 @@ except ImportError:
     from sphinx import apidoc
 
 output_dir = os.path.join(__location__, "api")
-module_dir = os.path.join(__location__, "../src/thermojfm")
+module_dir = os.path.join(__location__, "../thermojfm")
 try:
     shutil.rmtree(output_dir)
 except FileNotFoundError:
@@ -81,7 +81,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'thermoJFM'
+project = u'thermojfm'
 copyright = u'2020, Jack Maddox'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -235,7 +235,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'user_guide.tex', u'thermoJFM Documentation',
+  ('index', 'user_guide.tex', u'thermojfm Documentation',
    u'Jack Maddox', 'manual'),
 ]
 
