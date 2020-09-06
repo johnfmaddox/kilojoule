@@ -16,18 +16,15 @@
     :license: MIT, see LICENSE for more details.
 """
 
-__version__ = "0.0.99"
+__version__ = "0.0.6"
 
 # Legacy definitions for backwards compatibility with scripts written
 # during code deveopment in ME 321 during Fall 2020
 from .units import Q_, units, Quantity
-from .fluid import Properties as FluidProperties
-from .fluid import PropertyPlot as FluidPropertyPlot
+from .realfluid import Properties as FluidProperties
+from .realfluid import LegacyPropertyPlot as FluidPropertyPlot
 from .idealgas import Properties as IdealGasProperties
-from .idealgas import PropertyPlot as IdealGasPropertyPlot
+from .idealgas import LegacyPropertyPlot as IdealGasPropertyPlot
 from .display import Calculations as ShowCalculations
 from .display import Summary as ShowSummary
 from .organization import PropertyTable as StatesTable
-
-
-

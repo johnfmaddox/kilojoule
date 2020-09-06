@@ -1,7 +1,7 @@
 from .common import preferred_units_from_type, preferred_units_from_symbol, invert_dict
 from .units import units, Q_
+from .plotting import PropertyPlot
 import pyromat as pm
-import matplotlib.pyplot as plt
 import numpy as np
 
 # universal gas constant
@@ -23,9 +23,11 @@ pm_symb_to_units = invert_dict(pm_units_to_symb)
 
 class Properties:
     """ """
+
     def __init__(self, fluid, unit_system="SI_C", verbose=False):
         self.verbose = verbose
         self.unit_system = unit_system
+        self.fluid = fluid
         if fluid.lower() == "air":
             fluid = "air"
         self._pm = pm.get(f"ig.{fluid}")
@@ -36,7 +38,6 @@ class Properties:
         self.mw = self.mm
         self.e = self.u
         self.gamma = self.k
-        
 
     def _to_quantity(self, pm_symb, pm_result, pm_result_type):
         """
@@ -57,18 +58,21 @@ class Properties:
         result_units = pm_symb_to_units[pm_symb]
         return Q_(pm_result, result_units).to(preferred_units)
 
-    def _get_p_from_others(self, T=None, d=None, v=None, s=None, **kwargs):
+    def _get_p_from_others(self, T=None, p=None, d=None, v=None, s=None, **kwargs):
         """
         Determines the pressure based on two independent, intensive properties
 
         :param T: temperature as a dimensional quantity (Default value = None)
+        :param p: pressure as a dimensional quantity (Default value = None)
         :param d: density as a dimensional quantity (Default value = None)
         :param v: specific volume as a dimensional quantity (Default value = None)
         :param s: specific entropy as a dimensional quantity (Default value = None)
         :param **kwargs: 
         :returns: pressure as a float in the default PYroMat units
         """
-        if (d or v) and T:
+        if p is not None:
+            return p.to("bar").magnitude
+        elif (d or v) and T:
             if v:
                 d = 1 / v.to("m^3/kg")
             try:
@@ -96,10 +100,13 @@ class Properties:
             )
         return p
 
-    def _get_T_from_others(self, p=None, d=None, v=None, h=None, s=None, **kwargs):
+    def _get_T_from_others(
+        self, T=None, p=None, d=None, v=None, h=None, s=None, **kwargs
+    ):
         """
         Determines the temperature based on two independent, intensive properties
 
+        :param T: temperature as a dimensional quanity (Default value = None)
         :param p: pressure as a dimensional quantity (Default value = None)
         :param d: density as a dimensional quantity (Default value = None)
         :param v: specific volume as a dimensional quantity (Default value = None)
@@ -107,8 +114,14 @@ class Properties:
         :param **kwargs: 
         :returns: temperature as a float in the default PYroMat units
         """
-        if h is not None:
-            T = self._pm.T_h(h=h.to("kJ/kg").magnitude)[0]
+        if T is not None:
+            return T.to("K").magnitude
+        elif h is not None:
+            T = self._pm.T_h(h=h.to("kJ/kg").magnitude)
+            try:
+                T = T[0]
+            except Exception as e:
+                pass
         elif (d or v) and p:
             if v:
                 d = 1 / v.to("m^3/kg")
@@ -478,7 +491,8 @@ class Properties:
         try:
             pm_result = self._pm.X()
         except AttributeError as e:
-            if self.verbose: print(e)
+            if self.verbose:
+                print(e)
             pm_result = {self._pm.data["id"]: 1.0}
         return pm_result
 
@@ -496,328 +510,76 @@ class Properties:
         try:
             pm_result = self._pm.Y()
         except AttributeError as e:
-            if self.verbose: print(e)
+            if self.verbose:
+                print(e)
             pm_result = {self._pm.data["id"]: 1.0}
         return pm_result
-    
 
-class PropertyPlot:
-    """ """
-    def __init__(
+    def property_diagram(
         self,
         x=None,
         y=None,
         x_units=None,
         y_units=None,
-        fluid=None,
-        unit_system="SI_C",
+        saturation=False,
+        unit_system=None,
         **kwargs,
     ):
-        self.fluid = fluid
-        self.props = Properties(self.fluid, unit_system=unit_system)
-        self.unit_system = unit_system
-        self.x_symb = x
-        self.y_symb = y
-        self.x_units = x_units or preferred_units_from_symbol(
-            self.x_symb, self.unit_system
+        unit_system = unit_system or self.unit_system
+        return PropertyPlot(
+            x=x,
+            y=y,
+            x_units=x_units,
+            y_units=y_units,
+            property_table=self,
+            saturation=False,
+            unit_system=unit_system,
+            **kwargs,
         )
-        self.y_units = y_units or preferred_units_from_symbol(
-            self.y_symb, self.unit_system
-        )
-        units.setup_matplotlib()
-        self.fig, self.ax = plt.subplots()
-        self.ax.set_ylabel(f"${self.y_symb}$ [{Q_(1,self.y_units).units:~P}]")
-        self.ax.set_xlabel(f"${self.x_symb}$ [{Q_(1,self.x_units).units:~P}]")
-        self.ax.spines["right"].set_visible(False)
-        self.ax.spines["top"].set_visible(False)
 
-    def plot_point(
-        self,
-        x,
-        y,
-        *args,
-        marker="o",
-        color="black",
-        label=None,
-        label_loc="north",
-        offset=10,
+    def Ts_diagram(self, unit_system=None, **kwargs):
+        unit_system = unit_system or self.unit_system
+        return self.property_diagram(x="s", y="T", unit_system=unit_system, **kwargs)
+
+    def pv_diagram(self, unit_system=None, **kwargs):
+        unit_system = unit_system or self.unit_system
+        return self.property_diagram(x="v", y="p", unit_system=unit_system, **kwargs)
+
+    def Tv_diagram(self, unit_system=None, **kwargs):
+        unit_system = unit_system or self.unit_system
+        return self.property_diagram(x="v", y="T", unit_system=unit_system, **kwargs)
+
+    def hs_diagram(self, unit_system=None, **kwargs):
+        unit_system = unit_system or self.unit_system
+        return self.property_diagram(x="s", y="h", unit_system=unit_system, **kwargs)
+
+    def ph_diagram(self, unit_system=None, **kwargs):
+        unit_system = unit_system or self.unit_system
+        return self.property_diagram(x="h", y="p", unit_system=unit_system, **kwargs)
+
+    def pT_diagram(self, unit_system=None, **kwargs):
+        unit_system = unit_system or self.unit_system
+        return self.property_diagram(x="T", y="p", unit_system=unit_system, **kwargs)
+
+
+def LegacyPropertyPlot(
+    x=None,
+    y=None,
+    x_units=None,
+    y_units=None,
+    plot_type=None,
+    fluid=None,
+    unit_system="SI_C",
+    **kwargs,
+):
+    props = Properties(fluid=fluid, unit_system=unit_system, **kwargs)
+    return PropertyPlot(
+        x=x,
+        y=y,
+        x_units=x_units,
+        y_units=y_units,
+        property_table=props,
+        saturation=False,
+        unit_system=unit_system,
         **kwargs,
-    ):
-        """
-
-        :param x: 
-        :param y: 
-        :param *args: 
-        :param marker:  (Default value = "o")
-        :param color:  (Default value = "black")
-        :param label:  (Default value = None)
-        :param label_loc:  (Default value = "north")
-        :param offset:  (Default value = 10)
-        :param **kwargs: 
-
-        """
-        x = x.to(self.x_units).magnitude
-        y = y.to(self.y_units).magnitude
-        self.ax.plot(x, y, *args, marker=marker, color=color, **kwargs)
-        if label is not None:
-            ha = "center"
-            va = "center"
-            xytext = [0, 0]
-            if "north" in label_loc:
-                xytext[1] = offset
-                va = "bottom"
-            elif "south" in label_loc:
-                xytext[1] = -offset
-                va = "top"
-            if "east" in label_loc:
-                xytext[0] = offset
-                ha = "left"
-            elif "west" in label_loc:
-                xytext[0] = -offset
-                ha = "right"
-        self.ax.annotate(
-            label,  # this is the text
-            (x, y),  # this is the point to label
-            textcoords="offset points",  # how to position the text
-            xytext=xytext,  # distance from text to points (x,y)
-            ha="left",
-        )  # horizontal alignment can be left, right or center
-
-    def plot_state(self, state_dict, *args, **kwargs):
-        """
-
-        :param state_dict: 
-        :param *args: 
-        :param **kwargs: 
-
-        """
-        x = state_dict[self.x_symb]
-        y = state_dict[self.y_symb]
-        if "label" not in kwargs.keys():
-            kwargs["label"] = state_dict["ID"]
-        self.plot_point(x, y, *args, **kwargs)
-
-    def plot_iso_line(
-        self,
-        iso_symb=None,
-        iso_value=None,
-        x_range=None,
-        y_range=None,
-        alt_symb=None,
-        alt_range=None,
-        n_points=500,
-        **kwargs,
-    ):
-        """
-
-        :param iso_symb:  (Default value = None)
-        :param iso_value:  (Default value = None)
-        :param x_range:  (Default value = None)
-        :param y_range:  (Default value = None)
-        :param alt_symb:  (Default value = None)
-        :param alt_range:  (Default value = None)
-        :param n_points:  (Default value = 500)
-        :param **kwargs: 
-
-        """
-        if x_range is not None:
-            if len(x_range) == 2:
-                x1 = x_range[0].to(self.x_units).magnitude
-                x2 = x_range[1].to(self.x_units).magnitude
-                x = np.linspace(x1, x2, n_points) * units(self.x_units)
-                y = np.array([])
-                for i in x:
-                    prop_lookup_dict = {iso_symb: iso_value, self.x_symb: i}
-                    y = np.append(
-                        y,
-                        getattr(self.props, self.y_symb)(**prop_lookup_dict)
-                        .to(self.y_units)
-                        .magnitude,
-                    )
-            else:
-                print("Expected a list with two values for x_range")
-        elif y_range is not None:
-            if len(y_range) == 2:
-                y1 = y_range[0].to(self.y_units).magnitude
-                y2 = y_range[1].to(self.y_units).magnitude
-                y = np.linspace(y1, y2, n_points) * units(self.y_units)
-                x = np.array([])
-                for i in y:
-                    prop_lookup_dict = {iso_symb: iso_value, self.y_symb: i}
-                    x = np.append(
-                        x,
-                        getattr(self.props, self.x_symb)(
-                            **prop_lookup_dict, fluid=self.fluid
-                        )
-                        .to(self.x_units)
-                        .magnitude,
-                    )
-            else:
-                print("Expected a list with two values for y_range")
-        elif alt_range is not None:
-            if len(alt_range) == 2:
-                alt_units = alt_range[0].units
-                alt1 = alt_range[0].to(alt_units).magnitude
-                alt2 = alt_range[1].to(alt_units).magnitude
-                alt = np.linspace(alt1, alt2, n_points) * alt_units
-                x = np.array([])
-                y = np.array([])
-                for i in alt:
-                    prop_lookup_dict = {iso_symb: iso_value, alt_symb: i}
-                    x = np.append(
-                        x,
-                        getattr(self.props, self.x_symb)(
-                            **prop_lookup_dict, fluid=self.fluid
-                        )
-                        .to(self.x_units)
-                        .magnitude,
-                    )
-                    y = np.append(
-                        y,
-                        getattr(self.props, self.y_symb)(
-                            **prop_lookup_dict, fluid=self.fluid
-                        )
-                        .to(self.y_units)
-                        .magnitude,
-                    )
-            else:
-                print("Expected a list with two values for alt_range")
-        isoline = self.ax.plot(x, y, **kwargs)
-        return isoline
-
-    def plot_process(
-        self,
-        begin_state=None,
-        end_state=None,
-        path=None,
-        iso_symb=None,
-        color="black",
-        arrow=False,
-        **kwargs,
-    ):
-        """
-
-        :param begin_state:  (Default value = None)
-        :param end_state:  (Default value = None)
-        :param path:  (Default value = None)
-        :param iso_symb:  (Default value = None)
-        :param color:  (Default value = "black")
-        :param arrow:  (Default value = False)
-        :param **kwargs: 
-
-        """
-        x1 = begin_state[self.x_symb]
-        x2 = end_state[self.x_symb]
-        y1 = begin_state[self.y_symb]
-        y2 = end_state[self.y_symb]
-
-        def plot_straight_line(**kwargs):
-            """
-
-            :param **kwargs: 
-
-            """
-            return self.ax.plot(
-                [x1.to(self.x_units).magnitude, x2.to(self.x_units).magnitude],
-                [y1.to(self.y_units).magnitude, y2.to(self.y_units).magnitude],
-                **kwargs,
-            )
-
-        if iso_symb is None:
-            if path is None:
-                property_keys = [
-                    "T",
-                    "p",
-                    "v",
-                    "d",
-                    "u",
-                    "h",
-                    "x",
-                    "rho",
-                    "u_molar",
-                    "h_molar",
-                    "s_molar",
-                    "d_molar",
-                ]
-                iso_dict = {}
-                for k in property_keys:
-                    if k in begin_state and k in end_state:
-                        if begin_state[k] == end_state[k]:
-                            iso_dict[k] = begin_state[k]
-                if self.x_symb in iso_dict.keys() or self.y_symb in iso_dict.keys():
-                    path = "straight"
-                elif not iso_dict:
-                    path = "unknown"
-                else:
-                    path = "iso_symb"
-                    iso_symb = list(iso_dict.keys())[0]
-        else:
-            path = "iso_symb"
-        if path.lower() == "unknown":
-            process_line = plot_straight_line(
-                color=color, **kwargs, linestyle="--"
-            )  # if none of the parameters matched between the states, draw a straight dashed line between the point
-        elif path.lower() == "straight":
-            process_line = plot_straight_line(
-                color=color, **kwargs
-            )  # if one of the primary variable is constant, just draw a straight line between the points
-        elif path.lower() == "iso_symb":
-            # process_line = self.plot_iso_line(iso_symb, iso_value=begin_state[iso_symb], x_range=[x1,x2], **kwargs)
-            process_line = self.plot_iso_line(
-                iso_symb,
-                iso_value=begin_state[iso_symb],
-                alt_symb="p",
-                alt_range=[begin_state["p"], end_state["p"]],
-                color=color,
-                **kwargs,
-            )
-        elif path.lower() in ["isotherm", "isothermal", "constant temperature"]:
-            if self.x_symb == "T" or self.y_symb == "T":
-                process_line = plot_straight_line(color=color, **kwargs)
-            else:
-                process_line = self.plot_iso_line(
-                    "T", begin_state["T"], color=color, x_range=[x1, x2], **kwargs
-                )
-        elif path.lower() in ["isobar", "isobaric", "constant pressure"]:
-            if self.x_symb == "p" or self.y_symb == "p":
-                process_line = plot_straight_line(color=color, **kwargs)
-            else:
-                process_line = self.plot_iso_line(
-                    "p", begin_state["p"], color=color, x_range=[x1, x2], **kwargs
-                )
-        elif path.lower() in [
-            "isochor",
-            "isochoric",
-            "isomet",
-            "isometric",
-            "constant volume",
-        ]:
-            if self.x_symb == "v" or self.y_symb == "v":
-                process_line = plot_straight_line(color=color, **kwargs)
-            else:
-                process_line = self.plot_iso_line(
-                    "v", begin_state["v"], color=color, x_range=[x1, x2], **kwargs
-                )
-        elif path.lower() in ["isenthalp", "isenthalpic", "constant enthalpy"]:
-            if self.x_symb == "h" or self.y_symb == "h":
-                process_line = plot_straight_line(**kwargs)
-            else:
-                process_line = self.plot_iso_line(
-                    "h", begin_state["h"], color=color, x_range=[x1, x2], **kwargs
-                )
-        elif path.lower() in ["isentropic", "isentrop", "constant entropy"]:
-            if self.x_symb == "s" or self.y_symb == "s":
-                process_line = plot_straight_line(color=color, **kwargs)
-            else:
-                process_line = self.plot_iso_line(
-                    "s", begin_state["s"], color=color, x_range=[x1, x2], **kwargs
-                )
-        else:
-            process_line = plot_straight_line(color=color, linestyle="--", **kwargs)
-        if arrow:
-            if x1 < x2:
-                arrow_dir = "right"
-            elif x1 > x2:
-                arrow_dir = "left"
-            self.add_arrow(process_line, direction=arrow_dir)
-        return process_line
+    )

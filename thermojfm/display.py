@@ -171,7 +171,7 @@ class EqTerm:
         # string = re.sub('^log(','ln(',string)
         string = re.sub("^np.", "", string)
         function_obj = eval(function_name, self.namespace)
-        if function_name == "Q_":
+        if function_name in ["Q_", "Quantity"]:
             if self.verbose:
                 print("Attempting to process as a quantity")
             try:
