@@ -7,6 +7,7 @@ import numpy as np
 plt.rcParams["figure.figsize"] = [6 * 1.2, 4 * 1.2]
 plt.rcParams["figure.dpi"] = 100  # 200 e.g. is really fine, but slower
 
+n_points_default = 100
 
 class PropertyPlot:
     """ """
@@ -20,6 +21,8 @@ class PropertyPlot:
         property_table=None,
         saturation=False,
         unit_system=None,
+        fig=None,
+        subplot=None,
         **kwargs,
     ):
         self.props = property_table
@@ -35,7 +38,15 @@ class PropertyPlot:
         )
         # Set up matplotlib
         units.setup_matplotlib()
-        self.fig, self.ax = plt.subplots()
+        if fig is None:
+            self.fig = plt.figure()
+        else:
+            self.fig = fig
+        print(subplot)
+        if subplot is None:
+            self.ax = self.fig.add_subplot(1,1,1)
+        else:
+            self.ax = self.fig.add_subplot(*subplot)
         self.ax.set_ylabel(f"${self.y_symb}$ [{Q_(1,self.y_units).units:~P}]")
         self.ax.set_xlabel(f"${self.x_symb}$ [{Q_(1,self.x_units).units:~P}]")
         self.ax.spines["right"].set_visible(False)
@@ -67,15 +78,15 @@ class PropertyPlot:
     ):
         """
 
-        :param x: 
-        :param y: 
-        :param *args: 
+        :param x:
+        :param y:
+        :param *args:
         :param marker:  (Default value = "o")
         :param color:  (Default value = "black")
         :param label:  (Default value = None)
         :param label_loc:  (Default value = "north")
         :param offset:  (Default value = 10)
-        :param **kwargs: 
+        :param **kwargs:
 
         """
         x = x.to(self.x_units).magnitude
@@ -108,9 +119,9 @@ class PropertyPlot:
     def plot_state(self, state_dict, *args, **kwargs):
         """
 
-        :param state_dict: 
-        :param *args: 
-        :param **kwargs: 
+        :param state_dict:
+        :param *args:
+        :param **kwargs:
 
         """
         x = state_dict[self.x_symb]
@@ -127,7 +138,7 @@ class PropertyPlot:
         y_range=None,
         alt_symb=None,
         alt_range=None,
-        n_points=100,
+        n_points=n_points_default,
         **kwargs,
     ):
         """
@@ -139,7 +150,7 @@ class PropertyPlot:
         :param alt_symb:  (Default value = None)
         :param alt_range:  (Default value = None)
         :param n_points:  (Default value = 100)
-        :param **kwargs: 
+        :param **kwargs:
 
         """
         if x_range is not None:
@@ -207,7 +218,7 @@ class PropertyPlot:
         end_state=None,
         color="black",
         arrow=False,
-        n_points=500,
+        n_points=n_points_default,
         show_reference=True,
         verbose=False,
         **kwargs,
@@ -270,7 +281,7 @@ class PropertyPlot:
         :param iso_symb:  (Default value = None)
         :param color:  (Default value = "black")
         :param arrow:  (Default value = False)
-        :param **kwargs: 
+        :param **kwargs:
 
         """
         x1 = begin_state[self.x_symb]
@@ -281,7 +292,7 @@ class PropertyPlot:
         def plot_straight_line(**kwargs):
             """
 
-            :param **kwargs: 
+            :param **kwargs:
 
             """
             return self.ax.plot(

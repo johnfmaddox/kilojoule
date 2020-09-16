@@ -1,10 +1,20 @@
 from . import units
 
-STP = {"T": units.Quantity(0,'degC'), "p": units.Quantity(1,'bar')}
-NTP = {"T": units.Quantity(20,'degC'), "p": units.Quantity(1,'atm')}
+STP = {"T": units.Quantity(0, "degC"), "p": units.Quantity(1, "bar")}
+NTP = {"T": units.Quantity(20, "degC"), "p": units.Quantity(1, "atm")}
+
 
 def invert_dict(original_dict, replace_empty_string=True):
-    """Invert a dictions creating a new key for every item"""
+    """Invert a dictionary creating a new key for every item
+
+    Args:
+      original_dic (dict): dictionary of lists
+      replace_empty_string:  (Default value = True)
+
+    Returns:
+      dictionary 
+
+    """
     new_dict = {value: key for key in original_dict for value in original_dict[key]}
     if replace_empty_string:
         for key, val in new_dict.items():
@@ -20,7 +30,10 @@ type_to_symbol_dict = {
     "pressure": ["p"],
     "specific volume": ["v", "v_a", "vol"],
     "volume": ["V", "Vol", "Volume"],
-    "mass specific energy": ["u", "h",],
+    "mass specific energy": [
+        "u",
+        "h",
+    ],
     "molar specific energy": ["u_bar", "h_bar", "hbar", "ubar"],
     "energy": [
         "E",
@@ -313,8 +326,28 @@ units.preferred_units = "SI_C"  # 'SI_C', 'SI_K', 'English_F', 'English_R'
 
 
 def preferred_units_from_symbol(symbol, unit_system="SI_C"):
+    """Get preferred units from a variable name
+
+    Args:
+      symbol (str): variable name 
+      unit_system (str): "SI_C","SI_K","English_F","English_R" (Default value = "SI_C")
+
+    Returns (str):
+      units as a string
+
+    """
     return predefined_unit_systems[unit_system][predefined_unit_types[symbol]]
 
 
 def preferred_units_from_type(quantity_type, unit_system="SI_C"):
+    """Get preferred units from a quantity type
+
+    Args:
+      quantity_type (str): physical quantity type
+      unit_system (str): "SI_C","SI_K","English_F","English_R" (Default value = "SI_C")
+
+    Returns (str):
+      units as a string
+
+    """
     return predefined_unit_systems[unit_system][quantity_type]

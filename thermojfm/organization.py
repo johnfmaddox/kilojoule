@@ -1,8 +1,28 @@
 from .units import Q_, units
 import pandas as pd
 from IPython.display import display, HTML, Math, Latex, Markdown
+import re
+
+default_property_dict = {
+    'T':'degC',         # Temperature: unit options ('K','degC','degF','degR')
+    'p':'kPa',          # pressure: unit options ('kPa','bar','psi','atm',etc.)
+    'v':'m^3/kg',       # specific volume
+    'u':'kJ/kg',        # specific internal energy
+    'h':'kJ/kg',        # specific enthalpy
+    's':'kJ/kg/K',      # specific entropy
+    'x':'',             # quality: dimensionless units enter as an empty string
+    'phi':'kJ/kg',      # specific exergy
+    'psi':'kJ/kg',      # specific exergy
+    'm':'kg',           # mass
+    'mdot':'kg/s',      # mass flow rate
+    'V':'m^3',          # volume
+    'Vdot':'m^3/s',     # volumetric flow rate
+    'X':'kJ',           # exergy
+    'Xdot':'kW',        # exergy rate
+}
 
 class PropertyDict:
+    """ """
     def __init__(self, property_symbol=None, units=None, unit_system="SI_C"):
         self.dict = {}
         self.property_symbol = property_symbol
@@ -10,6 +30,14 @@ class PropertyDict:
         self.set_units(units)
 
     def set_units(self, units=None):
+        """
+
+        Args:
+          units:  (Default value = None)
+
+        Returns:
+
+        """
         if units is None:
             try:
                 result = preferred_units_from_symbol(
@@ -23,6 +51,7 @@ class PropertyDict:
         self._update_units()
 
     def _update_units(self):
+        """ """
         if self.units is not None:
             for k, v in self.dict.items():
                 self.dict[k] = v.to(self.units)
@@ -56,28 +85,17 @@ class PropertyDict:
 
 
 class PropertyTable:
+    """Table for storing """
     def __init__(
         self,
-        properties=[
-            "T",
-            "p",
-            "v",
-            "u",
-            "h",
-            "s",
-            "x",
-            "m",
-            "mdot",
-            "V",
-            "Vdot",
-            "X",
-            "Xdot",
-        ],
+        properties=default_property_dict,
+        property_source = None,
         unit_system="SI_C",
     ):
         self.properties = []
         self.dict = {}
         self.unit_system = None
+        self.property_source = None
         if isinstance(properties, (list, tuple)):
             self.unit_system = unit_system
             for prop in properties:
@@ -87,9 +105,19 @@ class PropertyTable:
             for prop, unit in properties.items():
                 self.add_property(prop, units=unit)
         else:
-            raise ValueError("Expected properties to be a list or dict")
+            raise ValueError("Expected properties to be a list, tuple, or dict")
 
     def add_property(self, property, units=None, unit_system=None):
+        """
+
+        Args:
+          property: 
+          units:  (Default value = None)
+          unit_system:  (Default value = None)
+
+        Returns:
+
+        """
         property = str(property)
         self.properties.append(property)
         if units is not None:
@@ -97,25 +125,51 @@ class PropertyTable:
         elif unit_system is not None:
             self.dict[property] = PropertyDict(property, unit_system=unit_system)
         else:
-            self.dict[property] = PropertyDict(
-                property, unit_system=self.unit_system
-            )
+            self.dict[property] = PropertyDict(property, unit_system=self.unit_system)
         return self.dict[property]
 
     def _list_like(self, value):
-        """Try to detect a list-like structure excluding strings"""
+        """Try to detect a list-like structure excluding strings
+
+        Args:
+          value: 
+
+        Returns:
+
+        """
         return not hasattr(value, "strip") and (
             hasattr(value, "__getitem__") or hasattr(value, "__iter__")
         )
 
-    def display(self, *args, dropna=False, **kwargs):
+    def display(self, *args, dropna=True, **kwargs):
+        """
+
+        Args:
+          *args: 
+          dropna:  (Default value = False)
+          **kwargs: 
+
+        Returns:
+
+        """
         df = self.to_pandas_DataFrame(*args, dropna=dropna, **kwargs)
         display(HTML(df.to_html(**kwargs)))
 
     def to_dict(self):
+        """ """
         return {i: self.dict[i].dict for i in self.properties}
 
-    def to_pandas_DataFrame(self, *args, dropna=False, **kwargs):
+    def to_pandas_DataFrame(self, *args, dropna=True, **kwargs):
+        """
+
+        Args:
+          *args: 
+          dropna: remove empty columns (Default value = True)
+          **kwargs: 
+
+        Returns:
+
+        """
         df = pd.DataFrame(self.to_dict())
         for prop in df.keys():
             if self.dict[prop].units is not None:
@@ -128,8 +182,6 @@ class PropertyTable:
             df.dropna(axis="columns", how="all", inplace=True)
         df.fillna("-", inplace=True)
         df.index = df.index.map(str)
-        df.sort_index(inplace=True)
-        df.round({"T": 2})
         for prop in df.keys():
             if self.dict[prop].units is not None:
                 df.rename(
@@ -137,7 +189,61 @@ class PropertyTable:
                     axis=1,
                     inplace=True,
                 )
+        def atoi(text):
+            return int(text) if text.isdigit() else text
+        def natural_keys(text):
+            return [ atoi(c) for c in re.split('(\d+)',text) ]
+        a = df.index.tolist()
+        a.sort(key=natural_keys)
+        df = df.reindex(a)
         return df
+
+    def fix(self, state=None, property_source=None, verbose=False):
+        """Fix a state based on known properties
+        
+        Use the known properties at a state to evaluate all unknown
+        properties at that state using the property tables store in
+        property_source.  If a default property source has been
+        defined for the table, it will be used for property
+        evaluation.  If a default property source has not been set, or
+        if the table contains multiple fluids, the property table that
+        should be used to fix the state needs to be provided as an
+        argument.  There must already be enough independent properties
+        defined for the state to evaluate the unknown properties (1,
+        2, or 3 depending on the fluid).
+
+        Args:
+          state (str): state to fix 
+          property_source (property_table): table to use when evaluating properties
+                 (Default = None)
+          **kwargs: 
+
+        """
+        property_source = property_source or self.property_source
+        known_props = self[state].keys()
+        unknown_props = [i for i in self.properties if i not in known_props ]
+        indep_props_comb = [[i,j] for i in known_props for j in known_props if i != j]
+        if verbose:
+            print(f'property_source: {property_source}')
+            print(f'known_props: {known_props}')
+            print(f'unknown_props: {unknown_props}')
+        for up in unknown_props:
+            if verbose: print(f'trying to fix {up}')
+            for ipc in indep_props_comb:
+                if 'ID' not in ipc:
+                    if verbose: print(ipc)
+                    try:
+                        indep_dict = { ipc[0]:self[state][ipc[0]], ipc[1]:self[state][ipc[1]] }
+                        if verbose: print(f'using: {indep_dict}')
+                        value = getattr(property_source,up)(**indep_dict)
+                        self.__setitem__([state,up],value)
+                        if verbose: print(f'{up} for {state}: {value}')
+                        break
+                    except Exception as e:
+                        if verbose: print(e)
+            else:
+                if verbose: print(f'unable to fix {up} for state {state}')
+
 
     def __getitem__(self, item):
         if self._list_like(item):

@@ -115,7 +115,7 @@ def PropertyLookup(
     :param fluid: fluid name (Default value = None)
     :param unit_system: unit system for return value - one of 'SI_C', 'SI_K', 'English_F', 'English_R' (Default value = )
     :param verbose: show debug information (Default value = False)
-    :param **kwargs: 
+    :param **kwargs:
 
     """
 
@@ -165,6 +165,10 @@ def PropertyLookup(
                 PropsSI_args.append(CPSymb)
             if CP_symbUpper_to_units[CPSymb] is not None:
                 # Add independent parameter value to argument list with appropriate magnitude and units stripped (invert specific volume to get density if needed)
+                if not isinstance(arg, Quantity):
+                    arg_type = CP_symb_to_type[PropsSI_args[-1]]
+                    arg_units = preferred_units_from_type(arg_type, unit_system)
+                    arg = Quantity(arg, arg_units)
                 value = (arg.to(CP_symbUpper_to_units[CPSymb]).magnitude) ** exponent
             else:
                 value = arg  # Add independent paramter value directly to argument list if it has no units that need to be adjusted
@@ -219,7 +223,7 @@ def PropertyLookup(
 
 class Properties:
     """
-    A class to return thermodynamic properties for a real fluid 
+    A class to return thermodynamic properties for a real fluid
 
     :param fluid: fluid name (Default value = None)
     :param unit_system: units for return values - one of 'SI_C','SI_K','English_F','English_R' (Default = 'SI_C')
@@ -232,129 +236,181 @@ class Properties:
         # legacy definitions/aliases
         self.Cp = self.cp
         self.Cv = self.cv
+        self.mu = self.viscosity
+        self.nu = self.kinematic_viscosity
 
     def _lookup(self, desired, **kwargs):
         """
-        Call PropertyLookup to evaluate the desired property for the indepent properties specified 
+        Call PropertyLookup to evaluate the desired property for the indepent properties specified
         as keyword arguments
 
         :param desired: desired property
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar 
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
 
         """
         return PropertyLookup(
             desired, fluid=self.fluid, unit_system=self.unit_system, **kwargs
         )
 
-    def T(self, **kwargs):
+    def _update_kwargs(self, args, kwargs):
+        """use argument unit to identify appropriate keyword"""
+        for arg in args:
+            if isinstance(arg, Quantity):
+                try:
+                    arg.to('K') # Temperature
+                    kwargs = dict(T=arg, **kwargs)
+                except:
+                    try:
+                        arg.to('kPa') # pressure
+                        kwargs = dict(p=arg, **kwargs)
+                    except:
+                        try:
+                            arg.to('m^3/kg') # specific volume
+                            kwargs = dict(v=arg, **kwargs)
+                        except:
+                            try:
+                                arg.to('kJ/kg/K') # entropy
+                                kwargs = dict(s=arg, **kwargs)
+                            except:
+                                try:
+                                    arg.to('kg/m^3') # density
+                                    kwargs = dict(d=arg, **kwargs)
+                                except:
+                                    try:
+                                        arg.to('kJ/kmol/K') # molar entropy
+                                        kwargs = dict(s_molar=arg, **kwargs)
+                                    except:
+                                        try:
+                                            arg.to('kmol/m^3') # molar density
+                                            kwargs = dict(d_molar=arg, **kwargs)
+                                        except:
+                                            try:
+                                                if arg.dimensionless and (0<= arg <= 1): # quality
+                                                    kwargs = dict(x=arg, **kwargs)
+                                            except:
+                                                print(f'Unable to determine property type for {f} based on units')
+            elif 0<= arg <= 1: # quality
+                kwargs = dict(x=arg, **kwargs)
+        return kwargs
+
+    def T(self, *args, **kwargs):
         """
         Temperature from two independent intensive properties
 
         example:
         >> fluid.T(v=v1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar 
-	:returns: Temperature as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar
+        :returns: Temperature as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("T", **kwargs)
 
-    def p(self, **kwargs):
+    def p(self, *args, **kwargs):
         """
         pressure from two independent intensive properties
 
         example:
         >> fluid.p(T=T1, v=v1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar 
-	:returns: pressure as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar
+        :returns: pressure as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("p", **kwargs)
 
-    def d(self, **kwargs):
+    def d(self, *args, **kwargs):
         """
         density from two independent intensive properties
 
         example:
         >> fluid.d(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar 
-	:returns: density as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar
+        :returns: density as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("D", **kwargs)
 
-    def v(self, **kwargs):
+    def v(self, *args, **kwargs):
         """
         specific volume from two independent intensive properties
 
         example:
         >> fluid.v(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar 
-	:returns: specific volume as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar
+        :returns: specific volume as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("v", **kwargs)
 
-    def h(self, **kwargs):
+    def h(self, *args, **kwargs):
         """
         enthalpy from two independent intensive properties
 
         example:
         >> fluid.h(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar 
-	:returns: specific enthalpy as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
+        :returns: specific enthalpy as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("h", **kwargs)
 
-    def u(self, **kwargs):
+    def u(self, *args, **kwargs):
         """
         internal energy from two independent intensive properties
 
         example:
         >> fluid.u(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar 
-	:returns: specific internal energy as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
+        :returns: specific internal energy as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("u", **kwargs)
 
-    def s(self, **kwargs):
+    def s(self, *args, **kwargs):
         """
         entropy from two independent intensive properties
 
         example:
         >> fluid.s(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar 
-	:returns: specific entropy as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
+        :returns: specific entropy as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("s", **kwargs)
 
-    def x(self, **kwargs):
+    def x(self, *args, **kwargs):
         """
         entropy from two independent intensive properties
 
         example:
         >> fluid.x(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar 
-	:returns: vapor quality dimensionless quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
+        :returns: vapor quality dimensionless quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("Q", **kwargs)
 
-    def phase(self, **kwargs):
+    def phase(self, *args, **kwargs):
         """
         fluid phase from two independent intensive properties
 
         example:
         >> fluid.phase(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar 
-	:returns: phase descriptor as a string
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
+        :returns: phase descriptor as a string
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("phase", **kwargs)
 
-    def c(self, **kwargs):
+    def c(self, *args, **kwargs):
         """
         specific heat from two independent intensive properties
 
@@ -362,11 +418,12 @@ class Properties:
         >> fluid.c(T=T1, p=p1)
 
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
-	:returns: specific heat as a dimensional quantity
+        :returns: specific heat as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("CpMass", **kwargs)
 
-    def cp(self, **kwargs):
+    def cp(self, *args, **kwargs):
         """
         constant pressure specific heat from two independent intensive properties
 
@@ -374,23 +431,25 @@ class Properties:
         >> fluid.cp(T=T1, p=p1)
 
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar,d_molar
-	:returns: constant pressure specific heat as a dimensional quantity
+        :returns: constant pressure specific heat as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("CpMass", **kwargs)
 
-    def cv(self, **kwargs):
+    def cv(self, *args, **kwargs):
         """
         constant pressure specific heat from two independent intensive properties
 
         example:
         >> fluid.cv(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar 
-	:returns: constant volume specific heat as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
+        :returns: constant volume specific heat as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("CvMass", **kwargs)
 
-    def T_critical(self, **kwargs):
+    def T_critical(self, *args, **kwargs):
         """
         Critical point temperature
 
@@ -398,11 +457,12 @@ class Properties:
         >> fluid.T_critical()
 
         :param **kwargs: ignored
-	:returns: Temperature at the critical point as a dimensional quantity
+        :returns: Temperature at the critical point as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("T_critical", **kwargs)
 
-    def T_triple(self, **kwargs):
+    def T_triple(self, *args, **kwargs):
         """
         Triple point temperature
 
@@ -410,11 +470,11 @@ class Properties:
         >> fluid.T_triple()
 
         :param **kwargs: ignored
-	:returns: Temperature at the triple point as a dimensional quantity
+        :returns: Temperature at the triple point as a dimensional quantity
         """
         return self._lookup("T_triple", **kwargs)
 
-    def T_max(self, **kwargs):
+    def T_max(self, *args, **kwargs):
         """
         Maximum temperature of validity
 
@@ -422,11 +482,11 @@ class Properties:
         >> fluid.T_max()
 
         :param **kwargs: ignored
-	:returns: maximum valid Temperature as a dimensional quantity
+        :returns: maximum valid Temperature as a dimensional quantity
         """
         return self._lookup("T_max", **kwargs)
 
-    def T_min(self, **kwargs):
+    def T_min(self, *args, **kwargs):
         """
         Minimum temperature of validity
 
@@ -434,11 +494,11 @@ class Properties:
         >> fluid.T_min()
 
         :param **kwargs: ignored
-	:returns: minimum valid Temperature as a dimensional quantity
+        :returns: minimum valid Temperature as a dimensional quantity
         """
         return self._lookup("T_min", **kwargs)
 
-    def p_critical(self, **kwargs):
+    def p_critical(self, *args, **kwargs):
         """
         Critical point pressure
 
@@ -446,11 +506,11 @@ class Properties:
         >> fluid.p_critical()
 
         :param **kwargs: ignored
-	:returns: pressure at the critical point as a dimensional quantity
+        :returns: pressure at the critical point as a dimensional quantity
         """
         return self._lookup("p_critical", **kwargs)
 
-    def p_triple(self, **kwargs):
+    def p_triple(self, *args, **kwargs):
         """
         Triple point pressure
 
@@ -458,11 +518,11 @@ class Properties:
         >> fluid.p_triple()
 
         :param **kwargs: ignored
-	:returns: pressure at the triple point as a dimensional quantity
+        :returns: pressure at the triple point as a dimensional quantity
         """
         return self._lookup("p_triple", **kwargs)
 
-    def p_max(self, **kwargs):
+    def p_max(self, *args, **kwargs):
         """
         Maximum pressure of validity
 
@@ -470,7 +530,7 @@ class Properties:
         >> fluid.p_max()
 
         :param **kwargs: ignored
-	:returns: maximum valid pressure as a dimensional quantity
+        :returns: maximum valid pressure as a dimensional quantity
         """
         return self._lookup("p_max", **kwargs)
 
@@ -482,107 +542,115 @@ class Properties:
         >> fluid.p_min()
 
         :param **kwargs: ignored
-	:returns: minimum valid pressure as a dimensional quantity
+        :returns: minimum valid pressure as a dimensional quantity
         """
         return self._lookup("p_min", **kwargs)
 
-    def d_molar(self, **kwargs):
+    def d_molar(self, *args, **kwargs):
         """
         molar density from two independent intensive properties
 
         example:
         >> fluid.d_molar(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar 
-	:returns: molar density as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
+        :returns: molar density as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("Dmolar", **kwargs)
 
-    def v_molar(self, **kwargs):
+    def v_molar(self, *args, **kwargs):
         """
         molar specific volume from two independent intensive properties
 
         example:
         >> fluid.v_molar(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar 
-	:returns: molar specific volume as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
+        :returns: molar specific volume as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("vmolar", **kwargs)
 
-    def h_molar(self, **kwargs):
+    def h_molar(self, *args, **kwargs):
         """
         molar enthalpy from two independent intensive properties
 
         example:
         >> fluid.h_molar(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar 
-	:returns: molar specific enthalpy as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
+        :returns: molar specific enthalpy as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("hmolar", **kwargs)
 
-    def u_molar(self, **kwargs):
+    def u_molar(self, *args, **kwargs):
         """
         molar internal energy from two independent intensive properties
 
         example:
         >> fluid.u_molar(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar 
-	:returns: molar specific internal energy as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
+        :returns: molar specific internal energy as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("umolar", **kwargs)
 
-    def s_molar(self, **kwargs):
+    def s_molar(self, *args, **kwargs):
         """
         molar entropy from two independent intensive properties
 
         example:
         >> fluid.s_molar(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar 
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
 
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("smolar", **kwargs)
 
-    def cp_molar(self, **kwargs):
+    def cp_molar(self, *args, **kwargs):
         """
         molar constant pressure specific heat from two independent intensive properties
 
         example:
         >> fluid.cp_molar(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar 
-	:returns: molar constant pressure specific heat as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
+        :returns: molar constant pressure specific heat as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("CpMolar", **kwargs)
 
-    def cv_molar(self, **kwargs):
+    def cv_molar(self, *args, **kwargs):
         """
         molar constant volume specific heat from two independent intensive properties
 
         example:
         >> fluid.cv_molar(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar 
-	:returns: molar constant volume specific heat as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
+        :returns: molar constant volume specific heat as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("CvMolar", **kwargs)
 
-    def a(self, **kwargs):
+    def a(self, *args, **kwargs):
         """
         speed of sound from two independent intensive properties
 
         example:
         >> fluid.a(T=T1, p=p1)
 
-        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,rho,u_molar,h_molar,s_molar,d_molar 
-	:returns: speed of sound as a dimensional quantity
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,rho,u_molar,h_molar,s_molar,d_molar
+        :returns: speed of sound as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("speed_of_sound", **kwargs)
 
-    def conductivity(self, **kwargs):
+    def conductivity(self, *args, **kwargs):
         """
         thermal conductivity from two independent intensive properties
 
@@ -590,11 +658,51 @@ class Properties:
         >> fluid.conductivity(T=T1, p=p1)
 
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
-	:returns: thermal conductivity as a dimensional quantity        
+        :returns: thermal conductivity as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("conductivity", **kwargs)
 
-    def Pr(self, **kwargs):
+    def viscosity(self, *args, **kwargs):
+        """
+        dynamic viscosity from two independent intensive properties
+
+        example:
+        >> fluid.viscosity(T=T1, p=p1)
+
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
+        :returns: dynamic viscosity as a dimensional quantity
+        """
+        kwargs = self._update_kwargs(args,kwargs)
+        return self._lookup("viscosity", **kwargs)
+
+    def kinematic_viscosity(self, *args, **kwargs):
+        """
+        dynamic viscosity from two independent intensive properties
+
+        example:
+        >> fluid.kinematic_viscosity(T=T1, p=p1)
+
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
+        :returns: kinematic viscosity as a dimensional quantity
+        """
+        kwargs = self._update_kwargs(args,kwargs)
+        return self._lookup("viscosity", **kwargs)/self._lookup("D", **kwargs)
+
+    def thermal_diffusivity(self, *args, **kwargs):
+        """
+        thermal diffusivity from two independent intensive properties
+
+        example:
+        >> fluid.thermal_diffusivity(T=T1, p=p1)
+
+        :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
+        :returns: thermal diffusivity as a dimensional quantity
+        """
+        kwargs = self._update_kwargs(args,kwargs)
+        return self._lookup("conductivity", **kwargs)/(self._lookup("D", **kwargs)*self._lookup("CpMass", **kwargs))
+    
+    def Pr(self, *args, **kwargs):
         """
         Prandtl number from two independent intensive properties
 
@@ -602,8 +710,9 @@ class Properties:
         >> fluid.Pr(T=T1, p=p1)
 
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar,d_molar
-	:returns: Prandtl number as a dimensionless quantity
+        :returns: Prandtl number as a dimensionless quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("Prandtl", **kwargs)
 
     def property_diagram(

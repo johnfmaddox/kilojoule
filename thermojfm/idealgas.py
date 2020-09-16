@@ -1,5 +1,5 @@
 from .common import preferred_units_from_type, preferred_units_from_symbol, invert_dict
-from .units import units, Q_
+from .units import units, Q_, Quantity
 from .plotting import PropertyPlot
 import pyromat as pm
 import numpy as np
@@ -24,7 +24,7 @@ pm_symb_to_units = invert_dict(pm_units_to_symb)
 class Properties:
     """ """
 
-    def __init__(self, fluid, unit_system="SI_C", verbose=False):
+    def __init__(self, fluid, unit_system="SI_K", verbose=False):
         self.verbose = verbose
         self.unit_system = unit_system
         self.fluid = fluid
@@ -39,10 +39,39 @@ class Properties:
         self.e = self.u
         self.gamma = self.k
 
+    def _update_kwargs(self, args, kwargs):
+        for arg in args:
+            try:
+                arg.to('K')
+                kwargs = dict(T=arg, **kwargs)
+            except:
+                try:
+                    arg.to('kPa')
+                    kwargs = dict(p=arg, **kwargs)
+                except:
+                    try:
+                        arg.to('m^3/kg')
+                        kwargs = dict(v=arg, **kwargs)
+                    except:
+                        try:
+                            arg.to('kJ/kg/K')
+                            kwargs = dict(s=arg, **kwargs)
+                        except:
+                            try:
+                                arg.to('kg/m^3')
+                                kwargs = dict(d=arg, **kwargs)
+                            except:
+                                print(f'Unable to determine property type for {f} based on units')
+        for k,v in kwargs.items():
+            if not isinstance(v,Quantity):
+                arg_units = preferred_units_from_symbol(k, unit_system=self.unit_system)
+                kwargs[k] = Quantity(v, arg_units)
+        return kwargs
+
     def _to_quantity(self, pm_symb, pm_result, pm_result_type):
         """
         Processes the result from a PYroMat call to strip and array wrapping
-        and converted to the preferred unit type 
+        and converted to the preferred unit type
 
         :param pm_symb: string from of symbol using PYroMat nomenclature
         :param pm_result: value returned from PYroMat
@@ -56,7 +85,7 @@ class Properties:
                 print(e)
         preferred_units = preferred_units_from_type(pm_result_type, self.unit_system)
         result_units = pm_symb_to_units[pm_symb]
-        return Q_(pm_result, result_units).to(preferred_units)
+        return Quantity(pm_result, result_units).to(preferred_units)
 
     def _get_p_from_others(self, T=None, p=None, d=None, v=None, s=None, **kwargs):
         """
@@ -67,7 +96,7 @@ class Properties:
         :param d: density as a dimensional quantity (Default value = None)
         :param v: specific volume as a dimensional quantity (Default value = None)
         :param s: specific entropy as a dimensional quantity (Default value = None)
-        :param **kwargs: 
+        :param **kwargs:
         :returns: pressure as a float in the default PYroMat units
         """
         if p is not None:
@@ -111,7 +140,7 @@ class Properties:
         :param d: density as a dimensional quantity (Default value = None)
         :param v: specific volume as a dimensional quantity (Default value = None)
         :param s: specific entropy as a dimensional quantity (Default value = None)
-        :param **kwargs: 
+        :param **kwargs:
         :returns: temperature as a float in the default PYroMat units
         """
         if T is not None:
@@ -148,7 +177,7 @@ class Properties:
                 s=s.to("kJ/kg/K").magnitude, d=d.to("kg/m^3").magnitude
             )
         #         else:
-        #             T = Q_(300,'K')
+        #             T = Quantity(300,'K')
         return T
 
     def _invTp_sd(self, s, d):
@@ -156,7 +185,7 @@ class Properties:
 
         :param s: specific entropy as a float in default PYroMat units
         :param d: density as a float in default PYroMat units
-        :returns: 
+        :returns:
         """
         # Generic iteration parameters
         N = 100  # Maximum iterations
@@ -167,8 +196,8 @@ class Properties:
 
         def p_from_T(T):
             """use the ideal gas law to get the pressure from temperature (known density)
-            :param T: 
-            :returns: pressure as a float in default PYroMat units 
+            :param T:
+            :returns: pressure as a float in default PYroMat units
             """
             return scale_factor * T
 
@@ -231,7 +260,7 @@ class Properties:
         return Tk[0], p_[0]
 
     def _p_s(self, s, T):
-        """Pressure as a function of entropy: 
+        """Pressure as a function of entropy:
         overload of the PYroMat implementation to enable this functionality for mixtures
 
         :param s: specific entropy as a float in PYroMat units
@@ -242,7 +271,7 @@ class Properties:
         s0 = self._pm.s(T=T, p=def_p)
         return def_p * np.exp((s0 - s) / self.R().to("kJ/kg/K").magnitude)
 
-    def T(self, **kwargs):
+    def T(self, *args, **kwargs):
         """
         Temperature from one or two independent, intensive properties
 
@@ -252,13 +281,14 @@ class Properties:
         >> ig.T(u=u1)
         >> ig.T(d=d1, s=s1)
 
-        :param **kwargs: one or two dimensional quantities of p,d,v,u,h,s 
-	:returns: Temperature as a dimensional quantity
+        :param **kwargs: one or two dimensional quantities of p,d,v,u,h,s
+        :returns: Temperature as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         pm_result = self._get_T_from_others(**kwargs)
         return self._to_quantity("T", pm_result, "temperature")
 
-    def p(self, **kwargs):
+    def p(self, *args, **kwargs):
         """
         pressure from two independent, intensive properties
 
@@ -267,13 +297,14 @@ class Properties:
         >> ig.p(v=v1, h=h1)
         >> ig.p(d=d1, s=s1)
 
-        :param **kwargs: two dimensional quantities of T,d,v,u,h,s 
-	:returns: pressure as a dimensional quantity
+        :param **kwargs: two dimensional quantities of T,d,v,u,h,s
+        :returns: pressure as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         pm_result = self._get_p_from_others(**kwargs)
         return self._to_quantity("p", pm_result, "pressure")
 
-    def cp(self, T=None, **kwargs):
+    def cp(self, *args, **kwargs):
         """
         constant pressure specific heat from one or two independent, intensive properties
 
@@ -283,17 +314,19 @@ class Properties:
         >> ig.cp(d=d1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
-        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s 
+        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: constant pressure specific as a dimensional quantity
         """
-        if T is None:
+        kwargs = self._update_kwargs(args,kwargs)
+        if 'T' not in kwargs.keys():
             T = self._get_T_from_others(**kwargs)
         else:
+            T = kwargs['T']
             T = T.to("K").magnitude
         pm_result = self._pm.cp(T)[0]
         return self._to_quantity("Cp", pm_result, "specific heat")
 
-    def cv(self, T=None, **kwargs):
+    def cv(self, *args, **kwargs):
         """
         constant volume specific heat from one or two independent, intensive properties
 
@@ -303,17 +336,19 @@ class Properties:
         >> ig.cv(d=d1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
-        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s 
+        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: constant pressure specific as a dimensional quantity
         """
-        if T is None:
+        kwargs = self._update_kwargs(args,kwargs)
+        if 'T' not in kwargs.keys():
             T_pm = self._get_T_from_others(**kwargs)
         else:
+            T = kwargs['T']
             T_pm = T.to("K").magnitude
         pm_result = self._pm.cv(T=T_pm)[0]
         return self._to_quantity("Cv", pm_result, "specific heat")
 
-    def k(self, T=None, **kwargs):
+    def k(self, *args, **kwargs):
         """
         specific heat ratio from one or two independent, intensive properties
         {also accessibe as .gamma()}
@@ -324,17 +359,19 @@ class Properties:
         >> ig.k(d=d1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
-        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s 
+        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: constant pressure specific as a dimensional quantity
         """
-        if T is None:
+        kwargs = self._update_kwargs(args,kwargs)
+        if 'T' not in kwargs.keys():
             T_pm = self._get_T_from_others(**kwargs)
         else:
+            T = kwargs['T']
             T_pm = T.to("K").magnitude
         pm_result = self._pm.gam(T=T_pm)
         return self._to_quantity("k", pm_result, "dimensionless")
 
-    def d(self, T=None, p=None, **kwargs):
+    def d(self, *args, **kwargs):
         """
         density from two independent, intensive properties
 
@@ -345,21 +382,24 @@ class Properties:
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param p: pressure as a dimensional quantity (Default value = None)
-        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s 
+        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: density as a dimensional quantity
         """
-        if T is None:
-            T_pm = self._get_T_from_others(p=p, **kwargs)
+        kwargs = self._update_kwargs(args,kwargs)
+        if 'T' not in kwargs.keys():
+            T_pm = self._get_T_from_others(**kwargs)
+            kwargw = dict(T=T_pm, **kwargs)
         else:
+            T = kwargs['T']            
             T_pm = T.to("K").magnitude
-        if p is None:
-            p_pm = self._get_p_from_others(T=T, **kwargs)
+        if 'p' not in kwargs.keys():
+            p_pm = self._get_p_from_others(**kwargs)
         else:
-            p_pm = p.to("bar").magnitude
+            p_pm = kwargs['p'].to("bar").magnitude
         pm_result = self._pm.d(T=T_pm, p=p_pm)[0]
         return self._to_quantity("d", pm_result, "density")
 
-    def v(self, **kwargs):
+    def v(self, *args, **kwargs):
         """
         specific volume from two independent, intensive properties
 
@@ -370,13 +410,14 @@ class Properties:
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param p: pressure as a dimensional quantity (Default value = None)
-        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s 
+        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: specific volume as a dimensional quantity
         """
+        kwargs = self._update_kwargs(args,kwargs)
         d = self.d(**kwargs)
         return 1 / d
 
-    def u(self, T=None, **kwargs):
+    def u(self, *args, **kwargs):
         """
         specific internal energy from one or two independent, intensive properties
         {also accessible as .e()}
@@ -387,17 +428,19 @@ class Properties:
         >> ig.u(d=d1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
-        :param **kwargs: zero, one, or two dimensional quantities of p,d,v,h,s 
+        :param **kwargs: zero, one, or two dimensional quantities of p,d,v,h,s
         :returns: specific internal energy as a dimensional quantity
         """
-        if T is None:
+        kwargs = self._update_kwargs(args,kwargs)
+        if 'T' not in kwargs.keys():
             T_pm = self._get_T_from_others(**kwargs)
         else:
+            T = kwargs['T']
             T_pm = T.to("K").magnitude
         pm_result = self._pm.e(T=T_pm)[0]
         return self._to_quantity("e", pm_result, "specific energy")
 
-    def h(self, T=None, **kwargs):
+    def h(self, *args, **kwargs):
         """
         specific enthalpy from one or two independent, intensive properties
 
@@ -407,17 +450,19 @@ class Properties:
         >> ig.h(d=d1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
-        :param **kwargs: zero, one, or two dimensional quantities of p,d,v,u,s 
+        :param **kwargs: zero, one, or two dimensional quantities of p,d,v,u,s
         :returns: specific enthalpy as a dimensional quantity
         """
-        if T is None:
+        kwargs = self._update_kwargs(args,kwargs)
+        if 'T' not in kwargs.keys():
             T_pm = self._get_T_from_others(**kwargs)
         else:
+            T = kwargs['T']
             T_pm = T.to("K").magnitude
         pm_result = self._pm.h(T=T_pm)[0]
         return self._to_quantity("h", pm_result, "specific energy")
 
-    def s(self, T=None, p=None, **kwargs):
+    def s(self, *args, **kwargs):
         """
         specific entropy from two independent, intensive properties
 
@@ -428,16 +473,19 @@ class Properties:
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param p: pressure as a dimensional quantity (Default value = None)
-        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s 
+        :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: specific entropy as a dimensional quantity
         """
-        if T is None:
-            T_pm = self._get_T_from_others(p=p, **kwargs)
+        kwargs = self._update_kwargs(args,kwargs)
+        if 'T' not in kwargs.keys():
+            T_pm = self._get_T_from_others(**kwargs)
         else:
+            T = kwargs['T']
             T_pm = T.to("K").magnitude
-        if p is None:
-            p_pm = self._get_p_from_others(T=T, **kwargs)
+        if 'p' not in kwargs.keys():
+            p_pm = self._get_p_from_others(**kwargs)
         else:
+            p = kwargs['p']
             p_pm = p.to("bar").magnitude
         pm_result = self._pm.s(T=T_pm, p=p_pm)[0]
         return self._to_quantity("s", pm_result, "specific entropy")

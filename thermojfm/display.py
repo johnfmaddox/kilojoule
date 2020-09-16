@@ -1,3 +1,15 @@
+"""kiloJoule display module
+
+This module provides classes for parsing python code as text and
+formatting for display using \LaTeX. The primary use case is coverting
+Jupyter notebook cells into MathJax output by showing a progression of
+caculations from symbolic to final numeric solution in a multiline
+equation. It makes use of sympy formula formatting and the \LaTeX code
+can be stored as a string for writing to a file or copying to a
+external document.
+"""
+
+from string import ascii_lowercase
 from IPython.display import display, HTML, Math, Latex, Markdown
 from sympy import sympify, latex
 import re
@@ -23,13 +35,25 @@ post_sympy_latex_substitutions = {
     " ": ",",
 }
 
+# create a list of the form: [aa, ab, ac, ... , ca, cb, cc, ..., zz]
+plchldrpfixlst = [i+j+k for i in ascii_lowercase for j in ascii_lowercase for k in ascii_lowercase]
+
 
 class EqTerm:
+    """Parses a single term from an equation
+    
+    Instance recieves a string and treats it as a single term in an
+    equation.  The string is parsed as a variable using sympy to
+    create a \LaTeX representation and is evaluated in the namespace
+    provided to get a numeric value for the variable.
+    """
+
     def __init__(
         self,
         term_string,
         namespace=locals(),
         numeric_brackets="{}",
+        plchldr_prefix=None,
         verbose=False,
         **kwargs,
     ):
@@ -38,6 +62,7 @@ class EqTerm:
         self.verbose = verbose
         self.namespace = namespace
         self.orig_string = term_string
+        self.prefix = plchldr_prefix
         for k, v in pre_sympy_latex_substitutions.items():
             term_string = re.sub(k, v, term_string)
         self.term_string = term_string
@@ -72,10 +97,19 @@ class EqTerm:
             self.sympified_placeholder = self.placeholder
 
     def apply_local_latex_subs(self):
+        """Modify the default \LaTeX string produced by sympy"""
         for key, value in post_sympy_latex_substitutions.items():
             self.latex = self.latex.replace(key, value)
 
     def to_sympy(self):
+        """Parse string using sympify from sympy
+
+        Parses the string stored in self.term_string. If the string is
+        not an operator, i.e. +,-,*,/,etc., create a sympified latex
+        representation and a sanitized-placeholder that will be
+        treated a generic term when the full equation is sympified
+        later.
+        """
         string = self.term_string
         if string not in "**/+-=^()":
             try:
@@ -83,6 +117,7 @@ class EqTerm:
                 self.sympy_expr = string
                 self.latex = string
                 self.placeholder = string
+                self.sanitize_placeholder()
             except Exception as e:
                 if self.verbose:
                     print(e)
@@ -94,7 +129,6 @@ class EqTerm:
                     self.latex = latex(self.sympy_expr)
                     self.placeholder = "PlcHldr" + string.replace("_", "SbScrpt")
                     self.sanitize_placeholder()
-                    # self.sympified_placeholder_expr = sympify(self.placeholder)
                 except Exception as e:
                     if self.verbose:
                         print(e)
@@ -119,6 +153,17 @@ class EqTerm:
         self.apply_local_latex_subs()
 
     def to_numeric(self, numeric_brackets="()", verbose=False, **kwargs):
+        """Evaluate string in provided namespace
+
+        Attempt to evaluate the provide in the provided namespace
+        (which is usually locals() provide from the environment where
+        this class was called
+
+        Args:
+          numeric_brackets:  (Default value = "()")
+          verbose:  (Default value = False)
+          **kwargs: 
+        """
         if numeric_brackets == "{}":
             leftbrace = "\\left\\{"
             rightbrace = "\\right\\}"
@@ -153,6 +198,14 @@ class EqTerm:
             self.numeric = string
 
     def process_function(self, numeric_brackets="()"):
+        """Parse a string representing a function call
+
+        Set the font of the function name and evaluate the result for
+        numeric display.  Include special processing for specific
+        functions.
+
+        Args: numeric_brackets (str): display brackets (Default value= "()")
+        """
         if self.verbose:
             print(f"EqTerm.process_function({self.term_string})")
         if numeric_brackets == "{}":
@@ -223,6 +276,13 @@ class EqTerm:
         self.sanitize_placeholder()
 
     def process_index(self):
+        """Process a string for an index lookup
+        
+        If the string appears to represent the indexing of a variable,
+        i.e. a dict key or list index, create a latex expression with
+        the index value in the subscript and the numeric value as the
+        indexed value.
+        """
         string = self.term_string
         string = string.replace("[", "_")
         for i in r""""']""":
@@ -235,6 +295,10 @@ class EqTerm:
         self.apply_local_latex_subs()
 
     def sanitize_placeholder(self):
+        """Post process placehoder string
+
+        Replace problematic characters/strings in the the placehoder used to typeset the parent equation with sympy.  This also add a three character alphabetic 
+        """
         remove_symbols = "_=*+-/([])^.," + '"' + "'"
         for i in remove_symbols:
             self.placeholder = self.placeholder.replace(i, "")
@@ -253,6 +317,7 @@ class EqTerm:
         for k, v in replace_num_dict.items():
             self.placeholder = self.placeholder.replace(k, v)
         self.placeholder += "End"
+        self.placeholder = self.prefix + self.placeholder
 
     def __repr__(self):
         return self.orig_string
@@ -262,6 +327,14 @@ class EqTerm:
 
 
 class EqFormat:
+    """Process a line of text as an equation 
+
+    For lines of text that appear to be assignments in equation form,
+    split into LHS and RHS, split each side into individual terms
+    using order of opertations, and parse each term using the EqTerm
+    class.
+    """
+
     def __init__(self, eq_string, namespace=locals(), verbose=False, **kwargs):
         self.verbose = verbose
         self.namespace = namespace
@@ -271,6 +344,13 @@ class EqFormat:
         self._process_terms(**kwargs)
 
     def _parse_input_string(self, **kwargs):
+        """Parse a line of python code into terms
+
+        Split a line of code into terms following order of operations rules
+
+        Args:
+          **kwargs: 
+        """
         operators = "*/^+-="
         parens = "()"
         brackets = "[]"
@@ -307,16 +387,39 @@ class EqFormat:
         self.parsed_list = eval(parsed_string)
 
     def _process_terms(self, **kwargs):
+        """Process each term in equation using EqTerm class
+        
+        Apply the EqTerm class to each term in the parsed equations
+        and append a placeholder prefix based on the position in the
+        Args:
+          **kwargs: 
+        """
         ret_lst = []
-        for term in self.parsed_list:
+        for i, term in enumerate(self.parsed_list):
             ret_lst.append(
-                EqTerm(term, namespace=self.namespace, verbose=self.verbose, **kwargs)
+                EqTerm(
+                    term,
+                    namespace=self.namespace,
+                    plchldr_prefix=plchldrpfixlst[i],
+                    verbose=self.verbose,
+                    **kwargs,
+                )
             )
             if self.verbose:
                 print(ret_lst[-1].placeholder)
         self.terms_list = ret_lst
 
     def _sympy_formula_formatting(self, **kwargs):
+        """Sympify equation expression
+
+        Use sympify to convert an equation string into a latex expression.  Sympy tends to rearrange equations through the sympify process, so the earlier classes/funtions in this chain introduce a prefix string to minimize the impacts of the sympy rearranging by tricking it into treating the terms as alphabetical by the order they are defines.
+
+        Args:
+          **kwargs: 
+
+        Returns:
+
+        """
         LHS_plchldr, *MID_plchldr, RHS_plchldr = "".join(
             [i.placeholder for i in self.terms_list]
         ).split("=")
@@ -328,13 +431,6 @@ class EqFormat:
         RHS_latex_symbolic = str(RHS_latex_plchldr)
         LHS_latex_numeric = str(LHS_latex_plchldr)
         RHS_latex_numeric = str(RHS_latex_plchldr)
-        #         for i,v in enumerate(MID_plchldr):
-        #             LHS_latex_plchldr += ' = '
-        #             LHS_latex_plchldr +=
-        #         MID_latex_symbolic = []
-        #         if MID_plchldr:
-        #             for i,v in enumerate(MID_plchldr):
-        #                 MID_latex_symbolic[i] = str(v)
         for i in self.terms_list:
             LHS_latex_symbolic = LHS_latex_symbolic.replace(
                 i.sympified_placeholder, i.latex
@@ -348,9 +444,6 @@ class EqFormat:
             RHS_latex_numeric = RHS_latex_numeric.replace(
                 i.sympified_placeholder, str(i.numeric)
             )
-        #             if MID_plchldr:
-        #                 for j,v in enumerate(MID_latex_symbolic):
-        #                     MID_latex_symbolic[j] = v.replace(i.sympified_placeholder, i.latex)
         if len(self.terms_list) > 3 and not len(MID_plchldr):
             LHS_latex_numeric = re.sub(
                 "^\\\\left\((.*)\\\\right\)$", "\g<1>", LHS_latex_numeric
@@ -378,6 +471,8 @@ class EqFormat:
 
 
 class Calculations:
+    """Displaye the calculations in the current cell"""
+
     def __init__(
         self,
         namespace=locals(),
@@ -396,8 +491,19 @@ class Calculations:
             self.process_line(line, comments=comments, verbose=verbose, **kwargs)
 
     def process_line(self, line, comments, verbose=False, **kwargs):
+        """Parse a single line of Python code
+
+        Args:
+          line (str): line of Python code
+          comments (bool): True to show comments (Default value = False) 
+          verbose (bool): show debug information (Default value = False)
+          **kwargs: 
+
+        Returns:
+
+        """
         try:
-            if "ShowCalculations(" in line or "SC(" in line:
+            if "Calculations(" in line or "SC(" in line:
                 pass
             elif line.strip().startswith("print"):
                 pass
@@ -422,6 +528,8 @@ class Calculations:
 
 
 class PropertyTables:
+    """Display all StatesTables in namespace"""
+
     def __init__(self, namespace, **kwargs):
         self.namespace = namespace
 
@@ -432,6 +540,13 @@ class PropertyTables:
 
 
 class Quantities:
+    """Display Quantities in namespace 
+
+    If a list of variables is provided, add each variable to list for
+    display.  Otherwise add all quantities in the namespace to the
+    list for display.
+    """
+
     def __init__(self, namespace, variables=None, n_col=3, style=None, **kwargs):
         self.namespace = namespace
         self.style = style
@@ -451,6 +566,15 @@ class Quantities:
         display(Latex(self.latex_string))
 
     def add_variable(self, variable, **kwargs):
+        """Add a variable to the display list
+
+        Args:
+          variable: 
+          **kwargs: 
+
+        Returns:
+
+        """
         term = EqTerm(variable, namespace=self.namespace, **kwargs)
         symbol = term.latex
         boxed_styles = ["box", "boxed", "sol", "solution"]
@@ -469,6 +593,12 @@ class Quantities:
 
 
 class Summary:
+    """Display all quantities and StatesTables in namespace
+
+    If a list of variables if provided, display only those variables,
+    otherwise display all quantities defined in the namespace.
+    """
+
     def __init__(self, namespace, variables=None, n_col=None, style=None, **kwargs):
         self.namespace = namespace
         if variables is not None:
