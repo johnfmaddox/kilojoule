@@ -24,17 +24,18 @@ def invert_dict(original_dict, replace_empty_string=True):
 
 
 # Associate common variable symbols with quantity types
-type_to_symbol_dict = {
+type_to_symb_dict = {
     "time": ["t", "time"],
     "temperature": ["T", "Temp", "Tdb", "T_db", "Twb", "T_wb"],
     "pressure": ["p"],
     "specific volume": ["v", "v_a", "vol"],
     "volume": ["V", "Vol", "Volume"],
-    "mass specific energy": [
+    "mass specific internal energy": [
         "u",
-        "h",
     ],
-    "molar specific energy": ["u_bar", "h_bar", "hbar", "ubar"],
+    "mass specific enthalpy": ["h"],
+    "molar specific internal energy": ["u_bar", "h_bar", "hbar", "ubar"],
+    "molar specific enthalpy": ["h_bar", "hbar"],
     "energy": [
         "E",
         "Q",
@@ -114,6 +115,7 @@ type_to_symbol_dict = {
     "kinematic viscosity": ["nu", "viscosity_kinematic", "visc_kin"],
     " ": ["x", "quality", "phase"],
 }
+symb_to_type_dict = invert_dict(type_to_symb_dict)
 
 # Default CoolProps units for symbols
 CP_units_to_symb = {

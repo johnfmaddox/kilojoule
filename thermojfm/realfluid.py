@@ -257,38 +257,43 @@ class Properties:
         for arg in args:
             if isinstance(arg, Quantity):
                 try:
-                    arg.to('K') # Temperature
-                    kwargs = dict(T=arg, **kwargs)
+                    arg_symb = arg.property_symbol
+                    arg_dict = {arg_symb:arg}
+                    kwargs = dict(**arg_dict, **kwargs)
                 except:
                     try:
-                        arg.to('kPa') # pressure
-                        kwargs = dict(p=arg, **kwargs)
+                        arg.to('K') # Temperature
+                        kwargs = dict(T=arg, **kwargs)
                     except:
                         try:
-                            arg.to('m^3/kg') # specific volume
-                            kwargs = dict(v=arg, **kwargs)
+                            arg.to('kPa') # pressure
+                            kwargs = dict(p=arg, **kwargs)
                         except:
                             try:
-                                arg.to('kJ/kg/K') # entropy
-                                kwargs = dict(s=arg, **kwargs)
+                                arg.to('m^3/kg') # specific volume
+                                kwargs = dict(v=arg, **kwargs)
                             except:
                                 try:
-                                    arg.to('kg/m^3') # density
-                                    kwargs = dict(d=arg, **kwargs)
+                                    arg.to('kJ/kg/K') # entropy
+                                    kwargs = dict(s=arg, **kwargs)
                                 except:
                                     try:
-                                        arg.to('kJ/kmol/K') # molar entropy
-                                        kwargs = dict(s_molar=arg, **kwargs)
+                                        arg.to('kg/m^3') # density
+                                        kwargs = dict(d=arg, **kwargs)
                                     except:
                                         try:
-                                            arg.to('kmol/m^3') # molar density
-                                            kwargs = dict(d_molar=arg, **kwargs)
+                                            arg.to('kJ/kmol/K') # molar entropy
+                                            kwargs = dict(s_molar=arg, **kwargs)
                                         except:
                                             try:
-                                                if arg.dimensionless and (0<= arg <= 1): # quality
-                                                    kwargs = dict(x=arg, **kwargs)
+                                                arg.to('kmol/m^3') # molar density
+                                                kwargs = dict(d_molar=arg, **kwargs)
                                             except:
-                                                print(f'Unable to determine property type for {f} based on units')
+                                                try:
+                                                    if arg.dimensionless and (0<= arg <= 1): # quality
+                                                        kwargs = dict(x=arg, **kwargs)
+                                                except:
+                                                    print(f'Unable to determine property type for {f} based on units')
             elif 0<= arg <= 1: # quality
                 kwargs = dict(x=arg, **kwargs)
         return kwargs
@@ -449,6 +454,7 @@ class Properties:
         kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("CvMass", **kwargs)
 
+    @property
     def T_critical(self, *args, **kwargs):
         """
         Critical point temperature
@@ -462,6 +468,7 @@ class Properties:
         kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("T_critical", **kwargs)
 
+    @property
     def T_triple(self, *args, **kwargs):
         """
         Triple point temperature
@@ -474,6 +481,7 @@ class Properties:
         """
         return self._lookup("T_triple", **kwargs)
 
+    @property
     def T_max(self, *args, **kwargs):
         """
         Maximum temperature of validity
@@ -486,6 +494,7 @@ class Properties:
         """
         return self._lookup("T_max", **kwargs)
 
+    @property
     def T_min(self, *args, **kwargs):
         """
         Minimum temperature of validity
@@ -498,6 +507,7 @@ class Properties:
         """
         return self._lookup("T_min", **kwargs)
 
+    @property
     def p_critical(self, *args, **kwargs):
         """
         Critical point pressure
@@ -510,6 +520,7 @@ class Properties:
         """
         return self._lookup("p_critical", **kwargs)
 
+    @property
     def p_triple(self, *args, **kwargs):
         """
         Triple point pressure
@@ -522,6 +533,7 @@ class Properties:
         """
         return self._lookup("p_triple", **kwargs)
 
+    @property
     def p_max(self, *args, **kwargs):
         """
         Maximum pressure of validity
@@ -534,6 +546,7 @@ class Properties:
         """
         return self._lookup("p_max", **kwargs)
 
+    @property
     def p_min(self, **kwargs):
         """
         Minimum pressure of validity

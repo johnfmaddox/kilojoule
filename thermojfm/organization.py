@@ -1,4 +1,5 @@
 from .units import Q_, units
+# from .common import symbol_to_type_dict
 import pandas as pd
 from IPython.display import display, HTML, Math, Latex, Markdown
 import re
@@ -65,23 +66,16 @@ class PropertyDict:
     def __setitem__(self, item, value):
         if self.units is not None:
             if isinstance(value, units.Quantity):
-                self.dict[str(item)] = value.to(self.units)
+                result = value.to(self.units)
             else:
-                self.dict[str(item)] = Q_(value, self.units)
+                result = Q_(value, self.units)
         else:
-            self.dict[str(item)] = value
+            result = value
+        result.property_symbol = self.property_symbol
+        self.dict[str(item)] = result
 
     def __delitem__(self, item):
         del self.dict[item]
-
-    def __getslice__(self):
-        pass
-
-    def __set_slice__(self):
-        pass
-
-    def __delslice__(self):
-        pass
 
 
 class PropertyTable:
@@ -111,9 +105,11 @@ class PropertyTable:
         """
 
         Args:
-          property: 
-          units:  (Default value = None)
-          unit_system:  (Default value = None)
+          property (str): property symbols
+          units (str): property units (Default value = None)
+          unit_system (str): unit system to infer units if not defined with the 
+                             units keyword (Default value = None)
+          property_type (str): property type, i.e. temperature, density, etc (Default value = None) 
 
         Returns:
 
@@ -152,14 +148,20 @@ class PropertyTable:
         Returns:
 
         """
-        df = self.to_pandas_DataFrame(*args, dropna=dropna, **kwargs)
+        df = self.to_pandas(*args, dropna=dropna, **kwargs)
         display(HTML(df.to_html(**kwargs)))
 
     def to_dict(self):
         """ """
         return {i: self.dict[i].dict for i in self.properties}
 
-    def to_pandas_DataFrame(self, *args, dropna=True, **kwargs):
+    def _atoi(self, text):
+        return int(text) if text.isdigit() else text
+    
+    def _natural_keys(self, text):
+        return [ self._atoi(c) for c in re.split('(\d+)',text) ]
+    
+    def to_pandas(self, *args, dropna=True, **kwargs):
         """
 
         Args:
@@ -194,7 +196,7 @@ class PropertyTable:
         def natural_keys(text):
             return [ atoi(c) for c in re.split('(\d+)',text) ]
         a = df.index.tolist()
-        a.sort(key=natural_keys)
+        a.sort(key=self._natural_keys)
         df = df.reindex(a)
         return df
 
@@ -244,20 +246,52 @@ class PropertyTable:
             else:
                 if verbose: print(f'unable to fix {up} for state {state}')
 
+    @property
+    def states(self):
+        sts = []
+        for prop,prop_dict in self.dict.items():
+            for state in prop_dict.dict.keys():
+                sts.append(state)
+        sts = list(set(sts))
+        sts.sort(key=self._natural_keys)
+        return sts
 
-    def __getitem__(self, item):
-        if self._list_like(item):
+    def __getitem__(self, key, include_all=None):
+        if isinstance(key, slice):
+            states = self.states
+            len_states = len(states)
+            try:
+                start = states.index(str(key.start))
+            except:
+                if key.start is None:
+                    start = 0
+                elif key.start < 0:
+                    start = len_states + key.start + 1
+            try:
+                stop = states.index(str(key.stop))
+            except:
+                if key.stop is None:
+                    stop = len_states
+                elif key.stop < 0:
+                    stop = len_states + key.stop + 1
+            if include_all:
+                return [self[states[i]] for i in range(start, stop)]
+            else:
+                strt,stp,step = key.indices(len_states)
+                return [self[i] for i in range(start, stop, step)]
+                
+        if self._list_like(key):
             len_var = len(index)
             if len_var == 0:
                 raise IndexError("Received empty index.")
             elif len_var == 1:
-                item = str(item)
+                key = str(key)
                 state_dict = {
-                    i: self.dict[i][item]
+                    i: self.dict[i][key]
                     for i in self.properties
-                    if item in self.dict[i].dict.keys()
+                    if key in self.dict[i].dict.keys()
                 }
-                state_dict["ID"] = item
+                state_dict["ID"] = key
                 return state_dict
             elif len_var == 2:
                 state = str(index[1])
@@ -266,14 +300,14 @@ class PropertyTable:
             else:
                 raise IndexError("Received too long index.")
         else:
-            item = str(item)
+            key = str(key)
             state_dict = {
-                i: self.dict[i][item]
+                i: self.dict[i][key]
                 for i in self.properties
-                if item in self.dict[i].dict.keys()
+                if key in self.dict[i].dict.keys()
             }
             if "ID" not in state_dict.keys():
-                state_dict["ID"] = item
+                state_dict["ID"] = key
             return state_dict
 
     def __setitem__(self, index, value):
@@ -301,4 +335,4 @@ class PropertyTable:
         pass
 
     def __str__(self, *args, **kwargs):
-        return self.to_pandas_DataFrame(self, *args, **kwargs).to_string()
+        return self.to_pandas(self, *args, **kwargs).to_string()

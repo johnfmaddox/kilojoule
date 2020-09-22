@@ -59,10 +59,10 @@ class PropertyPlot:
             self.plot_saturation_lines()
 
     def _real_fluid_config(self):
-        self.T_triple = self.props.T_triple()
-        self.p_triple = self.props.p_triple()
-        self.T_critical = self.props.T_critical()
-        self.p_critical = self.props.p_critical()
+        self.T_triple = self.props.T_triple
+        self.p_triple = self.props.p_triple
+        self.T_critical = self.props.T_critical
+        self.p_critical = self.props.p_critical
 
     def plot_point(
         self,
@@ -130,6 +130,15 @@ class PropertyPlot:
             kwargs["label"] = state_dict["ID"]
         self.plot_point(x, y, *args, **kwargs)
 
+    def plot_states(self, key, *args, **kwargs):
+        if isinstance(key, slice):
+            for i in states(key):
+                self.plot_state(i, *args, **kwargs)
+        else:
+            for i in key:
+                self.plot_state(key, *args, **kwargs)
+                
+        
     def plot_iso_line(
         self,
         iso_symb=None,

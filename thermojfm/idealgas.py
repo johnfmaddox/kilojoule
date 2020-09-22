@@ -42,26 +42,32 @@ class Properties:
     def _update_kwargs(self, args, kwargs):
         for arg in args:
             try:
-                arg.to('K')
-                kwargs = dict(T=arg, **kwargs)
+                arg_symb = arg.property_symbol
+                print(arg_symb)
+                arg_dict = {arg_symb:arg}
+                kwargs = dict(**arg_dict, **kwargs)
             except:
                 try:
-                    arg.to('kPa')
-                    kwargs = dict(p=arg, **kwargs)
+                    arg.to('K')
+                    kwargs = dict(T=arg, **kwargs)
                 except:
                     try:
-                        arg.to('m^3/kg')
-                        kwargs = dict(v=arg, **kwargs)
+                        arg.to('kPa')
+                        kwargs = dict(p=arg, **kwargs)
                     except:
                         try:
-                            arg.to('kJ/kg/K')
-                            kwargs = dict(s=arg, **kwargs)
+                            arg.to('m^3/kg')
+                            kwargs = dict(v=arg, **kwargs)
                         except:
                             try:
-                                arg.to('kg/m^3')
-                                kwargs = dict(d=arg, **kwargs)
+                                arg.to('kJ/kg/K')
+                                kwargs = dict(s=arg, **kwargs)
                             except:
-                                print(f'Unable to determine property type for {f} based on units')
+                                try:
+                                    arg.to('kg/m^3')
+                                    kwargs = dict(d=arg, **kwargs)
+                                except:
+                                    print(f'Unable to determine property type for {f} based on units')
         for k,v in kwargs.items():
             if not isinstance(v,Quantity):
                 arg_units = preferred_units_from_symbol(k, unit_system=self.unit_system)
@@ -130,7 +136,7 @@ class Properties:
         return p
 
     def _get_T_from_others(
-        self, T=None, p=None, d=None, v=None, h=None, s=None, **kwargs
+            self, T=None, p=None, d=None, v=None, u=None, h=None, s=None, **kwargs
     ):
         """
         Determines the temperature based on two independent, intensive properties
@@ -139,6 +145,8 @@ class Properties:
         :param p: pressure as a dimensional quantity (Default value = None)
         :param d: density as a dimensional quantity (Default value = None)
         :param v: specific volume as a dimensional quantity (Default value = None)
+        :param u: specific internal energy as a dimensional quantity (Default value = None)
+        :param h: specific enthalpy as a dimensional quantity (Default value = None)
         :param s: specific entropy as a dimensional quantity (Default value = None)
         :param **kwargs:
         :returns: temperature as a float in the default PYroMat units
@@ -176,8 +184,6 @@ class Properties:
             T, p = self._invTp_sd(
                 s=s.to("kJ/kg/K").magnitude, d=d.to("kg/m^3").magnitude
             )
-        #         else:
-        #             T = Quantity(300,'K')
         return T
 
     def _invTp_sd(self, s, d):
@@ -271,20 +277,21 @@ class Properties:
         s0 = self._pm.s(T=T, p=def_p)
         return def_p * np.exp((s0 - s) / self.R().to("kJ/kg/K").magnitude)
 
-    def T(self, *args, **kwargs):
+    def T(self, *args, verbose=False, **kwargs):
         """
         Temperature from one or two independent, intensive properties
 
         example:
-        >> ig.T(v=v1, p=p1)
-        >> ig.T(h=h1)
-        >> ig.T(u=u1)
-        >> ig.T(d=d1, s=s1)
+        >>> air.T(v=v1, p=p1)
+        >>> air.T(h=h1)
+        >>> air.T(u=u1)
+        >>> air.T(d=d1, s=s1)
 
         :param **kwargs: one or two dimensional quantities of p,d,v,u,h,s
         :returns: Temperature as a dimensional quantity
         """
         kwargs = self._update_kwargs(args,kwargs)
+        if verbose: print(kwargs)
         pm_result = self._get_T_from_others(**kwargs)
         return self._to_quantity("T", pm_result, "temperature")
 
@@ -293,9 +300,9 @@ class Properties:
         pressure from two independent, intensive properties
 
         example:
-        >> ig.p(v=v1, T=T1)
-        >> ig.p(v=v1, h=h1)
-        >> ig.p(d=d1, s=s1)
+        >>> air.p(v=v1, T=T1)
+        >>> air.p(v=v1, h=h1)
+        >>> air.p(d=d1, s=s1)
 
         :param **kwargs: two dimensional quantities of T,d,v,u,h,s
         :returns: pressure as a dimensional quantity
@@ -309,9 +316,9 @@ class Properties:
         constant pressure specific heat from one or two independent, intensive properties
 
         example:
-        >> ig.cp(T=T1)
-        >> ig.cp(h=h1)
-        >> ig.cp(d=d1, s=s1)
+        >>> air.cp(T=T1)
+        >>> air.cp(h=h1)
+        >>> air.cp(d=d1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
@@ -331,9 +338,9 @@ class Properties:
         constant volume specific heat from one or two independent, intensive properties
 
         example:
-        >> ig.cv(T=T1)
-        >> ig.cv(h=h1)
-        >> ig.cv(d=d1, s=s1)
+        >>> air.cv(T=T1)
+        >>> air.cv(h=h1)
+        >>> air.cv(d=d1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
@@ -354,9 +361,9 @@ class Properties:
         {also accessibe as .gamma()}
 
         example:
-        >> ig.k(T=T1)
-        >> ig.k(h=h1)
-        >> ig.k(d=d1, s=s1)
+        >>> air.k(T=T1)
+        >>> air.k(h=h1)
+        >>> air.k(d=d1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
@@ -376,9 +383,9 @@ class Properties:
         density from two independent, intensive properties
 
         example:
-        >> ig.d(T=T1, p=p1)
-        >> ig.d(v=v1)
-        >> ig.d(h=h1, s=s1)
+        >>> air.d(T=T1, p=p1)
+        >>> air.d(v=v1)
+        >>> air.d(h=h1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param p: pressure as a dimensional quantity (Default value = None)
@@ -404,9 +411,9 @@ class Properties:
         specific volume from two independent, intensive properties
 
         example:
-        >> ig.v(T=T1, p=p1)
-        >> ig.v(d=d1)
-        >> ig.v(h=h1, s=s1)
+        >>> air.v(T=T1, p=p1)
+        >>> air.v(d=d1)
+        >>> air.v(h=h1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param p: pressure as a dimensional quantity (Default value = None)
@@ -423,9 +430,9 @@ class Properties:
         {also accessible as .e()}
 
         example:
-        >> ig.u(T=T1)
-        >> ig.u(h=h1)
-        >> ig.u(d=d1, s=s1)
+        >>> air.u(T=T1)
+        >>> air.u(h=h1)
+        >>> air.u(d=d1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param **kwargs: zero, one, or two dimensional quantities of p,d,v,h,s
@@ -445,9 +452,9 @@ class Properties:
         specific enthalpy from one or two independent, intensive properties
 
         example:
-        >> ig.h(T=T1)
-        >> ig.h(h=h1)
-        >> ig.h(d=d1, s=s1)
+        >>> air.h(T=T1)
+        >>> air.h(h=h1)
+        >>> air.h(d=d1, s=s1)
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param **kwargs: zero, one, or two dimensional quantities of p,d,v,u,s
@@ -467,9 +474,14 @@ class Properties:
         specific entropy from two independent, intensive properties
 
         example:
-        >> ig.s(T=T1, p=p1)
-        >> ig.s(d=d1, u=u1)
-        >> ig.s(h=h1, p=p1)
+        >>> T1 = Quantity(300,'K')
+        >>> p1 = Quantity(100,'kPa')
+        >>> air.s(T=T1, p=p1)
+        6.7077 kJ/K/kg        
+        >>> air.s(d=d1, u=u1)
+        ...
+        >>> air.s(h=h1, p=p1)
+        ...
 
         :param T: temperature as a dimensional quantity (Default value = None)
         :param p: pressure as a dimensional quantity (Default value = None)
@@ -490,16 +502,14 @@ class Properties:
         pm_result = self._pm.s(T=T_pm, p=p_pm)[0]
         return self._to_quantity("s", pm_result, "specific entropy")
 
+    @property
     def R(self, *args, **kwargs):
         """
         specific gas constant (independent of state)
 
         example:
-        >> ig.R()
-
-        :param *args: ignored
-        :param **kwargs: ignored
-        :returns: specific gas constant as a dimensional quantity
+        >>> air.R
+        0.28705 kJ/K/kg
         """
         try:
             pm_result = self._pm.R()
@@ -510,31 +520,29 @@ class Properties:
             pm_result = R_u / self._pm.mw()
         return self._to_quantity("R", pm_result, "specific heat")
 
+    @property
     def mm(self, *args, **kwargs):
-        """
-        molar mass (independent of state)
-        {also accessible as: .mw()}
+        """molar mass (independent of state)
+        {also accessible as: .mw}
 
         example:
-        >> ig.mm()
+        >>> air.mm
+        28.965 kg/kmol
 
-        :param *args: ignored
-        :param **kwargs: ignored
-        :returns: molar mass as a dimensional quantity
         """
         pm_result = self._pm.mw()
         return self._to_quantity("mw", pm_result, "molar mass")
 
+    @property
     def X(self, *args, **kwargs):
-        """
-        mixture composition as mass fractions(independent of state)
+        """mixture composition as mass fractions(independent of state)
 
         example:
-        >> ig.X()
-
-        :param *args: ignored
-        :param **kwargs: ignored
-        :returns: mixture composition as a dictionary
+        >>> air.X
+        {'ig.Ar': 0.009350187003740077,
+        'ig.CO2': 0.00031400628012560254,
+        'ig.N2': 0.7808556171123423,
+        'ig.O2': 0.2094801896037921}
         """
         try:
             pm_result = self._pm.X()
@@ -544,16 +552,16 @@ class Properties:
             pm_result = {self._pm.data["id"]: 1.0}
         return pm_result
 
+    @property
     def Y(self, *args, **kwargs):
-        """
-        mixture composition as mole fractions(independent of state)
+        """mixture composition as mole fractions(independent of state)
 
         example:
-        >> ig.Y()
-
-        :param *args: ignored
-        :param **kwargs: ignored
-        :returns: mixture composition as a dictionary
+        >>> air.Y
+        {'ig.Ar': 0.012895634840195168, 
+        'ig.CO2': 0.0004771062632750561, 
+        'ig.N2': 0.7552055804206431, 
+        'ig.O2': 0.23142167847588652}
         """
         try:
             pm_result = self._pm.Y()

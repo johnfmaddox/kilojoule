@@ -435,6 +435,7 @@ class EqFormat:
             LHS_latex_symbolic = LHS_latex_symbolic.replace(
                 i.sympified_placeholder, i.latex
             )
+            if self.verbose: print(RHS_latex_symbolic)
             RHS_latex_symbolic = RHS_latex_symbolic.replace(
                 i.sympified_placeholder, i.latex
             )
