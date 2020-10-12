@@ -238,6 +238,8 @@ class PropertyTable:
                         indep_dict = { ipc[0]:self[state][ipc[0]], ipc[1]:self[state][ipc[1]] }
                         if verbose: print(f'using: {indep_dict}')
                         value = getattr(property_source,up)(**indep_dict)
+                        # if 'unknown' in value:
+                        #     raise
                         self.__setitem__([state,up],value)
                         if verbose: print(f'{up} for {state}: {value}')
                         break

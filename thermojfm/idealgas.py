@@ -43,7 +43,7 @@ class Properties:
         for arg in args:
             try:
                 arg_symb = arg.property_symbol
-                print(arg_symb)
+                # print(arg_symb)
                 arg_dict = {arg_symb:arg}
                 kwargs = dict(**arg_dict, **kwargs)
             except:

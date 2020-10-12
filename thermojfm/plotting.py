@@ -1,5 +1,5 @@
 from .common import preferred_units_from_type, preferred_units_from_symbol, invert_dict
-from .units import units, Q_
+from .units import units, Q_, Quantity
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -8,6 +8,7 @@ plt.rcParams["figure.figsize"] = [6 * 1.2, 4 * 1.2]
 plt.rcParams["figure.dpi"] = 100  # 200 e.g. is really fine, but slower
 
 n_points_default = 100
+
 
 class PropertyPlot:
     """ """
@@ -23,6 +24,8 @@ class PropertyPlot:
         unit_system=None,
         fig=None,
         subplot=None,
+        log_x=False,
+        log_y=False,
         **kwargs,
     ):
         self.props = property_table
@@ -42,13 +45,16 @@ class PropertyPlot:
             self.fig = plt.figure()
         else:
             self.fig = fig
-        print(subplot)
         if subplot is None:
-            self.ax = self.fig.add_subplot(1,1,1)
+            self.ax = self.fig.add_subplot(1, 1, 1)
         else:
             self.ax = self.fig.add_subplot(*subplot)
         self.ax.set_ylabel(f"${self.y_symb}$ [{Q_(1,self.y_units).units:~P}]")
         self.ax.set_xlabel(f"${self.x_symb}$ [{Q_(1,self.x_units).units:~P}]")
+        if log_x:
+            self.ax.set_xscale("log")
+        if log_y:
+            self.ax.set_yscale("log")
         self.ax.spines["right"].set_visible(False)
         self.ax.spines["top"].set_visible(False)
         # if the fluid is a real-fluid, define triple point and critical point
@@ -137,8 +143,7 @@ class PropertyPlot:
         else:
             for i in key:
                 self.plot_state(key, *args, **kwargs)
-                
-        
+
     def plot_iso_line(
         self,
         iso_symb=None,
@@ -148,6 +153,7 @@ class PropertyPlot:
         alt_symb=None,
         alt_range=None,
         n_points=n_points_default,
+        verbose=False,
         **kwargs,
     ):
         """
@@ -166,32 +172,46 @@ class PropertyPlot:
             if len(x_range) == 2:
                 x1 = x_range[0].to(self.x_units).magnitude
                 x2 = x_range[1].to(self.x_units).magnitude
-                x = np.linspace(x1, x2, n_points) * units(self.x_units)
+                x_try = np.linspace(x1, x2, n_points) * units(self.x_units)
+                x = np.array([])
                 y = np.array([])
-                for i in x:
-                    prop_lookup_dict = {iso_symb: iso_value, self.x_symb: i}
-                    y = np.append(
-                        y,
-                        getattr(self.props, self.y_symb)(**prop_lookup_dict)
-                        .to(self.y_units)
-                        .magnitude,
-                    )
+                for i in x_try:
+                    try:
+                        prop_lookup_dict = {iso_symb: iso_value, self.x_symb: i}
+                        y = np.append(
+                            y,
+                            getattr(self.props, self.y_symb)(**prop_lookup_dict)
+                            .to(self.y_units)
+                            .magnitude,
+                        )
+                        x = np.append(x, i)
+                    except Exception as e:
+                        if verbose:
+                            print(f"Failed to plot {prop_lookup_dict}")
+                            print(f"Exception: {e}")
             else:
                 print("Expected a list with two values for x_range")
         elif y_range is not None:
             if len(y_range) == 2:
                 y1 = y_range[0].to(self.y_units).magnitude
                 y2 = y_range[1].to(self.y_units).magnitude
-                y = np.linspace(y1, y2, n_points) * units(self.y_units)
+                y_try = np.linspace(y1, y2, n_points) * units(self.y_units)
                 x = np.array([])
-                for i in y:
-                    prop_lookup_dict = {iso_symb: iso_value, self.y_symb: i}
-                    x = np.append(
-                        x,
-                        getattr(self.props, self.x_symb)(**prop_lookup_dict)
-                        .to(self.x_units)
-                        .magnitude,
-                    )
+                y = np.array([])
+                for i in y_try:
+                    try:
+                        prop_lookup_dict = {iso_symb: iso_value, self.y_symb: i}
+                        x = np.append(
+                            x,
+                            getattr(self.props, self.x_symb)(**prop_lookup_dict)
+                            .to(self.x_units)
+                            .magnitude,
+                        )
+                        y = np.append(y, i)
+                    except Exception as e:
+                        if verbose:
+                            print(f"Failed to plot: {prop_lookup_dict}")
+                            print(f"Exception: {e}")
             else:
                 print("Expected a list with two values for y_range")
         elif alt_range is not None:
@@ -419,7 +439,12 @@ class PropertyPlot:
         return process_line
 
     def plot_saturation_lines(
-        self, color=[0.4, 0.4, 0.4, 0.4], linewidth=0.5, n_points=500
+        self,
+        color=[0.4, 0.4, 0.4, 0.4],
+        linewidth=0.5,
+        n_points=500,
+        verbose=False,
+        **kwargs,
     ):
         if self.y_symb in ["p", "P"]:
             # saturated liquid p y-axis
@@ -430,6 +455,7 @@ class PropertyPlot:
                 n_points=n_points,
                 color=color,
                 linewidth=linewidth,
+                verbose=verbose,
             )
             # saturated vapor p y-axis
             self.plot_iso_line(
@@ -439,6 +465,7 @@ class PropertyPlot:
                 n_points=n_points,
                 color=color,
                 linewidth=linewidth,
+                verbose=verbose,
             )
         elif self.y_symb == "T":
             # saturated liquid for T y-axis
@@ -449,6 +476,7 @@ class PropertyPlot:
                 n_points=n_points,
                 color=color,
                 linewidth=linewidth,
+                verbose=verbose,
             )
             # saturated vapor for T y-axis
             self.plot_iso_line(
@@ -458,6 +486,7 @@ class PropertyPlot:
                 n_points=n_points,
                 color=color,
                 linewidth=linewidth,
+                verbose=verbose,
             )
         else:
             # saturated liquid for y-axis not T or p
@@ -469,6 +498,7 @@ class PropertyPlot:
                 n_points=n_points,
                 color=color,
                 linewidth=linewidth,
+                verbose=verbose,
             )
             # saturated vapor for y-axis not T or p
             self.plot_iso_line(
@@ -479,10 +509,72 @@ class PropertyPlot:
                 n_points=n_points,
                 color=color,
                 linewidth=linewidth,
+                verbose=verbose,
             )
         # Set x-axis to log scale if it is specific volume
         if self.x_symb in ["V", "v"]:
             self.ax.set_xscale("log")
+
+    def plot_isotherm(
+        self,
+        T=None,
+        x_range=None,
+        y_range=None,
+        preserve_limits=True,
+        n_points=n_points_default,
+        linewidth=0.5,
+        color='gray',
+        verbose=False,
+        **kwargs,
+    ):
+        """
+
+        :param T: Temperature (Default value = None)
+        :param x_range:  (Default value = None)
+        :param y_range:  (Default value = None)
+        :param n_points:  (Default value = 100)
+        :param **kwargs:
+
+        """
+        kwargs = dict(linewidth=linewidth, color=color, **kwargs)
+        orig_xlim = self.ax.get_xlim()
+        orig_ylim = self.ax.get_ylim()
+        xmin = Quantity(orig_xlim[0], self.x_units)
+        xmax = Quantity(orig_xlim[1], self.x_units)
+        ymin = Quantity(orig_ylim[0], self.y_units)
+        ymax = Quantity(orig_ylim[1], self.y_units)
+        try:
+            x_f = getattr(self.props, self.x_symb)(T=T, x=0).to(self.x_units)
+            x_g = getattr(self.props, self.x_symb)(T=T, x=1).to(self.x_units)
+            if x_f > xmin and x_g < xmax:
+                self.plot_iso_line(
+                    "T",
+                    T,
+                    x_range=[xmin, x_f],
+                    **kwargs,
+                )
+                self.plot_iso_line(
+                    "T",
+                    T,
+                    x_range=[x_f,x_g],
+                    **kwargs,
+                )
+                self.plot_iso_line(
+                    "T",
+                    T,
+                    x_range=[x_g,xmax],
+                    **kwargs
+                )
+        except:
+            self.plot_iso_line(
+                "T",
+                T,
+                x_range = [Quantity(i,self.x_units) for i in orig_xlim],
+                **kwargs,
+            )
+        if preserve_limits:
+            self.ax.set_xlim(orig_xlim)
+            self.ax.set_ylim(orig_ylim)
 
     def plot_triple_point(self, label="TP", label_loc="east", **kwargs):
         if self.x_symb == "T":

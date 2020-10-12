@@ -756,10 +756,10 @@ class Properties:
             x="s", y="T", unit_system=unit_system, saturation=saturation, **kwargs
         )
 
-    def pv_diagram(self, unit_system=None, saturation=True, **kwargs):
+    def pv_diagram(self, unit_system=None, saturation=True, log_x=True, log_y=True, **kwargs):
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
-            x="v", y="p", unit_system=unit_system, saturation=saturation, **kwargs
+            x="v", y="p", unit_system=unit_system, saturation=saturation, log_x=log_x, log_y=log_y, **kwargs
         )
 
     def Tv_diagram(self, unit_system=None, saturation=True, **kwargs):
