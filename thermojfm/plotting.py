@@ -299,7 +299,11 @@ class PropertyPlot:
         path=None,
         iso_symb=None,
         color="black",
-        arrow=False,
+        arrow=True,
+        arrow_pos=0.5,
+        label=None,
+        label_pos=0.5,
+        labelprops={},
         **kwargs,
     ):
         """
@@ -431,13 +435,103 @@ class PropertyPlot:
         else:
             process_line = plot_straight_line(color=color, linestyle="--", **kwargs)
         if arrow:
-            if x1 < x2:
-                arrow_dir = "right"
-            elif x1 > x2:
-                arrow_dir = "left"
-            self.add_arrow(process_line, direction=arrow_dir)
+            self.add_arrow(line=process_line, arrow_pos=arrow_pos, **kwargs)
+        if label is not None:
+            self.label_line(line=process_line, label=label, label_pos=label_pos, labelprops=labelprops, **kwargs)
         return process_line
 
+    def _line_pos(self, line, pos,**kwargs):
+        if isinstance(line,list):
+            xdata = np.array([])
+            ydata = np.array([])
+            for l in line:
+                xdata = np.append(xdata,l.get_xdata())
+                ydata = np.append(ydata,l.get_ydata())
+            line = line[0]
+            line.set_xdata(xdata)
+            line.set_ydata(ydata)
+        ax = line.axes
+        xdata = line.get_xdata()
+        ydata = line.get_ydata()
+        xlim = ax.get_xlim()
+        Delta_xlim = xlim[-1]-xlim[0]
+        Delta_x = xdata[-1]-xdata[0]
+        Delta_x_mag = abs(Delta_x/Delta_xlim)
+        if isinstance(Delta_x_mag, Quantity): Delta_x_mag = Delta_x_mag.magnitude
+        ylim = ax.get_ylim()
+        Delta_ylim = ylim[-1]-ylim[0]
+        Delta_y = ydata[-1]-ydata[0]
+        Delta_y_mag = abs(Delta_y/Delta_ylim)
+        if isinstance(Delta_y_mag, Quantity): Delta_y_mag = Delta_y_mag.magnitude
+        xpos = xdata[0] + Delta_x*pos
+        ypos = ydata[0] + Delta_y*pos
+        if len(xdata)>2:
+            if Delta_x_mag > Delta_y_mag: 
+                start_ind = np.argmin(np.absolute(xdata-xpos))
+            else:
+                start_ind = np.argmin(np.absolute(ydata-ypos))
+            end_ind = start_ind+1
+            x1 = xdata[start_ind]
+            y1 = ydata[start_ind]
+            x2 = xdata[end_ind]
+            y2 = ydata[end_ind]
+        else:
+            x1 = xpos
+            x2 = x1 + Delta_x*.01
+            y1 = ypos
+            y2 = y1 + Delta_y*.01
+        return ax,x1,y1,x2,y2
+    
+    def add_arrow(self, line, arrow_pos=0.5, arrowprops=None,**kwargs):
+        ax,x1,y1,x2,y2 = self._line_pos(line=line, pos=arrow_pos)
+        arrowprops=arrowprops or dict(arrowstyle='fancy')
+        arrow = ax.annotate('',
+            xytext=(x1, y1),
+            xy=(x2,y2),
+            arrowprops=arrowprops,
+        )
+        return arrow
+
+    def label_line(self, line, label, label_pos=0.5, rotate=True, labelprops={}, **kwargs):
+        """Add a label to a line, optional rotated to be tangent.
+
+        Arguments
+        ---------
+        line : matplotlib.lines.Line2D object,
+        label : str
+        label_pos : float
+            percentage distance along longest x/y dimension to center the text
+        rotate : bool
+            whether to align the text to the local slope of the line
+        size : float
+        """
+        default_labelprops=dict(
+            rotation_mode='anchor',
+            horizontalalignment='center',
+            verticalalignment='bottom',
+            size='9')
+        labelprops = {**default_labelprops, **labelprops}
+        ax,x1,y1,x2,y2 = self._line_pos(line, pos=label_pos)
+        if isinstance(x1,Quantity): x1=x1.magnitude
+        if isinstance(y1,Quantity): y1=y1.magnitude
+        if isinstance(x2,Quantity): x2=x2.magnitude
+        if isinstance(y2,Quantity): y2=y2.magnitude
+        if x1>x2: x1,y1,x2,y1 = x2,y2,x1,y1
+        slp1 = ax.transData.transform_point((x1,y1))
+        slp2 = ax.transData.transform_point((x2,y2))
+        rise = (slp2[1]-slp1[1])
+        if isinstance(rise, Quantity): rise = rise.magnitude
+        run = (slp2[0]-slp1[0])
+        if isinstance(run, Quantity): run = run.magnitude
+        slope_degrees = np.degrees(np.arctan2(rise,run))
+        text = ax.annotate(label,
+            xytext=(x1, y1),
+            xy=(x1,y1),
+            rotation=slope_degrees,
+            **labelprops
+        )
+        return text
+    
     def plot_saturation_lines(
         self,
         color=[0.4, 0.4, 0.4, 0.4],
@@ -525,6 +619,9 @@ class PropertyPlot:
         linewidth=0.5,
         color='gray',
         verbose=False,
+        label=None,
+        label_pos=0.5,
+        labelprops={},
         **kwargs,
     ):
         """
@@ -547,26 +644,27 @@ class PropertyPlot:
             x_f = getattr(self.props, self.x_symb)(T=T, x=0).to(self.x_units)
             x_g = getattr(self.props, self.x_symb)(T=T, x=1).to(self.x_units)
             if x_f > xmin and x_g < xmax:
-                self.plot_iso_line(
+                isoline = []
+                isoline.append(self.plot_iso_line(
                     "T",
                     T,
                     x_range=[xmin, x_f],
                     **kwargs,
-                )
-                self.plot_iso_line(
+                )[0])
+                isoline.append(self.plot_iso_line(
                     "T",
                     T,
                     x_range=[x_f,x_g],
                     **kwargs,
-                )
-                self.plot_iso_line(
+                )[0])
+                isoline.append(self.plot_iso_line(
                     "T",
                     T,
                     x_range=[x_g,xmax],
                     **kwargs
-                )
+                )[0])
         except:
-            self.plot_iso_line(
+            isoline = self.plot_iso_line(
                 "T",
                 T,
                 x_range = [Quantity(i,self.x_units) for i in orig_xlim],
@@ -575,7 +673,78 @@ class PropertyPlot:
         if preserve_limits:
             self.ax.set_xlim(orig_xlim)
             self.ax.set_ylim(orig_ylim)
+        if label:
+            self.label_line(isoline,label=label,label_pos=label_pos,labelprops=labelprops,**kwargs)
+        return isoline
 
+    def plot_isobar(
+        self,
+        p=None,
+        x_range=None,
+        y_range=None,
+        preserve_limits=True,
+        n_points=n_points_default,
+        linewidth=0.5,
+        color='gray',
+        verbose=False,
+        label=None,
+        label_pos=0.5,
+        labelprops={},
+        **kwargs,
+    ):
+        """
+
+        :param p: Temperature (Default value = None)
+        :param x_range:  (Default value = None)
+        :param y_range:  (Default value = None)
+        :param n_points:  (Default value = 100)
+        :param **kwargs:
+
+        """
+        kwargs = dict(linewidth=linewidth, color=color, **kwargs)
+        orig_xlim = self.ax.get_xlim()
+        orig_ylim = self.ax.get_ylim()
+        xmin = Quantity(orig_xlim[0], self.x_units)
+        xmax = Quantity(orig_xlim[1], self.x_units)
+        ymin = Quantity(orig_ylim[0], self.y_units)
+        ymax = Quantity(orig_ylim[1], self.y_units)
+        try:
+            x_f = getattr(self.props, self.x_symb)(p=p, x=0).to(self.x_units)
+            x_g = getattr(self.props, self.x_symb)(p=p, x=1).to(self.x_units)
+            if x_f > xmin and x_g < xmax:
+                isoline = []
+                isoline.append(self.plot_iso_line(
+                    "p",
+                    p,
+                    x_range=[xmin, x_f],
+                    **kwargs,
+                )[0])
+                isoline.append(self.plot_iso_line(
+                    "p",
+                    p,
+                    x_range=[x_f,x_g],
+                    **kwargs,
+                )[0])
+                isoline.append(self.plot_iso_line(
+                    "p",
+                    p,
+                    x_range=[x_g,xmax],
+                    **kwargs
+                )[0])
+        except:
+            isoline=self.plot_iso_line(
+                "p",
+                p,
+                x_range = [Quantity(i,self.x_units) for i in orig_xlim],
+                **kwargs,
+            )
+        if preserve_limits:
+            self.ax.set_xlim(orig_xlim)
+            self.ax.set_ylim(orig_ylim)
+        if label:
+            self.label_line(isoline,label=label,label_pos=label_pos,labelprops=labelprops,**kwargs)
+        return isoline
+            
     def plot_triple_point(self, label="TP", label_loc="east", **kwargs):
         if self.x_symb == "T":
             x = self.T_triple
