@@ -750,37 +750,55 @@ class Properties:
             **kwargs,
         )
 
-    def Ts_diagram(self, unit_system=None, saturation=True, **kwargs):
+    def Ts_diagram(self, unit_system=None, saturation=None, **kwargs):
+        if self.fluid == 'Air': saturation = saturation or False
+        else: saturation = saturation or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="s", y="T", unit_system=unit_system, saturation=saturation, **kwargs
         )
 
-    def pv_diagram(self, unit_system=None, saturation=True, log_x=True, log_y=True, **kwargs):
+    def pv_diagram(self, unit_system=None, saturation=None, log_x=None, log_y=None, **kwargs):
+        if self.fluid == 'Air':
+            saturation = saturation or False
+            log_x = log_x or False
+            log_y = log_y or False
+        else:
+            saturation = True
+            log_x = log_x or True
+            log_y = log_y or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="v", y="p", unit_system=unit_system, saturation=saturation, log_x=log_x, log_y=log_y, **kwargs
         )
 
-    def Tv_diagram(self, unit_system=None, saturation=True, **kwargs):
+    def Tv_diagram(self, unit_system=None, saturation=None, **kwargs):
+        if self.fluid == 'Air': saturation = saturation or False
+        else: saturation = saturation or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="v", y="T", unit_system=unit_system, saturation=saturation, **kwargs
         )
 
-    def hs_diagram(self, unit_system=None, saturation=True, **kwargs):
+    def hs_diagram(self, unit_system=None, saturation=None, **kwargs):
+        if self.fluid == 'Air': saturation = saturation or False
+        else: saturation = saturation or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="s", y="h", unit_system=unit_system, saturation=saturation, **kwargs
         )
 
-    def ph_diagram(self, unit_system=None, saturation=True, **kwargs):
+    def ph_diagram(self, unit_system=None, saturation=None, **kwargs):
+        if self.fluid == 'Air': saturation = saturation or False
+        else: saturation = saturation or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="h", y="p", unit_system=unit_system, saturation=saturation, **kwargs
         )
 
-    def pT_diagram(self, unit_system=None, saturation=True, **kwargs):
+    def pT_diagram(self, unit_system=None, saturation=None, **kwargs):
+        if self.fluid == 'Air': saturation = saturation or False
+        else: saturation = saturation or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="T", y="p", unit_system=unit_system, saturation=saturation, **kwargs

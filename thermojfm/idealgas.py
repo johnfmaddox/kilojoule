@@ -275,7 +275,7 @@ class Properties:
         """
         def_p = pm.config["def_p"]
         s0 = self._pm.s(T=T, p=def_p)
-        return def_p * np.exp((s0 - s) / self.R().to("kJ/kg/K").magnitude)
+        return def_p * np.exp((s0 - s) / self.R.to("kJ/kg/K").magnitude)
 
     def T(self, *args, verbose=False, **kwargs):
         """
@@ -512,7 +512,7 @@ class Properties:
         0.28705 kJ/K/kg
         """
         try:
-            pm_result = self._pm.R()
+            pm_result = self._pm.R
         except Exception as e:
             if self.verbose:
                 print(e)

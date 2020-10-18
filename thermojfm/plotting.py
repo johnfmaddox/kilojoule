@@ -97,7 +97,7 @@ class PropertyPlot:
         else:
             return line_list
     
-    def _trim_line2D_data(self, line, axis_lim):
+    def _trim_line2D_data(self, line, axis_lim,extend=True):
         line = self._merge_line2D_list(line)
         xdata = line.get_xdata()
         ydata = line.get_ydata()
@@ -111,6 +111,14 @@ class PropertyPlot:
             ydata>=axis_lim[2]),
             ydata<=axis_lim[3])
             )
+        if extend:
+            maxind = len(xdata)-2
+            ind2 = np.array([])
+            for i in ind[0]:
+                if i>0: ind2 = np.append(ind2,i-1)
+                ind2 = np.append(ind2,i)
+                if i<maxind: ind2 = np.append(ind2,i+1)
+            ind = np.unique(ind2.astype(int))
         line.set_xdata(xdata[ind])
         line.set_ydata(ydata[ind])
         return line
@@ -146,7 +154,7 @@ class PropertyPlot:
             else:
                 xdata = np.linspace(xA, xB, 100)
                 ydata = np.linspace(yA, yB, 100)
-            start_ind = int(pos*len(xdata))
+            start_ind = int(np.ceil(pos*len(xdata)))
         elif xcoor is not None:
             start_ind = np.argmin(np.absolute(xdata-xcoor))
         elif ycoor is not None:
@@ -172,6 +180,23 @@ class PropertyPlot:
         x2 = xdata[end_ind]
         y2 = ydata[end_ind]
         return ax,x1,y1,x2,y2
+
+    def _plot_straight_line(self,**kwargs):
+        """
+
+        :param **kwargs:
+
+        """
+        x1 = kwargs.pop('x1')
+        x2 = kwargs.pop('x2')
+        y1 = kwargs.pop('y1')
+        y2 = kwargs.pop('y2')
+        return self.ax.plot(
+            [x1.to(self.x_units).magnitude, x2.to(self.x_units).magnitude],
+            [y1.to(self.y_units).magnitude, y2.to(self.y_units).magnitude],
+            **kwargs,
+        )
+
 
     def plot_point(
         self,
@@ -448,18 +473,6 @@ class PropertyPlot:
         y1 = begin_state[self.y_symb]
         y2 = end_state[self.y_symb]
 
-        def plot_straight_line(**kwargs):
-            """
-
-            :param **kwargs:
-
-            """
-            return self.ax.plot(
-                [x1.to(self.x_units).magnitude, x2.to(self.x_units).magnitude],
-                [y1.to(self.y_units).magnitude, y2.to(self.y_units).magnitude],
-                **kwargs,
-            )
-
         if iso_symb is None:
             if path is None:
                 property_keys = [
@@ -491,11 +504,11 @@ class PropertyPlot:
         else:
             path = "iso_symb"
         if path.lower() == "unknown":
-            process_line = plot_straight_line(
+            process_line = self._plot_straight_line(x1=x1,x2=x2,y1=y1,y2=y2,
                 color=color, **kwargs, linestyle="--"
             )  # if none of the parameters matched between the states, draw a straight dashed line between the point
         elif path.lower() == "straight":
-            process_line = plot_straight_line(
+            process_line = self._plot_straight_line(x1=x1,x2=x2,y1=y1,y2=y2,
                 color=color, **kwargs
             )  # if one of the primary variable is constant, just draw a straight line between the points
         elif path.lower() == "iso_symb":
@@ -510,14 +523,14 @@ class PropertyPlot:
             )
         elif path.lower() in ["isotherm", "isothermal", "constant temperature"]:
             if self.x_symb == "T" or self.y_symb == "T":
-                process_line = plot_straight_line(color=color, **kwargs)
+                process_line = self._plot_straight_line(x1=x1,x2=x2,y1=y1,y2=y2,color=color, **kwargs)
             else:
                 process_line = self.plot_iso_line(
                     "T", begin_state["T"], color=color, x_range=[x1, x2], **kwargs
                 )
         elif path.lower() in ["isobar", "isobaric", "constant pressure"]:
             if self.x_symb == "p" or self.y_symb == "p":
-                process_line = plot_straight_line(color=color, **kwargs)
+                process_line = self._plot_straight_line(x1=x1,x2=x2,y1=y1,y2=y2,color=color, **kwargs)
             else:
                 process_line = self.plot_iso_line(
                     "p", begin_state["p"], color=color, x_range=[x1, x2], **kwargs
@@ -530,21 +543,21 @@ class PropertyPlot:
             "constant volume",
         ]:
             if self.x_symb == "v" or self.y_symb == "v":
-                process_line = plot_straight_line(color=color, **kwargs)
+                process_line = self._plot_straight_line(x1=x1,x2=x2,y1=y1,y2=y2,color=color, **kwargs)
             else:
                 process_line = self.plot_iso_line(
                     "v", begin_state["v"], color=color, x_range=[x1, x2], **kwargs
                 )
         elif path.lower() in ["isenthalp", "isenthalpic", "constant enthalpy"]:
             if self.x_symb == "h" or self.y_symb == "h":
-                process_line = plot_straight_line(color=color, **kwargs)
+                process_line = self._plot_straight_line(x1=x1,x2=x2,y1=y1,y2=y2,color=color, **kwargs)
             else:
                 process_line = self.plot_iso_line(
                     "h", begin_state["h"], color=color, x_range=[x1, x2], **kwargs
                 )
         elif path.lower() in ["isentropic", "isentrop", "constant entropy"]:
             if self.x_symb == "s" or self.y_symb == "s":
-                process_line = plot_straight_line(color=color, **kwargs)
+                process_line = self._plot_straight_line(x1=x1,x2=x2,y1=y1,y2=y2,color=color, **kwargs)
             else:
                 process_line = self.plot_iso_line(
                     "s", begin_state["s"], color=color, x_range=[x1, x2], **kwargs
@@ -559,7 +572,7 @@ class PropertyPlot:
                 begin_state, end_state, **kwargs
             )
         else:
-            process_line = plot_straight_line(color=color, linestyle="--", **kwargs)
+            process_line = self._plot_straight_line(x1=x1,x2=x2,y1=y1,y2=y2,color=color, linestyle="--", **kwargs)
         if arrow:
             self.add_arrow(line=process_line, pos=pos, xcoor=xcoor, ycoor=ycoor, arrowprops=arrowprops, **kwargs)
         if label is not None:
@@ -598,6 +611,9 @@ class PropertyPlot:
         if 'pos' in labelprops.keys():
             pos = labelprops['pos']
             del labelprops['pos']
+        if 'rotate' in labelprops.keys():
+            rotate = labelprops['rotate']
+            del labelprops['rotate']
         ax,x1,y1,x2,y2 = self._line_pos(line, pos=pos, xcoor=xcoor, ycoor=ycoor)
         if isinstance(x1,Quantity): x1=x1.magnitude
         if isinstance(y1,Quantity): y1=y1.magnitude
@@ -632,6 +648,7 @@ class PropertyPlot:
         xytext[1] = offset*np.sin(np.deg2rad(offset_angle))
         if verbose:
             print(f'label: {label}\n  coord: ({x1},{y1}),(x2,y2)\n  angle: {slope_degrees}\n   offset angle: {offset_angle}\n  offset={xytext}')
+        if not rotate: slope_degrees=0
         text = ax.annotate(label,
             xy=(x1,y1),
             textcoords="offset points",
@@ -718,9 +735,11 @@ class PropertyPlot:
         if self.x_symb in ["V", "v"]:
             self.ax.set_xscale("log")
 
-    def plot_isotherm(
+
+    def _plot_iso_wrapper(
         self,
-        T=None,
+        iso_symb=None,
+        iso_value=None,
         x_range=None,
         y_range=None,
         preserve_limits=True,
@@ -729,7 +748,7 @@ class PropertyPlot:
         linestyle=(0, (5,5)),
         color='gray',
         verbose=False,
-        pos=None,
+        pos=0.9,
         xcoor=None,
         ycoor=None,
         arrow=False,
@@ -738,15 +757,12 @@ class PropertyPlot:
         labelprops={},
         **kwargs,
     ):
-        """
-
-        :param T: Temperature (Default value = None)
-        :param x_range:  (Default value = None)
-        :param y_range:  (Default value = None)
-        :param n_points:  (Default value = 100)
-        :param **kwargs:
-
-        """
+        verbose = kwargs.pop('verbose',False)
+        if label is None:
+            try:
+                label = f'${iso_value}$'
+            except Exception as e:
+                label = f'${iso_value:~L}$'
         kwargs = dict(linestyle=linestyle, linewidth=linewidth, color=color, **kwargs)
         orig_xlim = self.ax.get_xlim()
         orig_ylim = self.ax.get_ylim()
@@ -754,121 +770,71 @@ class PropertyPlot:
         xmax = Quantity(orig_xlim[1], self.x_units)
         ymin = Quantity(orig_ylim[0], self.y_units)
         ymax = Quantity(orig_ylim[1], self.y_units)
-        try:
-            x_f = getattr(self.props, self.x_symb)(T=T, x=0).to(self.x_units)
-            x_g = getattr(self.props, self.x_symb)(T=T, x=1).to(self.x_units)
-            isoline = []
-            x1 = xmin
-            x2 = xmax
-            if xmin < x_f:
-                isoline.append(self.plot_iso_line(
-                    "T",
-                    T,
-                    x_range=[x1, x_f],
-                    **kwargs,
-                )[0])
-                x1 = x_f
-            if xmin < x_g:
-                isoline.append(self.plot_iso_line(
-                    "T",
-                    T,
-                    x_range=[x1, x_g],
-                    **kwargs,
-                )[0])
-                x1 = x_g
-            if xmax > x_g:
-                isoline.append(self.plot_iso_line(
-                    "T",
-                    T,
-                    x_range=[x1, xmax],
-                    **kwargs,
-                )[0])
-        except:
-            isoline = self.plot_iso_line(
-                "T",
-                T,
-                x_range = [Quantity(i,self.x_units) for i in orig_xlim],
+        if self.x_symb == iso_symb:
+            isoline = self._plot_straight_line(
+                x1=iso_value,
+                x2=iso_value,
+                y1=ymin,
+                y2=ymax,
                 **kwargs,
             )
-        isoline = self._merge_line2D_list(isoline)
-        if preserve_limits:
-            self.ax.set_xlim(orig_xlim)
-            self.ax.set_ylim(orig_ylim)
-            isoline = self._trim_line2D_data(isoline,[xmin,xmax,ymin,ymax])
-        if arrow:
-            self.add_arrow(isoline,pos=pos, xcoor=xcoor, ycoor=ycoor, arrowprops=arrowprops,**kwargs)
-        if label:
-            self.label_line(isoline,label=label,pos=pos, xcoor=xcoor, ycoor=ycoor,labelprops=labelprops,**kwargs)
-        return isoline        
-    
-    def plot_isobar(
-        self,
-        p=None,
-        x_range=None,
-        y_range=None,
-        preserve_limits=True,
-        n_points=n_points_default,
-        linewidth=0.5,
-        linestyle=(0, (5,5)),
-        color='gray',
-        verbose=False,
-        pos=None,
-        xcoor=None,
-        ycoor=None,
-        arrow=False,
-        arrowprops={},    
-        label=None,
-        labelprops={},
-        **kwargs,
-    ):
-        """
-
-        :param p: Temperature (Default value = None)
-        :param x_range:  (Default value = None)
-        :param y_range:  (Default value = None)
-        :param n_points:  (Default value = 100)
-        :param **kwargs:
-
-        """
-        kwargs = dict(linestyle=linestyle, linewidth=linewidth, color=color, **kwargs)
-        orig_xlim = self.ax.get_xlim()
-        orig_ylim = self.ax.get_ylim()
-        xmin = Quantity(orig_xlim[0], self.x_units)
-        xmax = Quantity(orig_xlim[1], self.x_units)
-        ymin = Quantity(orig_ylim[0], self.y_units)
-        ymax = Quantity(orig_ylim[1], self.y_units)
-        try:
-            x_f = getattr(self.props, self.x_symb)(p=p, x=0).to(self.x_units)
-            x_g = getattr(self.props, self.x_symb)(p=p, x=1).to(self.x_units)
-            if x_f > xmin:
-                isoline = []
-                isoline.append(self.plot_iso_line(
-                    "p",
-                    p,
-                    x_range=[xmin, x_f],
-                    **kwargs,
-                )[0])
-            if x_g > xmin:
-                isoline.append(self.plot_iso_line(
-                    "p",
-                    p,
-                    x_range=[x_f,x_g],
-                    **kwargs,
-                )[0])
-            if x_g < xmax:
-                isoline.append(self.plot_iso_line(
-                    "p",
-                    p,
-                    x_range=[x_g,xmax],
-                    **kwargs
-                )[0])
-        except:
-            isoline=self.plot_iso_line(
-                "p",
-                p,
-                x_range = [Quantity(i,self.x_units) for i in orig_xlim],
+        elif self.y_symb == iso_symb:
+            isoline = self._plot_straight_line(
+                y1=iso_value,
+                y2=iso_value,
+                x1=xmin,
+                x2=xmax,
                 **kwargs,
             )
+        else:
+            try:
+                if verbose: print('Checking for phase change along iso line')
+                prop_dict = {iso_symb:iso_value}
+                x_f = getattr(self.props, self.x_symb)(**prop_dict, x=0).to(self.x_units)
+                x_g = getattr(self.props, self.x_symb)(**prop_dict, x=1).to(self.x_units)
+                if x_f > xmin:
+                    isoline = []
+                    isoline.append(self.plot_iso_line(
+                        iso_symb,
+                        iso_value,
+                        x_range=[xmin, x_f],
+                        **kwargs,
+                    )[0])
+                if x_g > xmin:
+                    isoline.append(self.plot_iso_line(
+                        iso_symb,
+                        iso_value,
+                        x_range=[x_f,x_g],
+                        **kwargs,
+                    )[0])
+                if x_g < xmax:
+                    isoline.append(self.plot_iso_line(
+                        iso_symb,
+                        iso_value,
+                        x_range=[x_g,xmax],
+                        **kwargs
+                    )[0])
+            except Exception as e:
+                if verbose:
+                    print('Error: {e}')
+                try:
+                    if verbose: print('Attempting to plot across x-axis')
+                    isoline=self.plot_iso_line(
+                        iso_symb,
+                        iso_value,
+                        x_range = [Quantity(i,self.x_units) for i in orig_xlim],
+                        **kwargs,
+                    )
+                except Exception as e:
+                    if verbose:
+                        print('Error: {e}')
+                        print('Attemption to plot across y-axis')
+                    isoline=self.plot_iso_line(
+                        iso_symb,
+                        iso_value,
+                        y_range = [Quantity(i,self.y_units) for i in orig_ylim],
+                        **kwargs,
+                    )
         if preserve_limits:
             self.ax.set_xlim(orig_xlim)
             self.ax.set_ylim(orig_ylim)
@@ -878,7 +844,22 @@ class PropertyPlot:
         if label:
             self.label_line(isoline,label=label,pos=pos,xcoor=xcoor,ycoor=ycoor,labelprops=labelprops,**kwargs)
         return isoline
+
+    def plot_isobar(self,p=None,**kwargs):
+        return self._plot_iso_wrapper(iso_symb="p",iso_value=p,**kwargs)
+
+    def plot_isotherm(self,T=None,**kwargs):
+        return self._plot_iso_wrapper(iso_symb="T",iso_value=T,**kwargs)
+
+    def plot_isochor(self,v=None,**kwargs):
+        return self._plot_iso_wrapper(iso_symb="v",iso_value=v,**kwargs)
+
+    def plot_isenthalp(self,h=None,**kwargs):
+        return self._plot_iso_wrapper(iso_symb="h",iso_value=h,**kwargs)
             
+    def plot_isentrop(self,s=None,**kwargs):
+        return self._plot_iso_wrapper(iso_symb="s",iso_value=s,**kwargs)
+
     def plot_triple_point(self, label="TP", label_loc="east", **kwargs):
         if self.x_symb == "T":
             x = self.T_triple
