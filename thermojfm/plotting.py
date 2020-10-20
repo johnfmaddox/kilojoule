@@ -1,6 +1,8 @@
 from .common import preferred_units_from_type, preferred_units_from_symbol, invert_dict
 from .units import units, Q_, Quantity
 import matplotlib.pyplot as plt
+from IPython.display import display as mpldisplay
+from IPython.display import clear_output
 import numpy as np
 
 # Set matplotlib figure size defaults
@@ -14,6 +16,12 @@ labelprops_default = dict(
     horizontalalignment='center',
     verticalalignment='bottom',
     size='9',
+)
+
+gridlineprops_default = dict(
+    linewidth=0.25,
+    color='gray',
+    linestyle = (0,(5,10))
 )
 
 arrowprops_default = dict(
@@ -197,7 +205,27 @@ class PropertyPlot:
             **kwargs,
         )
 
+    def text(self,x,y,s,axcoor=False,**kwargs):
+        if axcoor:
+            trans = self.ax.transAxes
+        else:
+            trans = self.ax.transData
+        return self.ax.text(x,y,s,transform=trans,**kwargs)
 
+    def plot(self,*args,**kwargs):
+        return self.ax.plot(*args,**kwargs)
+
+    def annotate(self,*args,**kwargs):
+        return self.ax.annotate(*args,**kwargs)
+
+    @property
+    def xlim(self):
+        return self.ax.get_xlim()
+
+    @property
+    def ylim(self):
+        return self.ax.get_ylim()
+    
     def plot_point(
         self,
         x,
@@ -210,6 +238,10 @@ class PropertyPlot:
         offset=5,
         pointprops={},
         labelprops={},
+        gridlines=False,
+        xgridline=False,
+        ygridline=False,
+        gridlineprops={},
         **kwargs,
     ):
         """
@@ -227,6 +259,7 @@ class PropertyPlot:
         """
         pointprops = {**pointprops_default, **pointprops}
         labelprops = {**labelprops_default, **labelprops}
+        gridlineprops = {**gridlineprops_default, **gridlineprops}
         x = x.to(self.x_units).magnitude
         y = y.to(self.y_units).magnitude
         self.ax.plot(x, y, *args, marker=marker, color=color, **kwargs)
@@ -246,7 +279,9 @@ class PropertyPlot:
             elif "west" in label_loc:
                 xytext[0] = -offset
                 ha = "right"
-        self.ax.annotate(
+        ha = labelprops.pop('ha', ha)
+        va = labelprops.pop('va', va)
+        point = self.ax.annotate(
             label,  # this is the text
             (x, y),  # this is the point to label
             **labelprops,
@@ -255,6 +290,12 @@ class PropertyPlot:
             ha=ha,  # horizontal alignment can be left, right or center
             va=va,  # vertical alignment can be top, bottom, or middle
         )
+        if gridlines: xgridline=ygridline=True
+        if xgridline:
+            self.ax.plot([x, x],[y,self.ax.get_ylim()[0]],**gridlineprops)
+        if ygridline:
+            self.ax.plot([x, self.ax.get_xlim()[0]],[y,y],**gridlineprops)
+        return point
 
     def plot_state(self, state_dict, *args, pointprops={}, **kwargs):
         """
@@ -290,6 +331,8 @@ class PropertyPlot:
         n_points=n_points_default,
         verbose=False,
         pos=None,
+        xcoor=None,
+        ycoor=None,
         arrow=False,
         arrowprops={},
         label=None,
@@ -889,3 +932,7 @@ class PropertyPlot:
         else:
             y = getattr(self.props, self.y_symb)(T=self.T_critical, x=0)
         self.plot_point(x, y, label=label, label_loc=label_loc, **kwargs)
+
+    def show(self):
+        clear_output()
+        mpldisplay(self.fig)

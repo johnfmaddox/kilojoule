@@ -6,7 +6,7 @@ from .common import (
     preferred_units_from_symbol,
 )
 from .plotting import PropertyPlot
-from CoolProp.CoolProp import PropsSI, PhaseSI
+from CoolProp.CoolProp import PropsSI, PhaseSI, FluidsList
 import numpy as np
 
 # Default CoolProps units for symbols
@@ -20,8 +20,8 @@ CP_units_to_symb = {
     "J/kg": ["u", "h", "g", "HelmholtzMass"],
     "J/mol": ["umolar", "hmolar", "gmolar", "HelmholtzMolar"],
     "J/kg/K": ["C", "CpMass", "CvMass", "s"],
-    "J/mol/K": ["CpMolar", "CvMolar", "smolar"],
-    "kg/mol": ["M", "molar_mass"],
+    "J/mol/K": ["CpMolar", "CvMolar", "smolar","GAS_CONSTANT"],
+    "kg/mol": ["M", "molar_mass","MOLARMASS"],
     "m/s": ["speed_of_sound"],
     "W/m/degK": ["conductivity"],
     "Pa*s": ["viscosity"],
@@ -65,8 +65,8 @@ CP_type_to_symb = {
     "specific energy": ["u", "h", "g", "HelmholtzMass"],
     "molar specific energy": ["umolar", "hmolar", "gmolar", "HelmholtzMolar"],
     "specific heat": ["C", "CpMass", "CvMass", "s"],
-    "molar specific heat": ["CpMolar", "CvMolar", "smolar"],
-    "molar mass": ["M", "molar_mass"],
+    "molar specific heat": ["CpMolar", "CvMolar", "smolar","gas_constant"],
+    "molar mass": ["M", "molar_mass","MOLARMASS"],
     "velocity": ["speed_of_sound"],
     "conductivity": ["conductivity"],
     "viscosity": ["viscosity"],
@@ -74,6 +74,8 @@ CP_type_to_symb = {
 }
 CP_symb_to_type = invert_dict(CP_type_to_symb)
 
+def fluids():
+    return FluidsList()
 
 def PropertyLookup(
     desired,
@@ -455,12 +457,40 @@ class Properties:
         return self._lookup("CvMass", **kwargs)
 
     @property
+    def M(self, *args, **kwargs):
+        """
+        molar mass
+
+        example:
+        >> fluid.M
+
+        :param **kwargs: ignored
+        :returns: molar mass as a dimensional quantity
+        """
+        kwargs = self._update_kwargs(args,kwargs)
+        return self._lookup("MOLARMASS", **kwargs)
+
+    @property
+    def R(self, *args, **kwargs):
+        """
+        gas constant
+
+        example:
+        >> fluid.R
+
+        :param **kwargs: ignored
+        :returns: constant volume specific heat as a dimensional quantity
+        """
+        kwargs = self._update_kwargs(args,kwargs)
+        return self._lookup("gas_constant", **kwargs)/self.M
+
+    @property
     def T_critical(self, *args, **kwargs):
         """
         Critical point temperature
 
         example:
-        >> fluid.T_critical()
+        >> fluid.T_critical
 
         :param **kwargs: ignored
         :returns: Temperature at the critical point as a dimensional quantity
@@ -474,7 +504,7 @@ class Properties:
         Triple point temperature
 
         example:
-        >> fluid.T_triple()
+        >> fluid.T_triple
 
         :param **kwargs: ignored
         :returns: Temperature at the triple point as a dimensional quantity
