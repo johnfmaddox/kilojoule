@@ -6,7 +6,7 @@ from IPython.display import clear_output
 import numpy as np
 
 # Set matplotlib figure size defaults
-plt.rcParams["figure.figsize"] = [6 * 1.2, 4 * 1.2]
+plt.rcParams["figure.figsize"] = [6 * 2, 4 * 2]
 plt.rcParams["figure.dpi"] = 100  # 200 e.g. is really fine, but slower
 
 n_points_default = 100

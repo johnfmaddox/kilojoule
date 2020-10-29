@@ -6,6 +6,7 @@ from .common import (
     preferred_units_from_symbol,
 )
 from .plotting import PropertyPlot
+import CoolProp
 from CoolProp.CoolProp import PropsSI, PhaseSI, FluidsList
 import numpy as np
 
@@ -13,19 +14,19 @@ import numpy as np
 CP_units_to_symb = {
     "K": ["T", "T_critical", "T_triple", "T_max", "T_min", "T_freeze", "T_reducing"],
     "Pa": ["p", "p_critical", "p_triple", "p_max", "p_min", "p_reducing"],
-    "kg/m^3": ["D"],
+    "kg/m^3": ["D","rhomass"],
     "mol/m^3": ["Dmolar"],
     "m^3/kg": ["v"],
     "m^3/mol": ["vmolar"],
-    "J/kg": ["u", "h", "g", "HelmholtzMass"],
+    "J/kg": ["u", "h", "g", "HelmholtzMass","hmass","umass"],
     "J/mol": ["umolar", "hmolar", "gmolar", "HelmholtzMolar"],
-    "J/kg/K": ["C", "CpMass", "CvMass", "s"],
+    "J/kg/K": ["C", "CpMass", "CvMass", "s","smass"],
     "J/mol/K": ["CpMolar", "CvMolar", "smolar","GAS_CONSTANT"],
     "kg/mol": ["M", "molar_mass","MOLARMASS"],
     "m/s": ["speed_of_sound"],
     "W/m/degK": ["conductivity"],
     "Pa*s": ["viscosity"],
-    " ": ["phase", "Q", "Prandtl"],
+    " ": ["phase", "Q", "Prandtl","x"],
 }
 CP_symb_to_units = invert_dict(CP_units_to_symb)
 CP_symbUpper_to_units = {k.upper(): v for k, v in CP_symb_to_units.items()}
@@ -73,6 +74,43 @@ CP_type_to_symb = {
     "dimensionless": ["phase", "Q", "Prandtl"],
 }
 CP_symb_to_type = invert_dict(CP_type_to_symb)
+
+CP_kw_to_AS = {
+    "d":"Dmass",
+    "rho":"Dmass",
+    "v":"Dmass",
+    "d_molar":"Dmolar",
+    "h":"Hmass",
+    "h_molar":"Hmolar",
+    "T":"T",
+    "p":"P",
+    "x":"Q",
+    "Q":"Q",
+    "s":"Smass",
+    "s_molar":"Smolar",
+    "u":"Umass",
+    "u_molar":"Umolar",
+}
+CP_AS_to_kw = invert_dict(CP_kw_to_AS)
+
+CP_kw_to_AS_desired = {
+    "d":"rhomass",
+    "rho":"rhomass",
+    "v":"rhomass",
+    "d_molar":"rhomolar",
+    "h":"hmass",
+    "h_molar":"hmolar",
+    "T":"T",
+    "p":"p",
+    "x":"Q",
+    "Q":"Q",
+    "s":"smass",
+    "s_molar":"smolar",
+    "u":"umass",
+    "u_molar":"umolar",
+    "T_triple":"Ttriple",
+}
+
 
 def fluids():
     return FluidsList()
@@ -234,6 +272,13 @@ class Properties:
 
     def __init__(self, fluid, unit_system="SI_C"):
         self.fluid = fluid
+        self.HEOS = CoolProp.AbstractState("HEOS",self.fluid)
+        self.HEOS.update(CoolProp.PT_INPUTS,101325,300)        
+        try:
+            self.BICU = CoolProp.AbstractState("BICUBIC&HEOS", self.fluid)
+            self.BICU.update(CoolProp.PT_INPUTS,101325,300)
+        except Exception as e:
+            pass
         self.unit_system = unit_system
         # legacy definitions/aliases
         self.Cp = self.cp
@@ -254,6 +299,44 @@ class Properties:
             desired, fluid=self.fluid, unit_system=self.unit_system, **kwargs
         )
 
+    # def _lookup(self, desired, **kwargs):
+    #     try: CP_desired = CP_kw_to_AS_desired[desired]
+    #     except: CP_desired = desired
+    #     input = ''
+    #     values = []
+    #     for k in 'd rho v d_molar h h_molar p x Q s s_molar T u u_molar'.split():
+    #         if k in kwargs.keys():
+    #             input += CP_kw_to_AS[k]
+    #             value = kwargs[k]
+    #             try: value = value.to(CP_symb_to_units[k]).magnitude
+    #             except: pass
+    #             if k == 'v':
+    #                 values.append(1/value)
+    #             else:
+    #                 values.append(value)
+    #     input += '_INPUTS'
+    #     input_comb = getattr(CoolProp,input)
+    #     try:
+    #         self.BICU.update(input_comb,*values)
+    #         result = getattr(self.BICU, CP_desired)()
+    #     except Exception as E:
+    #         self.HEOS.update(input_comb,*values)
+    #         result = getattr(self.HEOS, CP_desired)()
+    #     result = Quantity(result, CP_symb_to_units[CP_desired])
+    #     if desired == 'v':
+    #         result = 1/result
+    #     return result
+
+    def _lookup_trivial(self, desired, **kwargs):
+        return PropertyLookup(
+            desired, fluid=self.fluid, unit_system=self.unit_system, **kwargs
+        )
+        # if desired == 'T_triple': CP_desired = 'Ttriple'
+        # else: CP_desired = desired
+        # result = getattr(self.HEOS, CP_desired)()
+        # result = Quantity(result, CP_symb_to_units[desired])
+        # return result
+        
     def _update_kwargs(self, args, kwargs):
         """use argument unit to identify appropriate keyword"""
         for arg in args:
@@ -427,7 +510,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
         :returns: specific heat as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        # kwargs = self._update_kwargs(args,kwargs)
         return self._lookup("CpMass", **kwargs)
 
     def cp(self, *args, **kwargs):
@@ -467,8 +550,8 @@ class Properties:
         :param **kwargs: ignored
         :returns: molar mass as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
-        return self._lookup("MOLARMASS", **kwargs)
+        # kwargs = self._update_kwargs(args,kwargs)
+        return self._lookup_trivial("MOLARMASS", **kwargs)
 
     @property
     def R(self, *args, **kwargs):
@@ -481,8 +564,8 @@ class Properties:
         :param **kwargs: ignored
         :returns: constant volume specific heat as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
-        return self._lookup("gas_constant", **kwargs)/self.M
+        # kwargs = self._update_kwargs(args,kwargs)
+        return self._lookup_trivial("gas_constant", **kwargs)/self.M
 
     @property
     def T_critical(self, *args, **kwargs):
@@ -495,8 +578,7 @@ class Properties:
         :param **kwargs: ignored
         :returns: Temperature at the critical point as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
-        return self._lookup("T_critical", **kwargs)
+        return self._lookup_trivial("T_critical", **kwargs)
 
     @property
     def T_triple(self, *args, **kwargs):
@@ -509,7 +591,7 @@ class Properties:
         :param **kwargs: ignored
         :returns: Temperature at the triple point as a dimensional quantity
         """
-        return self._lookup("T_triple", **kwargs)
+        return self._lookup_trivial("T_triple", **kwargs)
 
     @property
     def T_max(self, *args, **kwargs):
@@ -522,7 +604,7 @@ class Properties:
         :param **kwargs: ignored
         :returns: maximum valid Temperature as a dimensional quantity
         """
-        return self._lookup("T_max", **kwargs)
+        return self._lookup_trivial("T_max", **kwargs)
 
     @property
     def T_min(self, *args, **kwargs):
@@ -535,7 +617,7 @@ class Properties:
         :param **kwargs: ignored
         :returns: minimum valid Temperature as a dimensional quantity
         """
-        return self._lookup("T_min", **kwargs)
+        return self._lookup_trivial("T_min", **kwargs)
 
     @property
     def p_critical(self, *args, **kwargs):
@@ -548,7 +630,7 @@ class Properties:
         :param **kwargs: ignored
         :returns: pressure at the critical point as a dimensional quantity
         """
-        return self._lookup("p_critical", **kwargs)
+        return self._lookup_trivial("p_critical", **kwargs)
 
     @property
     def p_triple(self, *args, **kwargs):
@@ -561,7 +643,7 @@ class Properties:
         :param **kwargs: ignored
         :returns: pressure at the triple point as a dimensional quantity
         """
-        return self._lookup("p_triple", **kwargs)
+        return self._lookup_trivial("p_triple", **kwargs)
 
     @property
     def p_max(self, *args, **kwargs):
@@ -574,7 +656,7 @@ class Properties:
         :param **kwargs: ignored
         :returns: maximum valid pressure as a dimensional quantity
         """
-        return self._lookup("p_max", **kwargs)
+        return self._lookup_trivial("p_max", **kwargs)
 
     @property
     def p_min(self, **kwargs):
@@ -587,7 +669,7 @@ class Properties:
         :param **kwargs: ignored
         :returns: minimum valid pressure as a dimensional quantity
         """
-        return self._lookup("p_min", **kwargs)
+        return self._lookup_trivial("p_min", **kwargs)
 
     def d_molar(self, *args, **kwargs):
         """

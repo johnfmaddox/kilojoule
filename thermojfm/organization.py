@@ -225,6 +225,10 @@ class PropertyTable:
         known_props = self[state].keys()
         unknown_props = [i for i in self.properties if i not in known_props ]
         indep_props_comb = [[i,j] for i in known_props for j in known_props if i != j]
+        try: indep_props_comb.append(indep_props_comb.pop(indep_props_comb.index(['T','p'])))
+        except: pass
+        try: indep_props_comb.append(indep_props_comb.pop(indep_props_comb.index(['p','T'])))
+        except: pass
         if verbose:
             print(f'property_source: {property_source}')
             print(f'known_props: {known_props}')
