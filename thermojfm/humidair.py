@@ -164,11 +164,11 @@ def PropertyLookup(
     def humidity_search(PropsSI_args):
         desired = PropsSI_args[0]
         for i,v in enumerate(PropsSI_args):
-            if v is 'P':
+            if v == 'P':
                 P = PropsSI_args[i+1]
-            elif v is 'R':
+            elif v == 'R':
                 R_target = PropsSI_args[i+1]
-            elif v is 'W':
+            elif v == 'W':
                 W = PropsSI_args[i+1]
         T = 273.15 # starting guess
         T_guess = T
@@ -196,7 +196,7 @@ def PropertyLookup(
                 n_step += 1
                 if n_step > n_steps: cont=False
         
-        if desired is 'Tdb':
+        if desired == 'Tdb':
             return T
         else:
             return HAPropsSI(desired,'P',P,'W',W,'Tdb',T)
@@ -716,9 +716,10 @@ class Properties:
             show_psych = True
         else:
             show_psych = False
+
         if redraw or not cache:
             self.cached_psychrometric_chart.cache_clear()
-
+            
         psych = self.cached_psychrometric_chart(
             Tmin,
             Tmax,
