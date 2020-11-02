@@ -162,6 +162,7 @@ predefined_unit_types = {
     "Vdot": "volumetric flow rate",
     "Phase": "string",
     "C": "specific heat",
+    "omega": "humidity ratio",
 }
 
 predefined_unit_systems = {

@@ -53,6 +53,7 @@ class PropertyPlot:
         self.props = property_table
         self.fluid = self.props.fluid
         self.unit_system = unit_system or self.props.unit_system
+        self.props.unit_system = self.unit_system
         self.x_symb = x
         self.y_symb = y
         self.x_units = x_units or preferred_units_from_symbol(
@@ -61,6 +62,10 @@ class PropertyPlot:
         self.y_units = y_units or preferred_units_from_symbol(
             self.y_symb, self.unit_system
         )
+        if x=="T" and y=="omega":
+            self.psychrometric=True
+        else:
+            self.psychrometric=False
         # Set up matplotlib
         units.setup_matplotlib()
         if fig is None:
@@ -71,7 +76,7 @@ class PropertyPlot:
             self.ax = self.fig.add_subplot(1, 1, 1)
         else:
             self.ax = self.fig.add_subplot(*subplot)
-        self.ax.set_ylabel(f"${self.y_symb}$ [{Q_(1,self.y_units).units:~P}]")
+        self.ax.set_ylabel(f"${self.y_symb}$ [$\mathrm{{{Q_(1,self.y_units).units:~L}}}$]")
         self.ax.set_xlabel(f"${self.x_symb}$ [{Q_(1,self.x_units).units:~P}]")
         if log_x:
             self.ax.set_xscale("log")
@@ -91,6 +96,7 @@ class PropertyPlot:
         self.p_triple = self.props.p_triple
         self.T_critical = self.props.T_critical
         self.p_critical = self.props.p_critical
+        
     def _merge_line2D_list(self, line_list):
         if isinstance(line_list,list):
             xdata = np.array([])
@@ -133,7 +139,7 @@ class PropertyPlot:
 
     def _line_pos(self, line, pos=None, xcoor=None, ycoor=None, **kwargs):
         line = self._merge_line2D_list(line)
-        pos = pos or 0.5
+        if pos is None: pos = 0.5
         ax = line.axes
         xdata = line.get_xdata()
         if isinstance(xdata,Quantity): xdata = xdata.magnitude
@@ -614,6 +620,29 @@ class PropertyPlot:
             process_line = self.plot_isentropic_efficiency(
                 begin_state, end_state, **kwargs
             )
+        elif path.lower() in [
+            "simple",
+            "heating",
+            "cooling",
+            "simple heating",
+            "simple cooling",
+            "constant w",
+            "constant humidity",
+            "constant omega",    
+        ]:
+            if self.psychrometric:
+                xsat = max(self.props.T(w=y1,rel_hum=1).to(self.x_units).magnitude,self.ax.get_xlim()[0])
+                xsat = Quantity(xsat,self.x_units)
+                if xsat<=x2.to(self.x_units):
+                    process_line = self._plot_straight_line(x1=x1,x2=x2,y1=y1,y2=y2,color=color,**kwargs)
+                else:
+                    L1 = self._plot_straight_line(x1=x1.to(self.x_units),x2=xsat.to(self.x_units),y1=y1,y2=y1,color=color,**kwargs)
+                    L2 = self.plot_iso_line("rel_hum",1,x_range=[xsat.to(self.x_units),x2.to(self.x_units)],color=color,**kwargs)
+                    process_line = L1 if x1-xsat>xsat-x2 else L2
+            else:
+                process_line = self.plot_process(begin_state,end_state,"isobaric",iso_symb,color,pos,xcoor,
+                    ycoor,arrow,arrowprops,label,labelprops,**kwargs)
+    
         else:
             process_line = self._plot_straight_line(x1=x1,x2=x2,y1=y1,y2=y2,color=color, linestyle="--", **kwargs)
         if arrow:
@@ -649,11 +678,11 @@ class PropertyPlot:
             whether to align the text to the local slope of the line
         size : float
         """
-        pos = pos or 0.5
-        labelprops = {**labelprops_default, **labelprops}
         if 'pos' in labelprops.keys():
             pos = labelprops['pos']
             del labelprops['pos']
+        if pos is None: pos = 0.5
+        labelprops = {**labelprops_default, **labelprops}
         if 'rotate' in labelprops.keys():
             rotate = labelprops['rotate']
             del labelprops['rotate']
@@ -682,11 +711,18 @@ class PropertyPlot:
         xytext = [0,0]
         if 'va' in labelprops.keys():
             labelprops['verticalalignment'] = labelprops['va']
+        if 'ha' in labelprops.keys():
+            labelprops['horizontalalignment'] = labelprops['ha']
         va = labelprops['verticalalignment']
+        ha = labelprops['horizontalalignment']
         if va=='top':
             offset_angle = slope_degrees - 90
-        else:
+        elif va=='bottom':
             offset_angle = slope_degrees + 90
+        elif ha=='right':
+            offset_angle = slope_degrees + 180
+        else:
+            offset_angle = slope_degrees
         xytext[0] = offset*np.cos(np.deg2rad(offset_angle))
         xytext[1] = offset*np.sin(np.deg2rad(offset_angle))
         if verbose:

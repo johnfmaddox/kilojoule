@@ -10,9 +10,9 @@ Q_ = Quantity
 # lbmol
 units.define("pound_mole = 453.59237*mol = lbmol")
 # mass of dry air
-units.define("gram_dry_air = [mass_dry_air] = g_dry_air = ga = g_a")
+units.define("gram_dry_air = [mass_dry_air] = g_a = g_dry_air = ga ")
 units.define(
-    "pound_dry_air = 453.59237 * gram_dry_air = lb_dry_air = lb_a = lba = lbm_a = lbma = lb_dry_air = lbm_dry_air"
+    "pound_dry_air = 453.59237 * gram_dry_air = lb_dry_air = lba = lb_a = lbm_a = lbma = lb_dry_air = lbm_dry_air"
 )
 # mass of humid air
 units.define("gram_humid_air = [mass_humid_air] = gha = g_ha = g_humid_air")
@@ -22,7 +22,7 @@ units.define(
 # mass of water
 units.define("gram_water = [mass_water] = g_water = gw = g_w")
 units.define(
-    "pound_water = 453.59237 * gram_water = lb_water = lbw = lbmw = lb_w = lbm_w = lbm_water"
+    "pound_water = 453.59237 * gram_water = lb_water = lb_w = lbw = lbmw = lbm_w = lbm_water"
 )
 # molecules of dry air
 units.define(
