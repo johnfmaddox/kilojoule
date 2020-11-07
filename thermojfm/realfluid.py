@@ -485,7 +485,10 @@ class Properties:
         :returns: vapor quality dimensionless quantity
         """
         kwargs = self._update_kwargs(args,kwargs)
-        return self._lookup("Q", **kwargs)
+        value = self._lookup("Q", **kwargs)
+        if 0<=value<=1:
+            return value
+        
 
     def phase(self, *args, **kwargs):
         """

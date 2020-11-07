@@ -124,6 +124,13 @@ class PropertyTable:
             self.dict[property] = PropertyDict(property, unit_system=self.unit_system)
         return self.dict[property]
 
+    def remove_property(self,property):
+        property = str(property)
+        try:
+            self.properties.remove(property)
+        except:
+            pass
+
     def _list_like(self, value):
         """Try to detect a list-like structure excluding strings
 
@@ -337,8 +344,13 @@ class PropertyTable:
         else:
             raise IndexError("Recieved index of level 1: Not implemented yet")
 
+    def __iter__(self):
+        return (self.dict)
+    
     def __delitem__(self, item):
         pass
 
     def __str__(self, *args, **kwargs):
         return self.to_pandas(self, *args, **kwargs).to_string()
+
+

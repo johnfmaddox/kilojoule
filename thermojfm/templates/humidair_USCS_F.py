@@ -26,7 +26,7 @@ properties_dict = {
      'Vel':'ft/s',     # velocity
      'X':'Btu',        # exergy
      'Xdot':'hp',     # exergy flow rate
-     'phi':'Btu/lb_dry_air',   # specific exergy
+     # 'phi':'Btu/lb_dry_air',   # specific exergy
      'psi':'Btu/lb_dry_air',   # specific flow exergy
      'y':'',          # water mole fraction
      'c_v':'Btu/lb_dry_air/degR', # constant volume specific heat
@@ -36,6 +36,7 @@ properties_dict = {
      'T_dp':'degF',   # Dew-point Temperature
      'p_w':'psi',     # partial pressure of water vapor
      'rel_hum':'',    # relative humidity
+     'phi':'',    # relative humidity
      'omega':'lb_water/lb_dry_air' # humidity ratio 
  }
 states = PropertyTable(properties_dict, unit_system='English_F')
