@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Setup file for thermojfm.
+    Setup file for kilojoule.
     Use setup.cfg to configure your project.
 
     This file was generated with PyScaffold 3.2.3.
@@ -20,4 +20,4 @@ except VersionConflict:
 
 
 if __name__ == "__main__":
-    setup(use_pyscaffold=True)
+    setup(name="kilojoule", install_requires=['numpy','matplotlib','coolprop','pyromat','pint','sympy'],use_pyscaffold=True)

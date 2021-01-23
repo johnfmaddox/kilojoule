@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from thermojfm.skeleton import fib
+from kilojoule.skeleton import fib
 
 __author__ = "Jack Maddox"
 __copyright__ = "Jack Maddox"
