@@ -1,8 +1,8 @@
 =========
-thermojfm
+kilojoule
 =========
 
-This is the documentation of **thermojfm**.
+This is the documentation of **kilojoule**.
 
 .. note::
 

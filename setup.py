@@ -1,23 +1,22 @@
-# -*- coding: utf-8 -*-
-"""
-    Setup file for kilojoule.
-    Use setup.cfg to configure your project.
+import setuptools
 
-    This file was generated with PyScaffold 3.2.3.
-    PyScaffold helps you to put up the scaffold of your new Python project.
-    Learn more under: https://pyscaffold.org/
-"""
-import sys
+with open("README.rst", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
-from pkg_resources import VersionConflict, require
-from setuptools import setup
-
-try:
-    require('setuptools>=38.3')
-except VersionConflict:
-    print("Error: version of setuptools is too old (<38.3)!")
-    sys.exit(1)
-
-
-if __name__ == "__main__":
-    setup(name="kilojoule", install_requires=['numpy','matplotlib','coolprop','pyromat','pint','sympy'],use_pyscaffold=True)
+setuptools.setup(
+    name="kilojoule",
+    version="0.1.4",
+    author="Jack Maddox",
+    author_email="jackmaddox@gmail.com",
+    description="A convenience package for thermodynamic and heat transfer calculations",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/johnfmaddox/kilojoule",
+    packages=setuptools.find_packages(),
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
+    python_requires='>=3.6',
+)

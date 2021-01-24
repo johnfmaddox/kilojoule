@@ -1,0 +1,152 @@
+]0;~/Examples[01;34m~/Examples[00m$ e[Kecho #[K$PYTHONPATH
+
+]0;~/Examples[01;34m~/Examples[00m$ ls ~/.local/lib/python3.6/sie[Kte-packages/
+[0m[01;34mCoolProp[0m  [01;34mCoolProp-6.4.0.dist-info[0m
+]0;~/Examples[01;34m~/Examples[00m$ ls
+ 2020-07-23-224847.term   2020-07-24-122314.term  'ME321 Ex0.1 Filling a Tank.ipynb'   PlottingTest.ipynb   [0m[01;34m__pycache__[0m   thermoJFM.py   thermoJFM.pyc
+]0;~/Examples[01;34m~/Examples[00m$ cd ~/.local/lib/python3.6/site-packages/
+]0;~/.local/lib/python3.6/site-packages[01;34m~/.local/lib/python3.6/site-packages[00m$ ls
+[0m[01;34mCoolProp[0m  [01;34mCoolProp-6.4.0.dist-info[0m
+]0;~/.local/lib/python3.6/site-packages[01;34m~/.local/lib/python3.6/site-packages[00m$ ls
+[0m[01;34mCoolProp[0m  [01;34mCoolProp-6.4.0.dist-info[0m
+]0;~/.local/lib/python3.6/site-packages[01;34m~/.local/lib/python3.6/site-packages[00m$ ls -l
+total 3
+drwxr-xr-x 7 user user 21 Jul 23 23:38 [0m[01;34mCoolProp[0m
+drwxr-xr-x 2 user user  7 Jul 23 23:38 [01;34mCoolProp-6.4.0.dist-info[0m
+]0;~/.local/lib/python3.6/site-packages[01;34m~/.local/lib/python3.6/site-packages[00m$ tree
+[01;34m.[00m
+├── [01;34mCoolProp[00m
+│   ├── AbstractState.pxd
+│   ├── BibtexParser.py
+│   ├── [01;32mCoolProp.cpython-36m-x86_64-linux-gnu.so[00m
+│   ├── CoolProp.pxd
+│   ├── CoolPropBibTeXLibrary.bib
+│   ├── [01;34mGUI[00m
+│   │   ├── CoolPropGUI.py
+│   │   ├── PsychScript.py
+│   │   ├── __init__.py
+│   │   └── [01;34m__pycache__[00m
+│   │       ├── CoolPropGUI.cpython-36.pyc
+│   │       ├── PsychScript.cpython-36.pyc
+│   │       └── __init__.cpython-36.pyc
+│   ├── HumidAirProp.py
+│   ├── [01;34mPlots[00m
+│   │   ├── Common.py
+│   │   ├── ConsistencyPlots.py
+│   │   ├── ConsistencyPlots_pcsaft.py
+│   │   ├── Plots.py
+│   │   ├── PsychChart.py
+│   │   ├── PsychScript.py
+│   │   ├── SimpleCycles.py
+│   │   ├── SimpleCyclesCompression.py
+│   │   ├── SimpleCyclesExpansion.py
+│   │   ├── Tests.py
+│   │   ├── __init__.py
+│   │   ├── [01;34m__pycache__[00m
+│   │   │   ├── Common.cpython-36.pyc
+│   │   │   ├── ConsistencyPlots.cpython-36.pyc
+│   │   │   ├── ConsistencyPlots_pcsaft.cpython-36.pyc
+│   │   │   ├── Plots.cpython-36.pyc
+│   │   │   ├── PsychChart.cpython-36.pyc
+│   │   │   ├── PsychScript.cpython-36.pyc
+│   │   │   ├── SimpleCycles.cpython-36.pyc
+│   │   │   ├── SimpleCyclesCompression.cpython-36.pyc
+│   │   │   ├── SimpleCyclesExpansion.cpython-36.pyc
+│   │   │   ├── Tests.cpython-36.pyc
+│   │   │   ├── __init__.cpython-36.pyc
+│   │   │   └── psy.cpython-36.pyc
+│   │   ├── psy.py
+│   │   └── psyrc
+│   ├── State.pxd
+│   ├── State.py
+│   ├── __init__.py
+│   ├── [01;34m__pycache__[00m
+│   │   ├── BibtexParser.cpython-36.pyc
+│   │   ├── HumidAirProp.cpython-36.pyc
+│   │   ├── State.cpython-36.pyc
+│   │   ├── __init__.cpython-36.pyc
+│   │   └── constants.cpython-36.pyc
+│   ├── [01;32m_constants.cpython-36m-x86_64-linux-gnu.so[00m
+│   ├── cAbstractState.pxd
+│   ├── constants.py
+│   ├── constants_header.pxd
+│   ├── [01;34minclude[00m
+│   │   ├── AbstractState.h
+│   │   ├── Ancillaries.h
+│   │   ├── CPfilepaths.h
+│   │   ├── CPmsgpack.h
+│   │   ├── CPnumerics.h
+│   │   ├── CPstrings.h
+│   │   ├── CachedElement.h
+│   │   ├── Configuration.h
+│   │   ├── CoolProp.h
+│   │   ├── CoolPropFluid.h
+│   │   ├── CoolPropLib.h
+│   │   ├── CoolPropTools.h
+│   │   ├── DataStructures.h
+│   │   ├── Exceptions.h
+│   │   ├── Helmholtz.h
+│   │   ├── HumidAirProp.h
+│   │   ├── Ice.h
+│   │   ├── IdealCurves.h
+│   │   ├── IncompressibleFluid.h
+│   │   ├── MatrixMath.h
+│   │   ├── ODEIntegrators.h
+│   │   ├── PCSAFTFluid.h
+│   │   ├── PhaseEnvelope.h
+│   │   ├── PlatformDetermination.h
+│   │   ├── PolyMath.h
+│   │   ├── Solvers.h
+│   │   ├── SpeedTest.h
+│   │   ├── TestObjects.h
+│   │   ├── Tests.h
+│   │   ├── catch.hpp
+│   │   ├── cpversion.h
+│   │   ├── crossplatform_shared_ptr.h
+│   │   ├── [01;34mfmt[00m
+│   │   │   ├── CMakeLists.txt
+│   │   │   ├── container.h
+│   │   │   ├── format.cc
+│   │   │   ├── format.h
+│   │   │   ├── ostream.cc
+│   │   │   ├── ostream.h
+│   │   │   ├── posix.cc
+│   │   │   ├── posix.h
+│   │   │   ├── printf.cc
+│   │   │   ├── printf.h
+│   │   │   ├── string.h
+│   │   │   └── time.h
+│   │   ├── gitrevision.h
+│   │   ├── miniz.h
+│   │   └── rapidjson_include.h
+│   ├── [01;34mtests[00m
+│   │   ├── __init__.py
+│   │   ├── [01;34m__pycache__[00m
+│   │   │   ├── __init__.cpython-36.pyc
+│   │   │   ├── runner.cpython-36.pyc
+│   │   │   ├── test_CoolPropState.cpython-36.pyc
+│   │   │   ├── test_Props.cpython-36.pyc
+│   │   │   └── test_plots.cpython-36.pyc
+│   │   ├── runner.py
+│   │   ├── test_CoolPropState.py
+│   │   ├── test_Props.py
+│   │   └── test_plots.py
+│   └── typedefs.pxd
+└── [01;34mCoolProp-6.4.0.dist-info[00m
+    ├── INSTALLER
+    ├── METADATA
+    ├── RECORD
+    ├── WHEEL
+    └── top_level.txt
+
+11 directories, 112 files
+]0;~/.local/lib/python3.6/site-packages[01;34m~/.local/lib/python3.6/site-packages[00m$ mkdir thermoJFM
+]0;~/.local/lib/python3.6/site-packages[01;34m~/.local/lib/python3.6/site-packages[00m$ cd thermoJFM/
+]0;~/.local/lib/python3.6/site-packages/thermoJFM[01;34m~/.local/lib/python3.6/site-packages/thermoJFM[00m$ mv ~/E[K
+.Setup.ipynb.sage-jupyter2  .bashrc                     .gitconfig                  .jupyter/                   .pki/                       .smc/                       Examples/                   Testing/                    
+.bash_history               .cache/                     .gitexcludes                .jupyter-blobs-v0.db        .python_history             .snapshots/                 ME321Fall2020.course        
+.bash_profile               .config/                    .ipython/                   .local/                     .sage/                      .ssh/                       Setup.ipynb                 
+]0;~/.local/lib/python3.6/site-packages/thermoJFM[01;34m~/.local/lib/python3.6/site-packages/thermoJFM[00m$ mv ~/Examples/thermoJFM.py ./
+]0;~/.local/lib/python3.6/site-packages/thermoJFM[01;34m~/.local/lib/python3.6/site-packages/thermoJFM[00m$ ls
+thermoJFM.py
+]0;~/.local/lib/python3.6/site-packages/thermoJFM[01;34m~/.local/lib/python3.6/site-packages/thermoJFM[00m$ 

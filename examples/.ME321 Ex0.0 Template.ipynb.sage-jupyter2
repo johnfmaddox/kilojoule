@@ -1,0 +1,13 @@
+{"attachments":{"tanksandturbine.png":{"type":"sha1","value":"988405d1c9140a021bece302baa29f5a5bad5c44"}},"cell_type":"markdown","id":"e77131","input":"## Problem Statement\n","pos":1,"state":"done","type":"cell"}
+{"backend_state":"ready","kernel":"python3","kernel_state":"idle","kernel_usage":{"cpu":14.285714285714285,"memory":29753344},"metadata":{"language_info":{"codemirror_mode":{"name":"ipython","version":3},"file_extension":".py","mimetype":"text/x-python","name":"python","nbconvert_exporter":"python","pygments_lexer":"ipython3","version":"3.6.9"}},"trust":false,"type":"settings"}
+{"cell_type":"code","exec_count":0,"id":"210f39","input":"","pos":8,"state":"done","type":"cell"}
+{"cell_type":"code","exec_count":0,"id":"92a0f8","input":"","pos":9,"state":"done","type":"cell"}
+{"cell_type":"code","exec_count":0,"id":"b6d418","input":"","pos":6,"state":"done","type":"cell"}
+{"cell_type":"code","exec_count":2,"id":"92dd2a","input":"# Import Template\nfrom thermoJFM import units, Q_, StatesTable, FluidProperties, FluidPropertyPlot\n\nproperties_dict = {\n    'T':'degC',\n    'p':'kPa',\n    'v':'m^3/kg',\n    'u':'kJ/kg',\n    'h':'kJ/kg',\n    's':'kJ/kg/K',\n    'x':None\n}\nstates = StatesTable(properties_dict, unit_system='SI_C')\nfor property in states.properties:\n    globals()[property] = states.dict[property]\n\nwater = FluidProperties('Water', unit_system='SI_C')","pos":4,"state":"done","type":"cell"}
+{"cell_type":"markdown","id":"84a60a","input":"### Python Initialization\nWe'll start by importing the libraries we will use for our analysis and initializing dictionaries to hold the properties we will be usings.","pos":3,"state":"done","type":"cell"}
+{"cell_type":"markdown","id":"8c0f97","input":"# Example 0.0: Topic\n\n*John F. Maddox, Ph.D., P.E.<br>\nUniversity of Kentucky - Paducah Campus<br>\nME 321: Engineering Thermodynamics II<br>*\n\n\n","pos":0,"state":"done","type":"cell"}
+{"cell_type":"markdown","id":"97dd9d","input":"### Given Parameters\nWe now define variables to hold our known values.","pos":5,"state":"done","type":"cell"}
+{"cell_type":"markdown","id":"9b7fa5","input":"## Solution\n","pos":2,"state":"done","type":"cell"}
+{"cell_type":"markdown","id":"ae0e67","input":"### Assumptions\n  - Negligible changes in kinetic energy\n  - Negligible changes in potential energy","pos":7,"state":"done","type":"cell"}
+{"id":0,"time":1597007885340,"type":"user"}
+{"last_load":1597068916679,"type":"file"}

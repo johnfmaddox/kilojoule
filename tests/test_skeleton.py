@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
+
 from kilojoule.skeleton import fib
 
 __author__ = "Jack Maddox"

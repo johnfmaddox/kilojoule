@@ -12,7 +12,6 @@ __pycache__/*
 .cache/*
 .*.swp
 */.ipynb_checkpoints/*
-\#*
 .DS_Store
 
 # Project files
@@ -21,6 +20,7 @@ __pycache__/*
 .pydevproject
 .settings
 .idea
+.vscode
 tags
 
 # Package files

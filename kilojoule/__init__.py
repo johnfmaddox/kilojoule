@@ -20,11 +20,11 @@ __version__ = "0.1.0"
 
 # Legacy definitions for backwards compatibility with scripts written
 # during code deveopment in ME 321 during Fall 2020
-from .units import Q_, units, Quantity
-from .realfluid import Properties as FluidProperties
-from .realfluid import LegacyPropertyPlot as FluidPropertyPlot
-from .idealgas import Properties as IdealGasProperties
-from .idealgas import LegacyPropertyPlot as IdealGasPropertyPlot
-from .display import Calculations as ShowCalculations
-from .display import Summary as ShowSummary
-from .organization import PropertyTable as StatesTable
+# from .units import Q_, units, Quantity
+# from .realfluid import Properties as FluidProperties
+# from .realfluid import LegacyPropertyPlot as FluidPropertyPlot
+# from .idealgas import Properties as IdealGasProperties
+# from .idealgas import LegacyPropertyPlot as IdealGasPropertyPlot
+# from .display import Calculations as ShowCalculations
+# from .display import Summary as ShowSummary
+# from .organization import PropertyTable as StatesTable

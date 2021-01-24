@@ -5,8 +5,8 @@ from kilojoule.organization import PropertyTable
 import kilojoule.display as display
 from kilojoule.units import units, Quantity
 
-humidair = thermoJFM.humidair.Properties()
-water = thermoJFM.realfluid.Properties('Water',unit_system='SI_C')
+humidair = kilojoule.humidair.Properties()
+water = kilojoule.realfluid.Properties('Water',unit_system='SI_C')
 
 properties_dict = {
      'T':'degC',      # Temperature

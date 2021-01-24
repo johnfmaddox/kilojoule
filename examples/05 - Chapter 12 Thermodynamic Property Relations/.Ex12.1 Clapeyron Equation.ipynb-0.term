@@ -1,0 +1,64 @@
+]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ [K]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ [K]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ [K]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ cat ~/bint[K[Kn/homework_submission.sh 
+#/bin/bash
+
+jupyter nbconvert --to html_embed --no-input "$1"]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ 
+]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ pwd
+/home/user/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations
+]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ whoami
+user
+]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ ls
+'Ex12.1 Clapeyron Equation.html'   'Ex12.1 Clapeyron Equation.pdf'
+'Ex12.1 Clapeyron Equation.ipynb'  'Ex12.2 - Joule-Thomson Coefficient.ipynb'
+]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ .s ~/
+bash: .s: command not found
+]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ ls ~/
+[0m[01;36mExamples[0m  [01;36mIn_Class[0m               ME321Fall2020.course  [01;34mResources[0m  [01;34mTesting[0m  [01;34mlib[0m  terminal-1.term
+[01;36mHomework[0m  [01;34mME321Fall2020-collect[0m  [01;34mNotebooks[0m             [01;34mSolutions[0m  [01;34mbin[0m      [01;34msrc[0m
+]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ ls ~/ -la
+total 13380
+drwxr-xr-x 23 user user       45 Oct 19 15:40 [0m[01;34m.[0m
+drwxr-xr-x  1 root root     4096 Oct 18 18:15 [01;34m..[0m
+-rw-r--r--  1 user user        0 Aug 17 15:59 .ME321Fall2020.course.sage-chat
+-rw-------  1 user user     5498 Oct 19 20:16 .bash_history
+lrwxrwxrwx  1 user user       18 Jul 23 23:12 [01;36m.bash_profile[0m -> /home/user/.bashrc
+-rw-r--r--  1 user user     2355 Jul 23 23:12 .bashrc
+drwxr-xr-x  7 user user        7 Jul 25 03:47 [01;34m.cache[0m
+drwx------  5 user user        5 Jul 25 03:46 [01;34m.config[0m
+-rw-r--r--  1 user user      533 Sep  3 13:08 .emacs
+drwx------  4 user user        5 Sep  3 13:04 [01;34m.emacs.d[0m
+-rw-r--r--  1 user user      103 Sep  7 21:56 .gitconfig
+-rw-r--r--  1 user user      918 Jul 23 23:12 .gitexcludes
+drwxr-xr-x  5 user user        5 Jul 23 23:30 [01;34m.ipython[0m
+-rw-------  1 user user      296 Sep  7 21:56 .joe_state
+drwxr-xr-x  3 user user        4 Aug 24 18:22 [01;34m.jupyter[0m
+-rw-r--r--  1 user user 13590528 Oct 19 15:40 .jupyter-blobs-v0.db
+drwx------  6 user user       10 Aug 25 08:11 [01;34m.local[0m
+drwxr-xr-x  3 user user        3 Aug 24 18:23 [01;34m.npm[0m
+drwxr-xr-x 12 user user       19 Aug 23 05:41 [01;34m.oh-my-zsh[0m
+drwx------  3 user user        3 Jul 24 00:22 [01;34m.pki[0m
+-rw-------  1 user user       16 Aug 18 20:55 .python_history
+drwx------  9 user user        9 Aug  1 10:47 [01;34m.sage[0m
+lrwxrwxrwx  1 user user       12 Oct 19 13:14 [01;36m.smc[0m -> [01;34m/tmp/.cocalc[0m
+dr-xr-xr-x  2 user user        2 Oct 19 20:05 [01;34m.snapshots[0m
+drwxr-xr-x  2 user user        3 Oct 19 13:14 [01;34m.ssh[0m
+-rw-r--r--  1 user user   260023 Sep  8 03:04 .terminal-1.term-0.term
+drwx------  2 user user       10 Oct 19 13:14 [01;34m.unison[0m
+-rw-r--r--  1 user user    49713 Aug 23 05:35 .zcompdump
+-rw-r--r--  1 user user    49713 Aug 23 05:42 .zcompdump-project-15a164c1-efcd-4d5a-8cb0-5507e0d08aea-5.8
+-rw-------  1 user user     1173 Sep  4 16:54 .zsh_history
+-rw-r--r--  1 user user     3697 Sep  4 15:38 .zshrc
+-rw-r--r--  1 user user     3678 Sep  4 15:35 .zshrc~
+lrwxrwxrwx  1 user user       19 Sep  7 21:53 [01;36mExamples[0m -> [01;34mNotebooks/Examples/[0m
+lrwxrwxrwx  1 user user       18 Sep  7 21:54 [01;36mHomework[0m -> [01;34mNotebooks/Homework[0m
+lrwxrwxrwx  1 user user       18 Sep  7 21:54 [01;36mIn_Class[0m -> [01;34mNotebooks/In_Class[0m
+drwxr-xr-x  4 user user        4 Oct 11 15:58 [01;34mME321Fall2020-collect[0m
+-rw-r--r--  1 user user    60052 Oct 19 13:19 ME321Fall2020.course
+drwxr-xr-x 11 user user       11 Sep 22 01:13 [01;34mNotebooks[0m
+drwxr-xr-x  4 user user        7 Aug 24 03:06 [01;34mResources[0m
+drwxr-xr-x  2 user user        4 Aug 25 04:14 [01;34mSolutions[0m
+drwxr-xr-x  3 user user       19 Aug 25 08:10 [01;34mTesting[0m
+drwxr-xr-x  2 user user        3 Aug 27 19:16 [01;34mbin[0m
+drwxr-xr-x  5 user user        9 Sep  8 01:48 [01;34mlib[0m
+drwxr-xr-x  3 user user       10 Sep  8 03:00 [01;34msrc[0m
+-rw-r--r--  1 user user        0 Sep  8 02:58 terminal-1.term
+]0;~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[01;34m~/Notebooks/Examples/05 - Chapter 12 Thermodynamic Property Relations[00m$ 
