@@ -9,7 +9,7 @@ Convenience functions for solving thermodynamic and heat transfer problems
 Description
 ===========
 
-kilojoule is Python module/package to provide convenience functions
+kilojoule is a Python module/package to provide convenience functions
 for performing thermodynamic and heat transfer calculations.  The
 primary use case for these functions is in scripts written to solve 
 specific problems.  To that end, simplicity of syntax for variables
