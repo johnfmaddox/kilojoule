@@ -1,7 +1,7 @@
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
 from kilojoule.organization import PropertyTable
-import kilojoule.display as display
+from kilojoule.display import Calculations, Summary
 from kilojoule.units import units, Quantity
 
 water = realfluid.Properties('Water')

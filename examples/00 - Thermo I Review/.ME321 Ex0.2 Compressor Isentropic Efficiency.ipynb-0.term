@@ -1,0 +1,64 @@
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ cd ~/bin/homework[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K~/bin/homework_submission.sh 
+.ME321 Ex0.1 Filling a Tank.ipynb-0.term
+.ME321 Ex0.1 Filling a Tank.ipynb.sage-jupyter2
+.ME321 Ex0.2 Compressor Isentropic Efficiency.ipynb-0.term
+.ME321 Ex0.2 Compressor Isentropic Efficiency.ipynb.sage-jupyter2
+.ME321 Ex0.3 Tank and Turbine.ipynb.sage-jupyter2
+ME321 Ex0.1 Filling a Tank.html
+ME321 Ex0.1 Filling a Tank.ipynb
+ME321 Ex0.1 Filling a Tank.tex
+ME321 Ex0.1 Filling a Tank.tmp.html
+ME321 Ex0.1.pdf
+ME321 Ex0.1b Thermal Equilibrium.ipynb
+ME321 Ex0.2 Compressor Isentropic Efficiency.ipynb
+ME321 Ex0.3 Tank and Turbine.ipynb
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ ~/bin/homework_submission.sh 
+.ME321 Ex0.1 Filling a Tank.ipynb-0.term
+.ME321 Ex0.1 Filling a Tank.ipynb.sage-jupyter2
+.ME321 Ex0.2 Compressor Isentropic Efficiency.ipynb-0.term
+.ME321 Ex0.2 Compressor Isentropic Efficiency.ipynb.sage-jupyter2
+.ME321 Ex0.3 Tank and Turbine.ipynb.sage-jupyter2
+ME321 Ex0.1 Filling a Tank.html
+ME321 Ex0.1 Filling a Tank.ipynb
+ME321 Ex0.1 Filling a Tank.tex
+ME321 Ex0.1 Filling a Tank.tmp.html
+ME321 Ex0.1.pdf
+ME321 Ex0.1b Thermal Equilibrium.ipynb
+ME321 Ex0.2 Compressor Isentropic Efficiency.ipynb
+ME321 Ex0.3 Tank and Turbine.ipynb
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ ~/bin/homework_submission.sh [1@c[1@a[1@t[1@ 
+#/bin/bash
+
+jupyter nbconvert --to html_embed --no-input "$1"]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ jupyte
+jupyter                            jupyter-labextension               jupyter-serverextension
+jupyter-bundlerextension           jupyter-labhub                     jupyter-sparqlkernel
+jupyter-console                    jupyter-migrate                    jupyter-troubleshoot
+jupyter-contrib                    jupyter-nbconvert                  jupyter-trust
+jupyter-contrib-nbextension        jupyter-nbextension                jupyterhub
+jupyter-kernel                     jupyter-nbextensions_configurator  jupyterhub-singleuser
+jupyter-kernel-gap                 jupyter-notebook                   jupytext
+jupyter-kernelspec                 jupyter-qtconsole                  
+jupyter-lab                        jupyter-run                        
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ jupyter=nb[K[K[K-nbconvert --[K-to html_embed ME321\ Ex0.1
+ME321 Ex0.1 Filling a Tank.html         ME321 Ex0.1 Filling a Tank.tex          ME321 Ex0.1.pdf
+ME321 Ex0.1 Filling a Tank.ipynb        ME321 Ex0.1 Filling a Tank.tmp.html     ME321 Ex0.1b Thermal Equilibrium.ipynb
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ jupyter-nbconvert --to html_embed ME321\ Ex0.1
+ME321 Ex0.1 Filling a Tank.html         ME321 Ex0.1 Filling a Tank.tex          ME321 Ex0.1.pdf
+ME321 Ex0.1 Filling a Tank.ipynb        ME321 Ex0.1 Filling a Tank.tmp.html     ME321 Ex0.1b Thermal Equilibrium.ipynb
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ jupyter-nbconvert --to html_embed ME321\ Ex0.1\ Filling\ a\ Tank.ipynb 
+[NbConvertApp] Converting notebook ME321 Ex0.1 Filling a Tank.ipynb to html_embed
+[NbConvertApp] Writing 309129 bytes to ME321 Ex0.1 Filling a Tank.html
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ jupyter-nbconvert --to html_embed ME321\ Ex0.1\ Filling\ a\ Tank.ipynb [K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K2\ Compressor\ Isentropic\ Efficiency.ipynb 
+[NbConvertApp] Converting notebook ME321 Ex0.2 Compressor Isentropic Efficiency.ipynb to html_embed
+[NbConvertApp] Writing 300081 bytes to ME321 Ex0.2 Compressor Isentropic Efficiency.html
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ [K]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ [K]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ jupyter-nbconvert --to html_embed ME321\ Ex0.2\ Compressor\ Isentropic\ Efficiency.ipynb [A]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ [C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[17P1\ Filling\ a\ Tank.ipynb 
+[K[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K2\ Compressor\ Isentropic\ Efficiency.i[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K3\ Tank\ and\ Turbine.ipynb 
+[NbConvertApp] Converting notebook ME321 Ex0.3 Tank and Turbine.ipynb to html_embed
+[NbConvertApp] try embedding url: attachment:tanksandturbine.png, format: png
+[NbConvertApp] Writing 321491 bytes to ME321 Ex0.3 Tank and Turbine.html
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ jupyter-nbconvert --to html_embed ME321\ Ex0.3\ Tank\ and\ Turbine.ipynb 2\ Compressor\ Isentropic\ Efficiency.ipynb [A]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ [C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[15P3\ Tank\ and\ Turbine.ipynb 
+[K[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C
+[NbConvertApp] Converting notebook ME321 Ex0.3 Tank and Turbine.ipynb to html_embed
+[NbConvertApp] try embedding url: attachment:tanksandturbine.png, format: png
+[NbConvertApp] Writing 321491 bytes to ME321 Ex0.3 Tank and Turbine.html
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ ]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ 

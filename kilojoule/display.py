@@ -12,7 +12,7 @@ external document.
 from string import ascii_lowercase
 from IPython.display import display, HTML, Math, Latex, Markdown
 from sympy import sympify, latex
-import re
+import regex as re
 import functools
 import inspect
 import logging
@@ -22,19 +22,38 @@ from .units import units, Quantity
 
 
 pre_sympy_latex_substitutions = {
-    "Delta_": "Delta*",
-    "delta_": "delta*",
-    #     'Delta*':'Delta_',
-    #     'delta*':'delta_',
-    "Delta__": "Delta",
-    "delta__": "delta ",
+    "Delta_(?!_)": "Delta*",
+    "delta_(?!_)": "delta*",
+    "Delta__": "Delta_",
+    "delta__": "delta_",
     "math.log": "log",
+    "np.pi": "pi",
+    "math.pi": "pi",
+    "Nu": "Nuplchldr",
+    "_bar": "bar",
+    "_ppprime|_tripleprime": "_tripprmplchldr",
+    "_pprime|_doubleprime": "_doubprmplchldr",
+    "_prime": "_prmplchldr",
 }
+
 post_sympy_latex_substitutions = {
-    " to ": r"\to",
-    r"\Delta ": r"\Delta{}",
-    r"\delta ": r"\delta{}",
-    " ": ",",
+    "rpy to ": r"\to",
+    r"\\Delta ": r"\\Delta{}",
+    r"\\delta ": r"\\delta{}",
+    r"(?<!\(|\\cdot|,|\\to) (?!\\right|\\cdot|,|\\to)": r",",
+    r"Nuplchldr": r"Nu",
+    r"\\hbar": r"\\bar{h}",
+    r"\\bar{": r"\\overline{",
+    r"(infty|infinity)": r"\\infty",
+    r"inf(,|})": r"\\infty\1",
+    r"^inf$": r"\\infty",
+    r"_\{tripprmplchldr\}|,tripprmplchldr": r"'''",
+    r"_\{tripprmplchldr,": r"'''_\{",
+    r"_\{doubprmplchldr\}|,doubprmplchldr": r"''",
+    r"_\{doubprmplchldr,": r"''_{",
+    r"_\{prmplchldr\}|,prmplchldr": r"'",
+    r"_\{prmplchldr,": r"'_\{",
+    r",to,": r"\\to{}",
 }
 
 # create a list of the form: [aa, ab, ac, ... , ca, cb, cc, ..., zz]
@@ -59,6 +78,17 @@ def get_class_that_defined_method(meth):
     return getattr(meth, '__objclass__', None)  # handle special descriptor objects
 
 
+# Adapted from: https://stackoverflow.com/questions/6618795/get-locals-from-calling-namespace-in-python
+def get_caller_locals():
+    """Get the local variables in the caller's frame."""
+    frame = inspect.currentframe()
+    try:
+        result = frame.f_back.f_back.f_locals
+    finally:
+        del frame
+    return result
+
+
 class EqTerm:
     """Parses a single term from an equation
     
@@ -77,9 +107,6 @@ class EqTerm:
         verbose=False,
         **kwargs,
     ):
-        
-        # if verbose:
-        # print(f"EqTerm({term_string})")
         self.verbose = verbose
         self.namespace = namespace
         self.orig_string = term_string
@@ -93,11 +120,9 @@ class EqTerm:
             if self.verbose: print('processing as function')
             self.process_function()
         elif "[" in self.term_string and "]" in self.term_string:
-            # print(f"processing {self.term_string} as index")
             if self.verbose: print('processing as index')
             self.process_index(**kwargs)
         else:
-            # print('processing as generic')
             try:
                 self.to_sympy(**kwargs)
             except Exception as e:
@@ -117,14 +142,15 @@ class EqTerm:
         except Exception as e:
             if self.verbose:
                 print(e)
-            if verbose:
+            if self.verbose:
                 print(f"Failed: self.sympified_placeholder for {term_string}")
             self.sympified_placeholder = self.placeholder
+        self.apply_post_local_latex_subs()
 
-    def apply_local_latex_subs(self):
+    def apply_post_local_latex_subs(self):
         """Modify the default \LaTeX string produced by sympy"""
         for key, value in post_sympy_latex_substitutions.items():
-            self.latex = self.latex.replace(key, value)
+            self.latex = re.sub(key, value, self.latex)
 
     def to_sympy(self):
         """Parse string using sympify from sympy
@@ -157,7 +183,6 @@ class EqTerm:
                 except Exception as e:
                     if self.verbose:
                         print(e)
-                    if verbose:
                         print(f"Could not sympify: {string}")
                     self.sympy_expr = string
                     self.latex = string
@@ -175,7 +200,6 @@ class EqTerm:
             self.sympy_expr = string
             self.latex = string
             self.placeholder = string
-        self.apply_local_latex_subs()
 
     def to_numeric(self, numeric_brackets="()", verbose=False, **kwargs):
         """Evaluate string in provided namespace
@@ -209,12 +233,9 @@ class EqTerm:
                         self.numeric = f" {self.numeric:.5} "
                     except:
                         self.numeric = f" {self.numeric} "
-                # # remove extra space after dimensionless quantities
-                # self.numeric = re.sub(r"\ \right", r"\right", self.numeric) 
             except Exception as e:
                 if self.verbose:
                     print(e)
-                if verbose:
                     print(f"Could not get numeric value: {string}")
                 self.numeric = "??"
         elif string == "**":
@@ -223,6 +244,20 @@ class EqTerm:
             self.numeric = "{\cdot}"
         else:
             self.numeric = string
+
+    def process_arg(self, arg, plchldr_prefix, namespace, **kwargs):
+        argterm = EqTerm(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
+        arg_fmt = EqFormat(arg, namespace=namespace)
+        arg_plchldr = "".join([i.placeholder for i in arg_fmt.terms_list])
+        arg_latex_symbolic = str(latex(sympify(arg_plchldr),order="grevlex"))
+        arg_latex_numeric = str(latex(sympify(arg_plchldr),order="grevlex"))
+        print('here')
+        for i in arg_fmt.terms_list:
+            arg_latex_symbolic = arg_latex_symbolic.replace(i.sympified_placeholder, i.latex)
+            arg_latex_numeric = arg_latex_numeric.replace(i.sympified_placeholder, i.numeric)
+        argterm.latex=arg_latex_symbolic
+        argterm.numeric=arg_latex_numeric
+        return argterm
 
     def process_function(self, numeric_brackets="()", underset_function_parents=True):
         """Parse a string representing a function call
@@ -234,6 +269,7 @@ class EqTerm:
         Args: numeric_brackets (str): display brackets (Default value= "()")
         """
         if self.verbose:
+            print('Executing process_function() method call')
             print(f"EqTerm.process_function({self.term_string})")
         if numeric_brackets == "{}":
             leftbrace = "\\left\\{"
@@ -242,8 +278,8 @@ class EqTerm:
             leftbrace = f"\\left{numeric_brackets[0]}"
             rightbrace = f"\\right{numeric_brackets[1]}"
         string = self.term_string
-        function_name, arg = string.split("(")
-        arg = arg[:-1]
+        function_name,*arg = string.split("(")
+        arg = '('.join(arg)[:-1]
         args = arg.split(",")
         if self.verbose:
             print(function_name, arg)
@@ -267,18 +303,37 @@ class EqTerm:
             except Exception as e:
                 if self.verbose:
                     print(e)
-                if self.verbose:
                     print(f"Could not get numeric value: {string}")
                 self.numeric = string
             self.latex = self.numeric
-        #         elif function_name == 'abs':
-        #             self.latex = r'\left|' + arg + r'\right|'
-        #             self.numeric = eval(self.orig_string,self.namespace)
-        #         elif isinstance(function_obj, functools.partial) and '.' in function_name:
-        #             if self.verbose: print('in property loop')
-        #             fluid,prop = function_name.split('.')
-        #             self.latex = prop + r'_{' + fluid + r'}(' + arg + r')'
-        #             self.numeric = eval(self.orig_string, self.namespace)
+        elif function_name == 'abs':
+            if self.verbose: print("Attempting to process as an absolute value")
+            try:
+                argterm = self.process_arg(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
+                self.latex = r'\left|' + argterm.latex + r'\right|'
+                self.numeric = r'\left|' + argterm.numeric + r'\right|'
+            except Exception as e:
+                if self.verbose: print(e)
+                argterm = EqTerm(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
+                self.latex = r'\left|' + argterm.latex + r'\right|'
+                self.numeric=r"\left|" + f"{eval(arg,self.namespace)}" + r"\right|"
+        # elif isinstance(function_obj, functools.partial) and '.' in function_name:
+        #     if self.verbose: print('in property loop')
+        #     fluid,prop = function_name.split('.')
+        #     self.latex = prop + r'_{' + fluid + r'}(' + arg + r')'
+        #     self.numeric = eval(self.orig_string, self.namespace)
+        elif function_name == "sqrt":
+            if self.verbose: print("Attempting to process as a square root")
+            try:
+                argterm = self.process_arg(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
+                self.latex=r"\sqrt{" + argterm.latex + r"}"
+                self.numeric=r"\sqrt{" + argterm.numeric + r"}"
+            except Exception as e:
+                if self.verbose:
+                    print(e)
+                argterm = EqTerm(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
+                self.latex=r"\sqrt{" + argterm.latex + r"}"
+                self.numeric=r"\sqrt{" + f"{eval(arg,self.namespace)}" + r"}"
         else:
             if self.verbose:
                 print(f"Attempting to format function: {function_name}")
@@ -296,17 +351,20 @@ class EqTerm:
                 if self.verbose: print(self.latex)
                 for arg in args:
                     if self.verbose: print(f'processing arg: {arg}')
+                    if self.latex[-1] not in ["(",","]:
+                        self.latex += r" , "
                     if "=" in arg:
                         if self.verbose: print('processing as key=value pairs')
-                        if self.latex[-1] != "(":
-                            self.latex += r" , "
                         key, value = arg.split("=")
+                        if self.verbose:
+                            print(f'key: {key}')
+                            print(f'value: {value}')
                         self.latex += r"\mathrm{" + key + r"}="
-                        self.latex += EqTerm(value).latex
+                        if self.verbose: print(self.latex)
+                        self.latex += EqTerm(value,plchldr_prefix=self.prefix).latex
                     else:
                         if self.verbose: print(arg)
-                        
-                        self.latex += EqTerm(arg).latex
+                        self.latex += EqTerm(arg,plchldr_prefix=self.prefix).latex
                 self.latex += r"\right)"
             except Exception as e:
                 if self.verbose:
@@ -317,7 +375,7 @@ class EqTerm:
         self.placeholder = "FncPlcHolder" + function_name + arg
         self.sanitize_placeholder()
 
-    def process_index(self):
+    def process_index(self,string=None):
         """Process a string for an index lookup
         
         If the string appears to represent the indexing of a variable,
@@ -325,24 +383,21 @@ class EqTerm:
         the index value in the subscript and the numeric value as the
         indexed value.
         """
-        string = self.term_string
+        if string is None:
+            string = self.term_string
         string = string.replace("[", "_")
         for i in r""""']""":
             string = string.replace(i, "")
         self.sympy_expr = sympify(string)
         self.latex = latex(self.sympy_expr)
-        # print(string)
-        # print("PlcHldr")
-        # print(string.replace("_", "Index"))
         self.placeholder = "PlcHldr" + string.replace("_", "Indx")
         self.sanitize_placeholder()
         self.to_numeric()
-        self.apply_local_latex_subs()
 
     def sanitize_placeholder(self):
         """Post process placehoder string
 
-        Replace problematic characters/strings in the the placehoder used to typeset the parent equation with sympy.  This also add a three character alphabetic 
+        Replace problematic characters/strings in the placehoder used to typeset the parent equation with sympy.  This also adds a three character alphabetic string to maintain the original order
         """
         remove_symbols = "_=*+-/([])^.," + '"' + "'"
         for i in remove_symbols:
@@ -362,8 +417,11 @@ class EqTerm:
         for k, v in replace_num_dict.items():
             self.placeholder = self.placeholder.replace(k, v)
         self.placeholder += "End"
-        # print(f'self.prefix: {self.prefix}')
-        # print(f'self.placeholder: {self.placeholder}')
+        if self.verbose:
+            print(f'placeholder: {self.placeholder}')
+            print(f'prefix: {self.prefix}')
+        if self.prefix is None:
+            self.prefix=''
         self.placeholder = self.prefix + self.placeholder
 
     def __repr__(self):
@@ -372,86 +430,6 @@ class EqTerm:
     def __get__(self):
         return self
 
-class FnTerm():
-        """Parse a string representing a function call
-
-        Set the font of the function name and evaluate the result for
-        numeric display.  Include special processing for specific
-        functions.
-
-        Args: numeric_brackets (str): display brackets (Default value= "()")
-        """
-        def __init__(namespace, numeric_brackets="()", underset_function_parents=True,verbose=False):
-            logging.degug(f"FnTerm({self.term_string})")
-            if numeric_brackets == "{}":
-                leftbrace = "\\left\\{"
-                rightbrace = "\\right\\}"
-            else:
-                leftbrace = f"\\left{numeric_brackets[0]}"
-                rightbrace = f"\\right{numeric_brackets[1]}"
-            string = self.term_string
-            function_name, arg = string.split("(")
-            arg = arg[:-1]
-            args = arg.split(",")
-            logging.debug(function_name, arg)
-            # store parents if function is method
-            *parent_name,func = function_name.split(".")
-            function_obj = eval(function_name, namespace)
-            logging.debug(f'function __name__: {function_obj.__name__}')
-            function_name = function_obj.__name__
-            if function_name in ["Q_", "Quantity"]:
-                logging.debug("Attempting to process as a quantity")
-                try:
-                    self.numeric = eval(self.orig_string, self.namespace)
-                    if isinstance(self.numeric, units.Quantity):
-                        try:
-                            self.numeric = f"{leftbrace} {self.numeric:.5~L} {rightbrace}"
-                        except:
-                            self.numeric = f"{leftbrace} {self.numeric:~L} {rightbrace}"
-                    else:
-                        self.numeric = f" {self.numeric} "
-                except Exception as e:
-                    if self.verbose:
-                        print(e)
-                    logging.debug(f"Could not get numeric value: {string}")
-                    self.numeric = string
-                self.latex = self.numeric
-            else:
-                logging.debug(f"Attempting to format function: {function_name}")
-                try:
-                    self.latex = r"\mathrm{"
-                    if underset_function_parents:
-                        self.latex += r"\underset{"
-                        self.latex += ",".join(parent_name)
-                        self.latex += r"}{"
-                    self.latex += function_name
-                    if underset_function_parents:
-                        self.latex += r"}"
-                    
-                    self.latex += r"}" + r"\left("
-                    if self.verbose: print(self.latex)
-                    for arg in args:
-                        logging.debug(f'processing arg: {arg}')
-                        if "=" in arg:
-                            logging.debug('processing as key=value pairs')
-                            if self.latex[-1] != "(":
-                                self.latex += r" , "
-                            key, value = arg.split("=")
-                            self.latex += r"\mathrm{" + key + r"}="
-                            self.latex += EqTerm(value,verbose=verbose).latex
-                        else:
-                            logging.debug(arg)
-                            logging.debug('This is a logging string')
-                            if self.verbose: print(f'   Processing: {arg}')
-                            self.latex += EqTerm(arg).latex
-                    self.latex += r"\right)"
-                except Exception as e:
-                    logging.debug(e)
-                    self.latex = string
-                self.numeric = eval(self.orig_string, self.namespace)
-                self.numeric = f"{self.numeric:.5}"
-            self.placeholder = "FncPlcHolder" + function_name + arg
-            self.sanitize_placeholder()
     
         
 class EqFormat:
@@ -507,7 +485,7 @@ class EqFormat:
             elif char == ")":
                 if function_level == 0:
                     parsed_string += f'""","""{char}""","""'
-                elif function_level == 1:
+                else:# function_level == 1:
                     parsed_string += char
                     function_level -= 1
             else:
@@ -543,10 +521,11 @@ class EqFormat:
         terms_list = ret_lst
         return terms_list
 
+    
     def _sympy_formula_formatting(self, **kwargs):
         """Sympify equation expression
 
-        Use sympify to convert an equation string into a latex expression.  Sympy tends to rearrange equations through the sympify process, so the earlier classes/funtions in this chain introduce a prefix string to minimize the impacts of the sympy rearranging by tricking it into treating the terms as alphabetical by the order they are defines.
+        Use sympify to convert an equation string into a latex expression.  Sympy tends to rearrange equations through the sympify process, so the earlier classes/funtions in this chain introduce a prefix string to minimize the impacts of the sympy rearranging by tricking it into treating the terms as alphabetical by the order they are defined.
 
         Args:
           **kwargs: 
@@ -606,18 +585,21 @@ class EqFormat:
 
 
 class Calculations:
-    """Displaye the calculations in the current cell"""
+    """Display the calculations in the current cell"""
 
     def __init__(
         self,
-        namespace=locals(),
-        comments=False,
+        namespace=None,
+        comments=True,
         progression=True,
         return_latex=False,
         verbose=False,
         **kwargs,
     ):
-        self.namespace = namespace
+        if namespace is not None:
+            self.namespace = namespace
+        else:
+            self.namespace = get_caller_locals()
         self.cell_string = self.namespace["_ih"][-1]
         self.lines = self.cell_string.split("\n")
         self.verbose = verbose
@@ -657,7 +639,7 @@ class Calculations:
                 self.output += processed_string
                 display(Latex(processed_string))
         except Exception as e:
-            if verbose:
+            if self.verbose:
                 print(e)
                 print(f"Failed to format: {line}")
 
@@ -665,8 +647,8 @@ class Calculations:
 class PropertyTables:
     """Display all StatesTables in namespace"""
 
-    def __init__(self, namespace, **kwargs):
-        self.namespace = namespace
+    def __init__(self, namespace=None, **kwargs):
+        self.namespace = namespace or get_caller_locals()
 
         for k, v in sorted(namespace.items()):
             if not k.startswith("_"):
@@ -682,8 +664,8 @@ class Quantities:
     list for display.
     """
 
-    def __init__(self, namespace, variables=None, n_col=3, style=None, **kwargs):
-        self.namespace = namespace
+    def __init__(self, variables=None, n_col=3, style=None, namespace=None, **kwargs):
+        self.namespace = namespace or get_caller_locals()
         self.style = style
         self.n = 1
         self.n_col = n_col
@@ -734,8 +716,8 @@ class Summary:
     otherwise display all quantities defined in the namespace.
     """
 
-    def __init__(self, namespace, variables=None, n_col=None, style=None, **kwargs):
-        self.namespace = namespace
+    def __init__(self, variables=None, n_col=None, namespace=None, style=None, **kwargs):
+        self.namespace = namespace or get_caller_locals()
         if variables is not None:
             if n_col is None:
                 n_col = 1
@@ -791,7 +773,7 @@ def _parse_input_string(input_string,**kwargs):
     # self.parsed_input_string = parsed_string
     # self.parsed_list = eval(parsed_string)
 
-def _process_terms(parsed_list, namespace, verbose, **kwargs):
+def _process_terms(parsed_list, namespace, verbose=False, **kwargs):
     """Process each term in equation using EqTerm class
     
     Apply the EqTerm class to each term in the parsed equations

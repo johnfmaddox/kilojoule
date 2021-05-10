@@ -270,7 +270,7 @@ class Properties:
     :returns: an object with methods to evaluate real fluid properties
     """
 
-    def __init__(self, fluid, unit_system="SI_C"):
+    def __init__(self, fluid, unit_system="kSI_C"):
         self.fluid = fluid
         self.HEOS = CoolProp.AbstractState("HEOS",self.fluid)
         self.HEOS.update(CoolProp.PT_INPUTS,101325,300)        
@@ -299,38 +299,13 @@ class Properties:
             desired, fluid=self.fluid, unit_system=self.unit_system, **kwargs
         )
 
-    # def _lookup(self, desired, **kwargs):
-    #     try: CP_desired = CP_kw_to_AS_desired[desired]
-    #     except: CP_desired = desired
-    #     input = ''
-    #     values = []
-    #     for k in 'd rho v d_molar h h_molar p x Q s s_molar T u u_molar'.split():
-    #         if k in kwargs.keys():
-    #             input += CP_kw_to_AS[k]
-    #             value = kwargs[k]
-    #             try: value = value.to(CP_symb_to_units[k]).magnitude
-    #             except: pass
-    #             if k == 'v':
-    #                 values.append(1/value)
-    #             else:
-    #                 values.append(value)
-    #     input += '_INPUTS'
-    #     input_comb = getattr(CoolProp,input)
-    #     try:
-    #         self.BICU.update(input_comb,*values)
-    #         result = getattr(self.BICU, CP_desired)()
-    #     except Exception as E:
-    #         self.HEOS.update(input_comb,*values)
-    #         result = getattr(self.HEOS, CP_desired)()
-    #     result = Quantity(result, CP_symb_to_units[CP_desired])
-    #     if desired == 'v':
-    #         result = 1/result
-    #     return result
-
     def _lookup_trivial(self, desired, **kwargs):
-        return PropertyLookup(
+        result = PropertyLookup(
             desired, fluid=self.fluid, unit_system=self.unit_system, **kwargs
         )
+        result.property_source = self
+        return result
+    
         # if desired == 'T_triple': CP_desired = 'Ttriple'
         # else: CP_desired = desired
         # result = getattr(self.HEOS, CP_desired)()
@@ -339,6 +314,7 @@ class Properties:
         
     def _update_kwargs(self, args, kwargs):
         """use argument unit to identify appropriate keyword"""
+        enthalpy_check=False
         for arg in args:
             if isinstance(arg, Quantity):
                 try:
@@ -375,12 +351,18 @@ class Properties:
                                                 kwargs = dict(d_molar=arg, **kwargs)
                                             except:
                                                 try:
-                                                    if arg.dimensionless and (0<= arg <= 1): # quality
-                                                        kwargs = dict(x=arg, **kwargs)
+                                                    arg.to('kJ/kg') # internal energy or enthalpy
+                                                    enthalpy_check=True
                                                 except:
-                                                    print(f'Unable to determine property type for {f} based on units')
+                                                    try:
+                                                        if arg.dimensionless and (0<= arg <= 1): # quality
+                                                            kwargs = dict(x=arg, **kwargs)
+                                                    except:
+                                                        print(f'Unable to determine property type for {f} based on units')
             elif 0<= arg <= 1: # quality
                 kwargs = dict(x=arg, **kwargs)
+            if enthalpy_check:
+                raise Exception ('Cannot distinguish between internal energy and enthalpy based on units.  Use the long-form notation, i.e. prop(...,u=u_value) or prop(...,h=h_value)')
         return kwargs
 
     def T(self, *args, **kwargs):
@@ -476,7 +458,7 @@ class Properties:
 
     def x(self, *args, **kwargs):
         """
-        entropy from two independent intensive properties
+        vapor quality from two independent intensive properties
 
         example:
         >> fluid.x(T=T1, p=p1)
@@ -488,6 +470,9 @@ class Properties:
         value = self._lookup("Q", **kwargs)
         if 0<=value<=1:
             return value
+        else:
+            return 'N/A'
+        
         
 
     def phase(self, *args, **kwargs):
@@ -928,7 +913,7 @@ def LegacyPropertyPlot(
     plot_type=None,
     fluid=None,
     saturation=False,
-    unit_system="SI_C",
+    unit_system="kSI_C",
     **kwargs,
 ):
     props = Properties(fluid=fluid, unit_system=unit_system, **kwargs)

@@ -1,0 +1,19 @@
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ jupyte
+jupyter                            jupyter-labextension               jupyter-serverextension
+jupyter-bundlerextension           jupyter-labhub                     jupyter-sparqlkernel
+jupyter-console                    jupyter-migrate                    jupyter-troubleshoot
+jupyter-contrib                    jupyter-nbconvert                  jupyter-trust
+jupyter-contrib-nbextension        jupyter-nbextension                jupyterhub
+jupyter-kernel                     jupyter-nbextensions_configurator  jupyterhub-singleuser
+jupyter-kernel-gap                 jupyter-notebook                   jupytext
+jupyter-kernelspec                 jupyter-qtconsole                  
+jupyter-lab                        jupyter-run                        
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ jupyter-nv[Kbv[Kconvert  ipython nbconvert --to latex MyNotebook.ipynb [1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1@ [C[1P[1P[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1P[1@ [KEx[K[KME321\ Ex0.1\ Filling\ a\ Tank.ipynb 
+[NbConvertApp] Converting notebook ME321 Ex0.1 Filling a Tank.ipynb to latex
+[NbConvertApp] Writing 48776 bytes to ME321 Ex0.1 Filling a Tank.tex
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ ls
+'ME321 Ex0.1 Filling a Tank.html'      'ME321 Ex0.1b Thermal Equilibrium.ipynb'
+'ME321 Ex0.1 Filling a Tank.ipynb'     'ME321 Ex0.2 Compressor Isentropic Efficiency.ipynb'
+'ME321 Ex0.1 Filling a Tank.tex'       'ME321 Ex0.3 Tank and Turbine.ipynb'
+'ME321 Ex0.1 Filling a Tank.tmp.html'
+]0;~/Examples/00 - Thermo I Review[01;34m~/Examples/00 - Thermo I Review[00m$ 

@@ -1,7 +1,7 @@
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
 from kilojoule.organization import PropertyTable
-import kilojoule.display as display
+from kilojoule.display import Summary, Calculations
 from kilojoule.units import units, Quantity
 
 air = idealgas.Properties('Air')
@@ -24,8 +24,8 @@ properties_dict = {
      'X':'kJ',      # exergy
      'Xdot':'kW',   # exergy flow rate
      'phi':'kJ/kg', # specific exergy
-     'psi':'kj/kg'  # specific flow exergy
+     'psi':'kJ/kg'  # specific flow exergy
  }
-states = PropertyTable(properties_dict, unit_system='SI_C')
+states = PropertyTable(properties_dict, unit_system='kSI_C')
 for property in states.properties:
-    globals()[property] = states.dict[property]
+    locals()[property] = states.dict[property]

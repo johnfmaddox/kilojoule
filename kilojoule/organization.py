@@ -65,14 +65,15 @@ class PropertyDict:
         return self.dict[str(item)]
 
     def __setitem__(self, item, value):
-        if self.units is not None:
-            if isinstance(value, units.Quantity):
-                result = value.to(self.units)
+        if value is not None:
+            if self.units is not None:
+                if isinstance(value, units.Quantity):
+                    result = value.to(self.units)
+                else:
+                    result = Quantity(value, self.units)
             else:
-                result = Q_(value, self.units)
-        else:
-            result = value
-        result.property_symbol = self.property_symbol
+                result = value
+                result.property_symbol = self.property_symbol
         self.dict[str(item)] = result
 
     def __delitem__(self, item):
@@ -150,13 +151,14 @@ class PropertyTable:
 
         Args:
           *args: 
-          dropna:  (Default value = False)
+          dropna:  (Default value = True)
           **kwargs: 
 
         Returns:
 
         """
         df = self.to_pandas(*args, dropna=dropna, **kwargs)
+        
         display(HTML(df.to_html(**kwargs)))
 
     def to_dict(self):
@@ -285,12 +287,12 @@ class PropertyTable:
         """
         property_source = property_source or self.property_source
         known_props = self[state].keys()
-        unknown_props = [i for i in self.properties if i not in known_props ]
+        unknown_props = [i for i in self.properties if i not in known_props and hasattr(property_source,i) ]
         indep_props_comb = [[i,j] for i in known_props for j in known_props if i != j]
-        try: indep_props_comb.append(indep_props_comb.pop(indep_props_comb.index(['T','p'])))
-        except: pass
-        try: indep_props_comb.append(indep_props_comb.pop(indep_props_comb.index(['p','T'])))
-        except: pass
+        depri_comb = [['T','p'],['p','T'],['T','h'],['h','T'],['T','u'],['u','T']]
+        for comb in depri_comb:
+            try: indep_props_comb.append(indep_props_comb.pop(indep_props_comb.index(comb)))
+            except: pass
         if verbose:
             print(f'property_source: {property_source}')
             print(f'known_props: {known_props}')

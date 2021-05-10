@@ -1,7 +1,7 @@
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
 from kilojoule.organization import PropertyTable
-import kilojoule.display as display
+from kilojoule.display import Calculations, Summary
 from kilojoule.units import units, Quantity
 
 air = idealgas.Properties('Air')
@@ -34,6 +34,6 @@ properties_dict = {
      'c_p':'kJ/kg/K', # constant pressure specific heat
      'k':'',          # specific heat ratio
  }
-states = PropertyTable(properties_dict, unit_system='SI_C')
+states = PropertyTable(properties_dict, unit_system='kSI_C')
 for property in states.properties:
     globals()[property] = states.dict[property]
