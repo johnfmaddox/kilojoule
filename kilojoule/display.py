@@ -674,7 +674,7 @@ class Quantities:
             for variable in variables:
                 self.add_variable(variable, **kwargs)
         else:
-            for k, v in sorted(namespace.items()):
+            for k, v in sorted(self.namespace.items()):
                 if not k.startswith("_"):
                     if isinstance(v, units.Quantity):
                         self.add_variable(k, **kwargs)
@@ -721,12 +721,12 @@ class Summary:
         if variables is not None:
             if n_col is None:
                 n_col = 1
-            Quantities(self.namespace, variables, n_col=n_col, style=style)
+            Quantities(variables, n_col=n_col, namespace=self.namespace, style=style)
         else:
             if n_col is None:
                 n_col = 3
-            self.quantities = Quantities(self.namespace, n_col=n_col, **kwargs)
-            self.state_tables = PropertyTables(self.namespace, **kwargs)
+            self.quantities = Quantities(namespace=self.namespace, n_col=n_col, **kwargs)
+            self.state_tables = PropertyTables(namespace=self.namespace, **kwargs)
 
 
 def _parse_input_string(input_string,**kwargs):
