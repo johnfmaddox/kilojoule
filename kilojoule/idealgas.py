@@ -36,7 +36,7 @@ pm_symb_to_units = invert_dict(pm_units_to_symb)
 class Properties:
     """ """
 
-    def __init__(self, fluid, unit_system="SI_K", verbose=False):
+    def __init__(self, fluid, unit_system="kSI_K", verbose=False):
         self.verbose = verbose
         self.unit_system = unit_system
         self.fluid = fluid

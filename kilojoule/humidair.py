@@ -233,7 +233,7 @@ class Properties:
     :returns: an object with methods to evaluate real fluid properties
     """
 
-    def __init__(self, p=None, unit_system="SI_C"):
+    def __init__(self, p=None, unit_system="kSI_C"):
         self.fluid='humidair'
         if p is None:
             self.__p = Quantity(1.0,'atm')
@@ -761,7 +761,7 @@ class Properties:
             **kwargs
     ):
         unit_system = unit_system or self.unit_system
-        psych = self.property_diagram(x="T", y="omega", saturation=False, unit_system=unit_system, **kwargs)
+        psych = self.property_diagram(x="T", y="omega", saturation=False, unit_system=unit_system, p=self.__p, **kwargs)
 
         # Line Styles
         main_labels_color = main_labels_color or 'black'

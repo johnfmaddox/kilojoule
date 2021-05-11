@@ -650,7 +650,7 @@ class PropertyTables:
     def __init__(self, namespace=None, **kwargs):
         self.namespace = namespace or get_caller_locals()
 
-        for k, v in sorted(namespace.items()):
+        for k, v in sorted(self.namespace.items()):
             if not k.startswith("_"):
                 if isinstance(v, PropertyTable):
                     v.display()
