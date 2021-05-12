@@ -13,6 +13,9 @@ __pycache__/*
 .*.swp
 */.ipynb_checkpoints/*
 .DS_Store
+.*.term
+.*.sage-jupyter2
+.ipynb_checkpoints
 
 # Project files
 .ropeproject
