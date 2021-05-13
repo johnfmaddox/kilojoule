@@ -1,4 +1,5 @@
 from . import units
+import inspect
 
 STP = {"T": units.Quantity(0, "degC"), "p": units.Quantity(1, "bar")}
 NTP = {"T": units.Quantity(20, "degC"), "p": units.Quantity(1, "atm")}
@@ -435,3 +436,13 @@ def preferred_units_from_type(quantity_type, unit_system="SI_C"):
 
     """
     return predefined_unit_systems[unit_system][quantity_type]
+
+# Adapted from: https://stackoverflow.com/questions/6618795/get-locals-from-calling-namespace-in-python
+def get_caller_namespace():
+    """Get the local variables in the caller's frame."""
+    frame = inspect.currentframe()
+    try:
+        result = frame.f_back.f_back.f_locals
+    finally:
+        del frame
+    return result

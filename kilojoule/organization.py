@@ -1,5 +1,6 @@
 from .units import Q_, units, Quantity
 # from .common import symbol_to_type_dict
+from .common import get_caller_namespace
 import pandas as pd
 from IPython.display import display, HTML, Math, Latex, Markdown
 import re
@@ -59,7 +60,7 @@ class PropertyDict:
                 self.dict[k] = v.to(self.units)
 
     def __repr__(self):
-        return f"<thermoJFM.PropertyDict for {self.property_symbol}>"
+        return f"<kilojoule.PropertyDict for {self.property_symbol}>"
 
     def __getitem__(self, item):
         return self.dict[str(item)]
@@ -81,29 +82,32 @@ class PropertyDict:
 
 
 class PropertyTable:
-    """Table for storing """
+    """Table for storing quantities"""
     def __init__(
         self,
         properties=default_property_dict,
         property_source = None,
-        unit_system="SI_C",
+        unit_system="kSI_C",
+        add_to_namespace=None,
     ):
         self.properties = []
         self.dict = {}
         self.unit_system = None
         self.property_source = None
+        if add_to_namespace is not None:
+            self.parent_namespace = get_caller_namespace()
         if isinstance(properties, (list, tuple)):
             self.unit_system = unit_system
             for prop in properties:
-                self.add_property(prop)
+                self.add_property(prop, add_to_namespace=self.parent_namespace)
 
         elif isinstance(properties, dict):
             for prop, unit in properties.items():
-                self.add_property(prop, units=unit)
+                self.add_property(prop, units=unit, add_to_namespace=self.parent_namespace)
         else:
             raise ValueError("Expected properties to be a list, tuple, or dict")
 
-    def add_property(self, property, units=None, unit_system=None):
+    def add_property(self, property, units=None, unit_system=None, add_to_namespace=None):
         """
 
         Args:
@@ -124,6 +128,12 @@ class PropertyTable:
             self.dict[property] = PropertyDict(property, unit_system=unit_system)
         else:
             self.dict[property] = PropertyDict(property, unit_system=self.unit_system)
+        if add_to_namespace is not None:
+            if add_to_namespace is True:
+                namespace=get_caller_namespace()
+            else:
+                namespace=add_to_namespace
+            namespace[property] = self.dict[property]
         return self.dict[property]
 
     def remove_property(self,property):

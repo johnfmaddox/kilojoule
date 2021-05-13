@@ -17,6 +17,7 @@ import functools
 import inspect
 import logging
 from .organization import PropertyTable
+from .common import get_caller_namespace
 
 from .units import units, Quantity
 
@@ -78,15 +79,15 @@ def get_class_that_defined_method(meth):
     return getattr(meth, '__objclass__', None)  # handle special descriptor objects
 
 
-# Adapted from: https://stackoverflow.com/questions/6618795/get-locals-from-calling-namespace-in-python
-def get_caller_locals():
-    """Get the local variables in the caller's frame."""
-    frame = inspect.currentframe()
-    try:
-        result = frame.f_back.f_back.f_locals
-    finally:
-        del frame
-    return result
+# # Adapted from: https://stackoverflow.com/questions/6618795/get-locals-from-calling-namespace-in-python
+# def get_caller_locals():
+#     """Get the local variables in the caller's frame."""
+#     frame = inspect.currentframe()
+#     try:
+#         result = frame.f_back.f_back.f_locals
+#     finally:
+#         del frame
+#     return result
 
 
 class EqTerm:
@@ -599,7 +600,7 @@ class Calculations:
         if namespace is not None:
             self.namespace = namespace
         else:
-            self.namespace = get_caller_locals()
+            self.namespace = get_caller_namespace()
         self.cell_string = self.namespace["_ih"][-1]
         self.lines = self.cell_string.split("\n")
         self.verbose = verbose
@@ -648,7 +649,7 @@ class PropertyTables:
     """Display all StatesTables in namespace"""
 
     def __init__(self, namespace=None, **kwargs):
-        self.namespace = namespace or get_caller_locals()
+        self.namespace = namespace or get_caller_namespace()
 
         for k, v in sorted(self.namespace.items()):
             if not k.startswith("_"):
@@ -665,7 +666,7 @@ class Quantities:
     """
 
     def __init__(self, variables=None, n_col=3, style=None, namespace=None, **kwargs):
-        self.namespace = namespace or get_caller_locals()
+        self.namespace = namespace or get_caller_namespace()
         self.style = style
         self.n = 1
         self.n_col = n_col
@@ -717,7 +718,7 @@ class Summary:
     """
 
     def __init__(self, variables=None, n_col=None, namespace=None, style=None, **kwargs):
-        self.namespace = namespace or get_caller_locals()
+        self.namespace = namespace or get_caller_namespace()
         if variables is not None:
             if n_col is None:
                 n_col = 1
