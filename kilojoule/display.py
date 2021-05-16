@@ -21,6 +21,7 @@ from .common import get_caller_namespace
 
 from .units import units, Quantity
 
+__latex__ = {}
 
 pre_sympy_latex_substitutions = {
     "Delta_(?!_)": "Delta*",
@@ -55,6 +56,7 @@ post_sympy_latex_substitutions = {
     r"_\{prmplchldr\}|,prmplchldr": r"'",
     r"_\{prmplchldr,": r"'_\{",
     r",to,": r"\\to{}",
+    r"dimensionless": "",
 }
 
 # create a list of the form: [aa, ab, ac, ... , ca, cb, cc, ..., zz]
@@ -78,17 +80,8 @@ def get_class_that_defined_method(meth):
             return cls
     return getattr(meth, '__objclass__', None)  # handle special descriptor objects
 
-
-# # Adapted from: https://stackoverflow.com/questions/6618795/get-locals-from-calling-namespace-in-python
-# def get_caller_locals():
-#     """Get the local variables in the caller's frame."""
-#     frame = inspect.currentframe()
-#     try:
-#         result = frame.f_back.f_back.f_locals
-#     finally:
-#         del frame
-#     return result
-
+def set_latex(var_name_string, latex_string):
+    __latex__[var_name_string]=latex_string
 
 class EqTerm:
     """Parses a single term from an equation
@@ -102,7 +95,7 @@ class EqTerm:
     def __init__(
         self,
         term_string,
-        namespace=locals(),
+        namespace=None,
         numeric_brackets="{}",
         plchldr_prefix=None,
         verbose=False,
@@ -112,10 +105,11 @@ class EqTerm:
         self.namespace = namespace
         self.orig_string = term_string
         self.prefix = plchldr_prefix
+        self.latex = ''
         for k, v in pre_sympy_latex_substitutions.items():
             term_string = re.sub(k, v, term_string)
         self.term_string = term_string
-        if ".to(" in self.term_string:
+        if ".to(" in self.term_string.split('(')[0]:
             self.term_string = self.term_string.split(".to(")[0]
         if "(" in self.term_string and ")" in self.term_string:
             if self.verbose: print('processing as function')
@@ -129,21 +123,18 @@ class EqTerm:
             except Exception as e:
                 if self.verbose:
                     print(e)
-                if self.verbose:
                     print(f"Failed: self.to_sympy() for {term_string}")
             try:
                 self.to_numeric(**kwargs)
             except Exception as e:
                 if self.verbose:
                     print(e)
-                if self.verbose:
                     print(f"Failed: self.to_numeric() for {term_string}")
         try:
             self.sympified_placeholder = latex(sympify(self.placeholder))
         except Exception as e:
             if self.verbose:
                 print(e)
-            if self.verbose:
                 print(f"Failed: self.sympified_placeholder for {term_string}")
             self.sympified_placeholder = self.placeholder
         self.apply_post_local_latex_subs()
@@ -174,11 +165,18 @@ class EqTerm:
                 if self.verbose:
                     print(e)
                 try:
+                    name = string.split('(')[0].split('[')[0]
                     string = re.sub("\[", "_", string)
                     string = re.sub("]", "", string)
                     string = re.sub(",", "_", string)
-                    self.sympy_expr = sympify(string)
-                    self.latex = latex(self.sympy_expr)
+                    try:
+                        if name in __latex__.keys():
+                            self.latex += __latex__[name]
+                        else:
+                            self.latex = self.namespace[name].latex
+                    except Exception as e:
+                        self.sympy_expr = sympify(string)
+                        self.latex = latex(self.sympy_expr)
                     self.placeholder = "PlcHldr" + string.replace("_", "SbScrpt")
                     self.sanitize_placeholder()
                 except Exception as e:
@@ -245,6 +243,7 @@ class EqTerm:
             self.numeric = "{\cdot}"
         else:
             self.numeric = string
+        self.numeric.replace('dimensionless','')
 
     def process_arg(self, arg, plchldr_prefix, namespace, **kwargs):
         argterm = EqTerm(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
@@ -252,7 +251,6 @@ class EqTerm:
         arg_plchldr = "".join([i.placeholder for i in arg_fmt.terms_list])
         arg_latex_symbolic = str(latex(sympify(arg_plchldr),order="grevlex"))
         arg_latex_numeric = str(latex(sympify(arg_plchldr),order="grevlex"))
-        print('here')
         for i in arg_fmt.terms_list:
             arg_latex_symbolic = arg_latex_symbolic.replace(i.sympified_placeholder, i.latex)
             arg_latex_numeric = arg_latex_numeric.replace(i.sympified_placeholder, i.numeric)
@@ -285,6 +283,7 @@ class EqTerm:
         if self.verbose:
             print(function_name, arg)
         # store parents if function is method
+        full_function_name = function_name
         *parent_name,func = function_name.split(".")
         function_obj = eval(function_name, self.namespace)
         if self.verbose: print(f'function __name__: {function_obj.__name__}')
@@ -318,11 +317,6 @@ class EqTerm:
                 argterm = EqTerm(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
                 self.latex = r'\left|' + argterm.latex + r'\right|'
                 self.numeric=r"\left|" + f"{eval(arg,self.namespace)}" + r"\right|"
-        # elif isinstance(function_obj, functools.partial) and '.' in function_name:
-        #     if self.verbose: print('in property loop')
-        #     fluid,prop = function_name.split('.')
-        #     self.latex = prop + r'_{' + fluid + r'}(' + arg + r')'
-        #     self.numeric = eval(self.orig_string, self.namespace)
         elif function_name == "sqrt":
             if self.verbose: print("Attempting to process as a square root")
             try:
@@ -340,20 +334,25 @@ class EqTerm:
                 print(f"Attempting to format function: {function_name}")
             try:
                 self.latex = r"\mathrm{"
-                if underset_function_parents:
-                    self.latex += r"\underset{"
-                    self.latex += ",".join(parent_name)
-                    self.latex += r"}{"
-                self.latex += function_name
-                if underset_function_parents:
-                    self.latex += r"}"
-                
+                try:
+                    if full_function_name in __latex__.keys():
+                        self.latex += __latex__[full_function_name]
+                    else:
+                        self.latex += self.namespace[name].latex
+                except Exception as e:
+                    if underset_function_parents:
+                        self.latex += r"\underset{"
+                        self.latex += ",".join(parent_name)
+                        self.latex += r"}{"
+                        self.latex += function_name
+                        if underset_function_parents:
+                            self.latex += r"}"
                 self.latex += r"}" + r"\left("
                 if self.verbose: print(self.latex)
                 for arg in args:
                     if self.verbose: print(f'processing arg: {arg}')
                     if self.latex[-1] not in ["(",","]:
-                        self.latex += r" , "
+                        self.latex += r","
                     if "=" in arg:
                         if self.verbose: print('processing as key=value pairs')
                         key, value = arg.split("=")
@@ -386,11 +385,21 @@ class EqTerm:
         """
         if string is None:
             string = self.term_string
+        var_name,indx = string.split("[")
+        indx = indx.split("]")[0]
         string = string.replace("[", "_")
         for i in r""""']""":
             string = string.replace(i, "")
-        self.sympy_expr = sympify(string)
-        self.latex = latex(self.sympy_expr)
+        try:
+            if var_name in __latex__.keys():
+                self.latex += __latex__[var_name]
+            else:
+                self.latex = self.namespace[string].latex
+            self.latex += '_{'+indx+'}'
+        except Exception as e:
+            print(e)
+            self.sympy_expr = sympify(string)
+            self.latex = latex(self.sympy_expr)
         self.placeholder = "PlcHldr" + string.replace("_", "Indx")
         self.sanitize_placeholder()
         self.to_numeric()
@@ -470,6 +479,7 @@ class EqFormat:
         function_level = 0
         index_level = 0
         for i, char in enumerate(input_string):
+            print(f'{parsed_string} -> char:{char} -> function_level:{function_level}')
             if skip_next:
                 skip_next = False
             elif char in operators and function_level == 0:
@@ -484,15 +494,22 @@ class EqFormat:
                     function_level += 1
                     parsed_string += char
             elif char == ")":
-                if function_level == 0:
-                    parsed_string += f'""","""{char}""","""'
-                else:# function_level == 1:
-                    parsed_string += char
-                    function_level -= 1
+                function_level -= 1
+                parsed_string += char
+                # if function_level == 0:
+                #     parsed_string += f'{char}""","""'
+                # else:
+                #     parsed_string += char
+                # else:# function_level == 1:
+                #     parsed_string += f'"""{char}"""'
+                #     function_level -= 1
             else:
                 parsed_string += char
+            print(parsed_string)
             parsed_string = parsed_string.strip()
+            print(parsed_string)
         parsed_string += '"""]'
+        print(parsed_string)
         return parsed_string, eval(parsed_string)
         # self.parsed_input_string = parsed_string
         # self.parsed_list = eval(parsed_string)
@@ -558,7 +575,7 @@ class EqFormat:
             )
             RHS_latex_numeric = RHS_latex_numeric.replace(
                 i.sympified_placeholder, str(i.numeric)
-            )
+            ).replace('dimensionless','')
         if len(self.terms_list) > 3 and not len(MID_plchldr):
             LHS_latex_numeric = re.sub(
                 "^\\\\left\((.*)\\\\right\)$", "\g<1>", LHS_latex_numeric
@@ -582,7 +599,7 @@ class EqFormat:
             )
             latex_string += LHS_latex_numeric
             latex_string += " }\n  \\end{aligned}\n\\]\n"
-        return latex_string
+        return latex_string.replace('dimensionless','')
 
 
 class Calculations:
@@ -756,13 +773,13 @@ def _parse_input_string(input_string,**kwargs):
             parsed_string += f'""","""{char}""","""'
         elif char == "(":
             if parsed_string[-1] == '"' and function_level == 0:
-                parsed_string += f'""","""{char}""","""'
+                parsed_string += f'{char}'
             else:
                 function_level += 1
                 parsed_string += char
         elif char == ")":
             if function_level == 0:
-                parsed_string += f'""","""{char}""","""'
+                parsed_string += f'{char}""","""'
             elif function_level == 1:
                 parsed_string += char
                 function_level -= 1
