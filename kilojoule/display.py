@@ -18,10 +18,11 @@ import inspect
 import logging
 from .organization import PropertyTable
 from .common import get_caller_namespace
+import ast
 
 from .units import units, Quantity
 
-__latex__ = {}
+multiplication_symbol = ' \cdot '
 
 pre_sympy_latex_substitutions = {
     "Delta_(?!_)": "Delta*",
@@ -39,7 +40,7 @@ pre_sympy_latex_substitutions = {
 }
 
 post_sympy_latex_substitutions = {
-    "rpy to ": r"\to",
+    " to ": r"\\to{}",
     r"\\Delta ": r"\\Delta{}",
     r"\\delta ": r"\\delta{}",
     r"(?<!\(|\\cdot|,|\\to) (?!\\right|\\cdot|,|\\to)": r",",
@@ -59,547 +60,237 @@ post_sympy_latex_substitutions = {
     r"dimensionless": "",
 }
 
-# create a list of the form: [aa, ab, ac, ... , ca, cb, cc, ..., zz]
-plchldrpfixlst = [i+j+k for i in ascii_lowercase for j in ascii_lowercase for k in ascii_lowercase]
-
-
-# From: https://stackoverflow.com/questions/3589311/get-defining-class-of-unbound-method-object-in-python-3/25959545#25959545
-def get_class_that_defined_method(meth):
-    if isinstance(meth, functools.partial):
-        return get_class_that_defined_method(meth.func)
-    if inspect.ismethod(meth) or (inspect.isbuiltin(meth) and getattr(meth, '__self__', None) is not None and getattr(meth.__self__, '__class__', None)):
-        for cls in inspect.getmro(meth.__self__.__class__):
-            if meth.__name__ in cls.__dict__:
-                return cls
-        meth = getattr(meth, '__func__', meth)  # fallback to __qualname__ parsing
-    if inspect.isfunction(meth):
-        cls = getattr(inspect.getmodule(meth),
-                      meth.__qualname__.split('.<locals>', 1)[0].rsplit('.', 1)[0],
-                      None)
-        if isinstance(cls, type):
-            return cls
-    return getattr(meth, '__objclass__', None)  # handle special descriptor objects
-
+__variable_latex_subs__ = {
+    'np.log':'\ln ',
+    'math.log':'\ln ',
+    'log':'\ln ',
+}
 def set_latex(var_name_string, latex_string):
-    __latex__[var_name_string]=latex_string
+    __variable_latex_subs__[var_name_string]=latex_string
 
-class EqTerm:
-    """Parses a single term from an equation
+def ast_to_string(ast_node, line_indent=''):
+    next_line_indent = line_indent + '  '
+    if isinstance(ast_node, ast.AST):
+        return (ast_node.__class__.__name__
+                + '('
+                + ','.join('\n' + next_line_indent + field_name + ' = ' + ast_to_string(child_node, next_line_indent)
+                           for field_name, child_node in ast.iter_fields(ast_node))
+                + ')')
+    elif isinstance(ast_node, list):
+        return ('['
+                + ','.join('\n' + next_line_indent + ast_to_string(child_node, next_line_indent)
+                           for child_node in ast_node)
+                + ']')
+    else:
+        return repr(ast_node) 
+
     
-    Instance recieves a string and treats it as a single term in an
-    equation.  The string is parsed as a variable using sympy to
-    create a \LaTeX representation and is evaluated in the namespace
-    provided to get a numeric value for the variable.
-    """
+def to_numeric(code, namespace=None):
+    namespeace = namespace or get_caller_namespace()
+    try:
+        numeric = eval(code, namespace)
+        numeric = numeric_to_string(numeric)
+    except Exception as e:
+        numeric = code
+    return numeric
 
-    def __init__(
-        self,
-        term_string,
-        namespace=None,
-        numeric_brackets="{}",
-        plchldr_prefix=None,
-        verbose=False,
-        **kwargs,
-    ):
-        self.verbose = verbose
-        self.namespace = namespace
-        self.orig_string = term_string
-        self.prefix = plchldr_prefix
-        self.latex = ''
+
+def numeric_to_string(numeric):
+    if isinstance(numeric, units.Quantity):
+        try:
+            numeric = f"{numeric:.5~L}"
+        except:
+            numeric = f"{numeric:~L}"
+    else:
+        try:
+            numeric = f" {numeric:.5} "
+        except:
+            numeric = f" {numeric} "
+    return numeric
+
+
+def to_latex(code):
+    if code in __variable_latex_subs__.keys():
+        return __variable_latex_subs__[code]
+    else:
         for k, v in pre_sympy_latex_substitutions.items():
-            term_string = re.sub(k, v, term_string)
-        self.term_string = term_string
-        if ".to(" in self.term_string.split('(')[0]:
-            self.term_string = self.term_string.split(".to(")[0]
-        if "(" in self.term_string and ")" in self.term_string:
-            if self.verbose: print('processing as function')
-            self.process_function()
-        elif "[" in self.term_string and "]" in self.term_string:
-            if self.verbose: print('processing as index')
-            self.process_index(**kwargs)
-        else:
-            try:
-                self.to_sympy(**kwargs)
-            except Exception as e:
-                if self.verbose:
-                    print(e)
-                    print(f"Failed: self.to_sympy() for {term_string}")
-            try:
-                self.to_numeric(**kwargs)
-            except Exception as e:
-                if self.verbose:
-                    print(e)
-                    print(f"Failed: self.to_numeric() for {term_string}")
-        try:
-            self.sympified_placeholder = latex(sympify(self.placeholder))
-        except Exception as e:
-            if self.verbose:
-                print(e)
-                print(f"Failed: self.sympified_placeholder for {term_string}")
-            self.sympified_placeholder = self.placeholder
-        self.apply_post_local_latex_subs()
-
-    def apply_post_local_latex_subs(self):
-        """Modify the default \LaTeX string produced by sympy"""
+            code = re.sub(k, v, code)
+        code = latex(sympify(code))    
         for key, value in post_sympy_latex_substitutions.items():
-            self.latex = re.sub(key, value, self.latex)
+            code = re.sub(key, value, code)
+        return code
 
-    def to_sympy(self):
-        """Parse string using sympify from sympy
 
-        Parses the string stored in self.term_string. If the string is
-        not an operator, i.e. +,-,*,/,etc., create a sympified latex
-        representation and a sanitized-placeholder that will be
-        treated as a generic term when the full equation is sympified
-        later.
-        """
-        string = self.term_string
-        if string not in "**/+-=^()":
-            try:
-                check = float(string)
-                self.sympy_expr = string
-                self.latex = string
-                self.placeholder = string
-                self.sanitize_placeholder()
-            except Exception as e:
-                if self.verbose:
-                    print(e)
-                try:
-                    name = string.split('(')[0].split('[')[0]
-                    string = re.sub("\[", "_", string)
-                    string = re.sub("]", "", string)
-                    string = re.sub(",", "_", string)
-                    try:
-                        if name in __latex__.keys():
-                            self.latex += __latex__[name]
-                        else:
-                            self.latex = self.namespace[name].latex
-                    except Exception as e:
-                        self.sympy_expr = sympify(string)
-                        self.latex = latex(self.sympy_expr)
-                    self.placeholder = "PlcHldr" + string.replace("_", "SbScrpt")
-                    self.sanitize_placeholder()
-                except Exception as e:
-                    if self.verbose:
-                        print(e)
-                        print(f"Could not sympify: {string}")
-                    self.sympy_expr = string
-                    self.latex = string
-                    self.placeholder = string
-                    self.sanitize_placeholder()
-        elif string == "**":
-            self.sympy_expr = "**"
-            self.latex = "^"
-            self.placeholder = "**"
-        elif string == "*":
-            self.sympy_expr = "*"
-            self.latex = "\cdot"
-            self.placeholder = "*"
-        else:
-            self.sympy_expr = string
-            self.latex = string
-            self.placeholder = string
+def process_node(node, namespace=None, verbose=False, **kwargs):
+    namespace = namespace or get_caller_namespace()
+    symbolic = ''
+    numeric = ''
+    code = ''
 
-    def to_numeric(self, numeric_brackets="()", verbose=False, **kwargs):
-        """Evaluate string in provided namespace
-
-        Attempt to evaluate the provide in the provided namespace
-        (which is usually locals() provide from the environment where
-        this class was called
-
-        Args:
-          numeric_brackets:  (Default value = "()")
-          verbose:  (Default value = False)
-          **kwargs: 
-        """
-        if numeric_brackets == "{}":
-            leftbrace = "\\left\\{"
-            rightbrace = "\\right\\}"
-        else:
-            leftbrace = f"\\left{numeric_brackets[0]}"
-            rightbrace = f"\\right{numeric_brackets[1]}"
-        string = self.orig_string
-        if string not in "**/+-=^()":
-            try:
-                self.numeric = eval(string, self.namespace)
-                if isinstance(self.numeric, units.Quantity):
-                    try:
-                        self.numeric = f"{leftbrace} {self.numeric:.5~L} {rightbrace}"
-                    except:
-                        self.numeric = f"{leftbrace} {self.numeric:~L} {rightbrace}"
-                else:
-                    try:
-                        self.numeric = f" {self.numeric:.5} "
-                    except:
-                        self.numeric = f" {self.numeric} "
-            except Exception as e:
-                if self.verbose:
-                    print(e)
-                    print(f"Could not get numeric value: {string}")
-                self.numeric = "??"
-        elif string == "**":
-            self.numeric = "^"
-        elif string == "*":
-            self.numeric = "{\cdot}"
-        else:
-            self.numeric = string
-        self.numeric.replace('dimensionless','')
-
-    def process_arg(self, arg, plchldr_prefix, namespace, **kwargs):
-        argterm = EqTerm(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
-        arg_fmt = EqFormat(arg, namespace=namespace)
-        arg_plchldr = "".join([i.placeholder for i in arg_fmt.terms_list])
-        arg_latex_symbolic = str(latex(sympify(arg_plchldr),order="grevlex"))
-        arg_latex_numeric = str(latex(sympify(arg_plchldr),order="grevlex"))
-        for i in arg_fmt.terms_list:
-            arg_latex_symbolic = arg_latex_symbolic.replace(i.sympified_placeholder, i.latex)
-            arg_latex_numeric = arg_latex_numeric.replace(i.sympified_placeholder, i.numeric)
-        argterm.latex=arg_latex_symbolic
-        argterm.numeric=arg_latex_numeric
-        return argterm
-
-    def process_function(self, numeric_brackets="()", underset_function_parents=True):
-        """Parse a string representing a function call
-
-        Set the font of the function name and evaluate the result for
-        numeric display.  Include special processing for specific
-        functions.
-
-        Args: numeric_brackets (str): display brackets (Default value= "()")
-        """
-        if self.verbose:
-            print('Executing process_function() method call')
-            print(f"EqTerm.process_function({self.term_string})")
-        if numeric_brackets == "{}":
-            leftbrace = "\\left\\{"
-            rightbrace = "\\right\\}"
-        else:
-            leftbrace = f"\\left{numeric_brackets[0]}"
-            rightbrace = f"\\right{numeric_brackets[1]}"
-        string = self.term_string
-        function_name,*arg = string.split("(")
-        arg = '('.join(arg)[:-1]
-        args = arg.split(",")
-        if self.verbose:
-            print(function_name, arg)
-        # store parents if function is method
-        full_function_name = function_name
-        *parent_name,func = function_name.split(".")
-        function_obj = eval(function_name, self.namespace)
-        if self.verbose: print(f'function __name__: {function_obj.__name__}')
-        function_name = function_obj.__name__
-        if function_name in ["Q_", "Quantity"]:
-            if self.verbose:
-                print("Attempting to process as a quantity")
-            try:
-                self.numeric = eval(self.orig_string, self.namespace)
-                if isinstance(self.numeric, units.Quantity):
-                    try:
-                        self.numeric = f"{leftbrace} {self.numeric:.5~L} {rightbrace}"
-                    except:
-                        self.numeric = f"{leftbrace} {self.numeric:~L} {rightbrace}"
-                else:
-                    self.numeric = f" {self.numeric} "
-            except Exception as e:
-                if self.verbose:
-                    print(e)
-                    print(f"Could not get numeric value: {string}")
-                self.numeric = string
-            self.latex = self.numeric
-        elif function_name == 'abs':
-            if self.verbose: print("Attempting to process as an absolute value")
-            try:
-                argterm = self.process_arg(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
-                self.latex = r'\left|' + argterm.latex + r'\right|'
-                self.numeric = r'\left|' + argterm.numeric + r'\right|'
-            except Exception as e:
-                if self.verbose: print(e)
-                argterm = EqTerm(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
-                self.latex = r'\left|' + argterm.latex + r'\right|'
-                self.numeric=r"\left|" + f"{eval(arg,self.namespace)}" + r"\right|"
-        elif function_name == "sqrt":
-            if self.verbose: print("Attempting to process as a square root")
-            try:
-                argterm = self.process_arg(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
-                self.latex=r"\sqrt{" + argterm.latex + r"}"
-                self.numeric=r"\sqrt{" + argterm.numeric + r"}"
-            except Exception as e:
-                if self.verbose:
-                    print(e)
-                argterm = EqTerm(arg, plchldr_prefix=self.prefix,namespace=self.namespace)
-                self.latex=r"\sqrt{" + argterm.latex + r"}"
-                self.numeric=r"\sqrt{" + f"{eval(arg,self.namespace)}" + r"}"
-        else:
-            if self.verbose:
-                print(f"Attempting to format function: {function_name}")
-            try:
-                self.latex = r"\mathrm{"
-                try:
-                    if full_function_name in __latex__.keys():
-                        self.latex += __latex__[full_function_name]
-                    else:
-                        self.latex += self.namespace[name].latex
-                except Exception as e:
-                    if underset_function_parents:
-                        self.latex += r"\underset{"
-                        self.latex += ",".join(parent_name)
-                        self.latex += r"}{"
-                        self.latex += function_name
-                        if underset_function_parents:
-                            self.latex += r"}"
-                self.latex += r"}" + r"\left("
-                if self.verbose: print(self.latex)
-                for arg in args:
-                    if self.verbose: print(f'processing arg: {arg}')
-                    if self.latex[-1] not in ["(",","]:
-                        self.latex += r","
-                    if "=" in arg:
-                        if self.verbose: print('processing as key=value pairs')
-                        key, value = arg.split("=")
-                        if self.verbose:
-                            print(f'key: {key}')
-                            print(f'value: {value}')
-                        self.latex += r"\mathrm{" + key + r"}="
-                        if self.verbose: print(self.latex)
-                        self.latex += EqTerm(value,plchldr_prefix=self.prefix).latex
-                    else:
-                        if self.verbose: print(arg)
-                        self.latex += EqTerm(arg,plchldr_prefix=self.prefix).latex
-                self.latex += r"\right)"
-            except Exception as e:
-                if self.verbose:
-                    print(e)
-                self.latex = string
-            self.numeric = eval(self.orig_string, self.namespace)
-            self.numeric = f"{self.numeric:.5}"
-        self.placeholder = "FncPlcHolder" + function_name + arg
-        self.sanitize_placeholder()
-
-    def process_index(self,string=None):
-        """Process a string for an index lookup
-        
-        If the string appears to represent the indexing of a variable,
-        i.e. a dict key or list index, create a latex expression with
-        the index value in the subscript and the numeric value as the
-        indexed value.
-        """
-        if string is None:
-            string = self.term_string
-        var_name,indx = string.split("[")
-        indx = indx.split("]")[0]
-        string = string.replace("[", "_")
-        for i in r""""']""":
-            string = string.replace(i, "")
-        try:
-            if var_name in __latex__.keys():
-                self.latex += __latex__[var_name]
-            else:
-                self.latex = self.namespace[string].latex
-            self.latex += '_{'+indx+'}'
-        except Exception as e:
-            print(e)
-            self.sympy_expr = sympify(string)
-            self.latex = latex(self.sympy_expr)
-        self.placeholder = "PlcHldr" + string.replace("_", "Indx")
-        self.sanitize_placeholder()
-        self.to_numeric()
-
-    def sanitize_placeholder(self):
-        """Post process placehoder string
-
-        Replace problematic characters/strings in the placehoder used to typeset the parent equation with sympy.  This also adds a three character alphabetic string to maintain the original order
-        """
-        remove_symbols = "_=*+-/([])^.," + '"' + "'"
-        for i in remove_symbols:
-            self.placeholder = self.placeholder.replace(i, "")
-        replace_num_dict = {
-            "0": "Zero",
-            "1": "One",
-            "2": "Two",
-            "3": "Three",
-            "4": "Four",
-            "5": "Five",
-            "6": "Six",
-            "7": "Seven",
-            "8": "Eight",
-            "9": "Nine",
-        }
-        for k, v in replace_num_dict.items():
-            self.placeholder = self.placeholder.replace(k, v)
-        self.placeholder += "End"
-        if self.verbose:
-            print(f'placeholder: {self.placeholder}')
-            print(f'prefix: {self.prefix}')
-        if self.prefix is None:
-            self.prefix=''
-        self.placeholder = self.prefix + self.placeholder
-
-    def __repr__(self):
-        return self.orig_string
-
-    def __get__(self):
-        return self
-
+    if verbose:
+        print(ast_to_string(node))
     
-        
-class EqFormat:
-    """Process a line of text as an equation 
-
-    For lines of text that appear to be assignments in equation form,
-    split into LHS and RHS, split each side into individual terms
-    using order of opertations, and parse each term using the EqTerm
-    class.
-    """
-
-    def __init__(self, eq_string, namespace=locals(), verbose=False, **kwargs):
-        self.verbose = verbose
-        self.namespace = namespace
-        self.kwargs = kwargs
-        self.input_string = eq_string
-        # self._parse_input_string(**kwargs)
-        self.parsed_input_string, self.parsed_list = self._parse_input_string(self.input_string,**kwargs)
-        self.terms_list = self._process_terms(self.parsed_list, namespace, verbose,**kwargs)
-        # self._process_terms(**kwargs)
-
-    @staticmethod
-    def _parse_input_string(input_string,**kwargs):
-        """Parse a line of python code into terms
-
-        Split a line of code into terms following order of operations rules
-
-        Args:
-          **kwargs: 
-        """
-        operators = "*/^+-="
-        parens = "()"
-        brackets = "[]"
-        parsed_string = '["""'
-        skip_next = False
-        in_string = False
-        function_level = 0
-        index_level = 0
-        for i, char in enumerate(input_string):
-            print(f'{parsed_string} -> char:{char} -> function_level:{function_level}')
-            if skip_next:
-                skip_next = False
-            elif char in operators and function_level == 0:
-                if input_string[i : i + 1] == "**":
-                    char = "**"
-                    skip_next = True
-                parsed_string += f'""","""{char}""","""'
-            elif char == "(":
-                if parsed_string[-1] == '"' and function_level == 0:
-                    parsed_string += f'""","""{char}""","""'
-                else:
-                    function_level += 1
-                    parsed_string += char
-            elif char == ")":
-                function_level -= 1
-                parsed_string += char
-                # if function_level == 0:
-                #     parsed_string += f'{char}""","""'
-                # else:
-                #     parsed_string += char
-                # else:# function_level == 1:
-                #     parsed_string += f'"""{char}"""'
-                #     function_level -= 1
-            else:
-                parsed_string += char
-            print(parsed_string)
-            parsed_string = parsed_string.strip()
-            print(parsed_string)
-        parsed_string += '"""]'
-        print(parsed_string)
-        return parsed_string, eval(parsed_string)
-        # self.parsed_input_string = parsed_string
-        # self.parsed_list = eval(parsed_string)
-
-    @staticmethod
-    def _process_terms(parsed_list, namespace, verbose, **kwargs):
-        """Process each term in equation using EqTerm class
-        
-        Apply the EqTerm class to each term in the parsed equations
-        and append a placeholder prefix based on the position in the
-        Args:
-          **kwargs: 
-        """
-        ret_lst = []
-        for i, term in enumerate(parsed_list):
-            ret_lst.append(
-                EqTerm(
-                    term,
-                    namespace=namespace,
-                    plchldr_prefix=plchldrpfixlst[i],
-                    verbose=verbose,
-                    **kwargs,
-                )
-            )
-            if verbose:
-                print(ret_lst[-1].placeholder)
-        terms_list = ret_lst
-        return terms_list
-
-    
-    def _sympy_formula_formatting(self, **kwargs):
-        """Sympify equation expression
-
-        Use sympify to convert an equation string into a latex expression.  Sympy tends to rearrange equations through the sympify process, so the earlier classes/funtions in this chain introduce a prefix string to minimize the impacts of the sympy rearranging by tricking it into treating the terms as alphabetical by the order they are defined.
-
-        Args:
-          **kwargs: 
-
-        Returns:
-
-        """
-        LHS_plchldr, *MID_plchldr, RHS_plchldr = "".join(
-            [i.placeholder for i in self.terms_list]
-        ).split("=")
-        if self.verbose:
-            print(MID_plchldr)
-        LHS_latex_plchldr = latex(sympify(LHS_plchldr))
-        RHS_latex_plchldr = latex(sympify(RHS_plchldr), order="grevlex")
-        LHS_latex_symbolic = str(LHS_latex_plchldr)
-        RHS_latex_symbolic = str(RHS_latex_plchldr)
-        LHS_latex_numeric = str(LHS_latex_plchldr)
-        RHS_latex_numeric = str(RHS_latex_plchldr)
-        for i in self.terms_list:
-            LHS_latex_symbolic = LHS_latex_symbolic.replace(
-                i.sympified_placeholder, i.latex
-            )
-            if self.verbose: print(RHS_latex_symbolic)
-            RHS_latex_symbolic = RHS_latex_symbolic.replace(
-                i.sympified_placeholder, i.latex
-            )
-            LHS_latex_numeric = LHS_latex_numeric.replace(
-                i.sympified_placeholder, str(i.numeric)
-            )
-            RHS_latex_numeric = RHS_latex_numeric.replace(
-                i.sympified_placeholder, str(i.numeric)
-            ).replace('dimensionless','')
-        if len(self.terms_list) > 3 and not len(MID_plchldr):
-            LHS_latex_numeric = re.sub(
-                "^\\\\left\((.*)\\\\right\)$", "\g<1>", LHS_latex_numeric
-            )
-            latex_string = "\\[\n  \\begin{aligned}{ "
-            latex_string += LHS_latex_symbolic
-            latex_string += r" }&={ "
-            latex_string += " }\\\\\n    &={ ".join(
-                [RHS_latex_symbolic, RHS_latex_numeric, LHS_latex_numeric]
-            )
-            latex_string += " }\n  \\end{aligned}\n\\]\n"
+    # Number or String
+    if isinstance(node, ast.Constant):
+        symbolic = f'{node.value}'
+        numeric = symbolic
+        if isinstance(node.value, str):
+            code = f'"{node.value}"'
         else:
-            latex_string = "\\[\n  \\begin{aligned}\n    { "
-            latex_string += LHS_latex_symbolic
-            latex_string += " }&={ "
-            if RHS_latex_symbolic.strip() != LHS_latex_numeric.strip():
-                latex_string += RHS_latex_symbolic
-                latex_string += r" } = {"
-            LHS_latex_numeric = re.sub(
-                "^\\\\left\((.*)\\\\right\)$", "\g<1>", LHS_latex_numeric
-            )
-            latex_string += LHS_latex_numeric
-            latex_string += " }\n  \\end{aligned}\n\\]\n"
-        return latex_string.replace('dimensionless','')
+            code = symbolic
+    
+    # Simple variable
+    elif isinstance(node, ast.Name):        
+        code = node.id
+        symbolic = to_latex(code)
+        numeric = to_numeric(code, namespace)
+            
+    # Subscript
+    elif isinstance(node, ast.Subscript):
+        val = process_node(node.value, namespace)
+        slc = process_node(node.slice, namespace)
+        code = f"{val['code']}[{slc['code']}]"
+        symbolic = f"{val['symbolic']}_"+"{"+f"{slc['symbolic']}"+"}"
+        numeric = to_numeric(code, namespace)
+        
+    # Index
+    elif isinstance(node, ast.Index):
+        result = process_node(node.value, namespace)
+        code = result['code']
+        symbolic = result['symbolic']
+        numeric = to_numeric(code, namespace)
+        
+    # Simple Math Operation
+    elif isinstance(node, ast.BinOp):
+        left = process_node(node.left, namespace)
+        right = process_node(node.right, namespace)
+        
+        # Addition
+        if isinstance(node.op, ast.Add):
+            code = left['code'] + ' + ' + right['code']            
+            symbolic = left['symbolic'] + ' + ' + right['symbolic']
+            numeric = left['numeric'] + ' + ' + right['numeric']
+            
+        # Subtraction
+        elif isinstance(node.op, ast.Sub):
+            code = left['code']+'-'+'('+right['code']+')'
+            if isinstance(node.right, ast.BinOp):
+                right['symbolic'] = '''\\left(''' + right['symbolic'] + '''\\right)'''
+                right['numeric'] = '''\\left(''' + right['numeric'] + '''\\right)'''                
+            symbolic = left['symbolic'] + ' - ' + right['symbolic']
+            numeric = left['numeric'] + ' - ' + right['numeric']
+            
+        # Multiplication
+        elif isinstance(node.op, ast.Mult):
+            code = f"({left['code']})*({right['code']})"
+            if isinstance(node.left, ast.BinOp):
+                if not isinstance(node.left.op, ast.Div):
+                    left['symbolic'] = f"\\left({left['symbolic']}\\right)"
+                    left['numeric'] = f"\\left({left['numeric']}\\right)"                    
+            if isinstance(node.right, ast.BinOp):
+                if not isinstance(node.right.op, ast.Div):
+                    right['symbolic'] = f"\\left({right['symbolic']}\\right)"
+                    right['numeric'] = f"\\left({right['numeric']}\\right)"
+            symbolic = f"{left['symbolic']} {multiplication_symbol} {right['symbolic']}"
+            numeric = f"{left['numeric']} {multiplication_symbol} {right['numeric']}"            
+            
+        # Division
+        elif isinstance(node.op, ast.Div):
+            code = f"({left['code']})/({right['code']})"
+            symbolic = f"\\frac{{{left['symbolic']}}}{{{right['symbolic']}}}"
+            numeric = f"\\frac{{{left['numeric']}}}{{{right['numeric']}}}"
+        
+        # Exponent
+        elif isinstance(node.op, ast.Pow):
+            code = f"({left['code']})**({right['code']})"
+            if isinstance(node.left, ast.BinOp):
+                left['symbolic'] = f"\\left({left['symbolic']}\\right)"
+                left['numeric'] = f"\\left({left['numeric']}\\right)"                    
+            if isinstance(node.right, ast.BinOp):
+                if not isinstance(node.right.op, ast.Div):
+                    right['symbolic'] = f"\\left({right['symbolic']}\\right)"
+                    right['numeric'] = f"\\left({right['numeric']}\\right)"
+            symbolic = f"{left['symbolic']}^{right['symbolic']}"
+            numeric = f"{left['numeric']}^{right['numeric']}" 
+
+        else:
+            print(f'BinOp not implemented for {node.op.__class__.__name__}')
+            ast_to_string(node)
+                
+    # Function call
+    elif isinstance(node, ast.Call):
+        if isinstance(node.func, ast.Attribute):
+            attr = process_node(node.func, namespace)
+            fn_name_sym = attr['symbolic']
+            fn_name_code = attr['code']
+        else:
+            fn_name_sym = fn_name_code = node.func.id
+        fn_base_name = fn_name_code.split('.')[-1]
+        # absolute value
+        if fn_base_name == 'abs':
+            symbolic = numeric = '\\left|'
+            symbolic_close = numeric_close = '\\right|'
+        # square root
+        elif fn_base_name == 'sqrt':
+            symbolic = numeric = '\\sqrt{'
+            symbolic_close = numeric_close = '}'
+        else:
+            symbolic = numeric = f"\\mathrm{{{fn_name_sym}}}\\left("
+            symbolic_close = numeric_close = '\\right)'
+        code = f"{fn_name_code}("
+        arg_idx = 0
+        for arg in node.args:
+            if arg_idx>0:
+                code += ', '
+                symbolic += ', '
+                numeric += ', '
+            parg = process_node(arg, namespace)
+            code += parg['code']
+            symbolic += parg['symbolic']
+            numeric += parg['numeric']
+            arg_idx += 1
+        for kw in node.keywords:
+            val = process_node(kw.value, namespace)
+            if arg_idx>0:
+                code += ', '
+                symbolic += ', '
+                numeric += ', '
+            code += f"{kw.arg} = {val['code']}"
+            symbolic += f"\\mathrm{{{kw.arg}}} = {val['symbolic']}"
+            numeric += f"\\mathrm{{{kw.arg}}} = {val['numeric']}"
+            arg_idx += 1
+        code += ')'
+        symbolic += symbolic_close
+        numeric += symbolic_close
+
+        # Quantity
+        if fn_base_name == 'Quantity':
+            symbolic = numeric_to_string(eval(code, namespace))
+            numeric = symbolic
+        # .to()
+        elif fn_base_name == 'to':
+            val = process_node(node.func.value, namespace)
+            symbolic = val['symbolic']
+            code = f'{val["code"]}.to("{node.args[0].value}")'
+            numeric = numeric_to_string(eval(code, namespace))
+
+    # Attribute
+    elif isinstance(node, ast.Attribute):
+        val = process_node(node.value, namespace, nested_attr=True)
+        code = f"{val['code']}.{node.attr}"
+        symbolic = code
+        numeric = symbolic
+        if 'nested_attr' not in kwargs:
+            *paren, attr = code.split('.')
+            symbolic = '''\\underset{''' + '.'.join(paren) + '''}{''' + attr + '''}'''
+            numeric = symbolic
+    
+    else:
+        print(f'not implemented for {node.__class__.__name__}')
+        ast_to_string(node)
+
+    output = dict(symbolic=symbolic, numeric=numeric,code=code)
+    return output
 
 
 class Calculations:
@@ -614,53 +305,77 @@ class Calculations:
         verbose=False,
         **kwargs,
     ):
-        if namespace is not None:
-            self.namespace = namespace
-        else:
-            self.namespace = get_caller_namespace()
-        self.cell_string = self.namespace["_ih"][-1]
-        self.lines = self.cell_string.split("\n")
+        self.namespace = namespace or get_caller_namespace()
+        self.output = ''
+        self.show_progression = progression
+        self.comments = comments
         self.verbose = verbose
-        self.output = ""
-        for line in self.lines:
-            self.process_line(line, comments=comments, verbose=verbose, **kwargs)
+        self.cell_string = self.namespace["_ih"][-1]
+        self.input = self.filter_string(self.cell_string)
+        self.process_input_string(self.input)
+        
 
-    def process_line(self, line, comments, verbose=False, **kwargs):
-        """Parse a single line of Python code
-
-        Args:
-          line (str): line of Python code
-          comments (bool): True to show comments (Default value = False) 
-          verbose (bool): show debug information (Default value = False)
-          **kwargs: 
-
-        Returns:
-
-        """
-        try:
-            if "Calculations(" in line or "SC(" in line:
-                pass
-            elif line.strip().startswith("print"):
-                pass
-            elif line.startswith("#"):
-                if comments:
+    def process_code(self, string):
+        output = ''
+        self.parsed_tree = ast.parse(string)
+        for line in self.parsed_tree.body:
+            if isinstance(line, ast.Assign):
+                LHS = process_node(line.targets[0], self.namespace, self.verbose)
+                LHS_Symbolic = LHS['symbolic']
+                LHS_Numeric = LHS['numeric']
+                MID_Symbolic = ''
+                if len(line.targets)>1:
+                    for target in line.targets[1:]:
+                        targ = process_node(target)
+                        MID_Symbolic += targ['symbolic'] + ' = '
+                RHS_Symbolic = ''
+                RHS = process_node(line.value, self.namespace, self.verbose)
+                RHS_Symbolic = RHS['symbolic']
+                RHS_Numeric = RHS['numeric']
+                result = f"\\begin{{aligned}}\n  {LHS_Symbolic} &= {MID_Symbolic} {RHS_Symbolic} "
+                if self.show_progression:
+                    if RHS_Symbolic.strip() != RHS_Numeric.strip() != LHS_Numeric.strip():
+                        result += f"\\\\\n    &= {RHS_Numeric}\\\\\n    &= {LHS_Numeric}"
+                    elif RHS_Symbolic.strip() != RHS_Numeric.strip():
+                        result += f" = {RHS_Numeric} "
+                    elif RHS_Numeric.strip() != LHS_Numeric.strip():
+                        result += f" = {LHS_Numeric} "
+                else:
+                    result += f" = {LHS_Numeric}"
+                result += "\n\end{aligned}\n"
+                self.output += result
+                display(Latex(result))
+            
+    def process_input_string(self, string):
+        if self.comments:
+            lines = string.split("\n")
+            code_block = ''
+            for line in lines:
+                if line.startswith("#"):
+                    if code_block != '':
+                        self.process_code(code_block)
+                        code_block = ''
                     processed_string = re.sub("^#", "", line)
                     self.output += re.sub("#", "", line) + r"<br/>"  # + '\n'
                     display(Markdown(processed_string))
-            elif "=" in line:
-                if "#" in line:
-                    line, comment = line.split("#")
-                    if "hide" in comment or "noshow" in comment:
-                        raise ValueError
-                eq = EqFormat(line, namespace=self.namespace, verbose=verbose, **kwargs)
-                processed_string = eq._sympy_formula_formatting(**kwargs)
-                self.output += processed_string
-                display(Latex(processed_string))
-        except Exception as e:
-            if self.verbose:
-                print(e)
-                print(f"Failed to format: {line}")
+                else:
+                    code_block += line + '\n'
+            if code_block != '':
+                self.process_code(code_block)
+                code_block = ''
+        else:
+            self.process_code(string)
 
+    def filter_string(self, string):
+        result = ''
+        for line in string.split('\n'):
+            if (not line.startswith("#")) and ('#' in line):
+                #code, comment = line.split("#",1)
+                pass
+            else:
+                result += line + '\n'
+        return result
+                
 
 class PropertyTables:
     """Display all StatesTables in namespace"""
@@ -677,9 +392,8 @@ class PropertyTables:
 class Quantities:
     """Display Quantities in namespace 
 
-    If a list of variables is provided, add each variable to list for
-    display.  Otherwise add all quantities in the namespace to the
-    list for display.
+    If a list of variables is provided, display the specified 
+    variables.  Otherwise display all variables with units.
     """
 
     def __init__(self, variables=None, n_col=3, style=None, namespace=None, **kwargs):
@@ -687,7 +401,7 @@ class Quantities:
         self.style = style
         self.n = 1
         self.n_col = n_col
-        self.latex_string = r"\[\begin{aligned}{ "
+        self.latex_string = r"\begin{aligned}{ "
         if variables is not None:
             for variable in variables:
                 self.add_variable(variable, **kwargs)
@@ -696,7 +410,7 @@ class Quantities:
                 if not k.startswith("_"):
                     if isinstance(v, units.Quantity):
                         self.add_variable(k, **kwargs)
-        self.latex_string += r" }\end{aligned}\]"
+        self.latex_string += r" }\end{aligned}"
         self.latex = self.latex_string
         display(Latex(self.latex_string))
 
@@ -710,11 +424,10 @@ class Quantities:
         Returns:
 
         """
-        term = EqTerm(variable, namespace=self.namespace, **kwargs)
-        symbol = term.latex
+        symbol = to_latex(variable)
+        value =to_numeric(variable, self.namespace)
         boxed_styles = ["box", "boxed", "sol", "solution"]
-        value = re.sub("^\\\\left\((.*)\\\\right\)$", "\g<1>", str(term.numeric))
-        if self.style in boxed_styles:
+        if self.style in boxed_styles: 
             self.latex_string += r"\Aboxed{ "
         self.latex_string += symbol + r" }&={ " + value
         if self.style in boxed_styles:
@@ -745,72 +458,3 @@ class Summary:
                 n_col = 3
             self.quantities = Quantities(namespace=self.namespace, n_col=n_col, **kwargs)
             self.state_tables = PropertyTables(namespace=self.namespace, **kwargs)
-
-
-def _parse_input_string(input_string,**kwargs):
-    """Parse a line of python code into terms
-
-    Split a line of code into terms following order of operations rules
-
-    Args:
-      **kwargs: 
-    """
-    operators = "*/^+-="
-    parens = "()"
-    brackets = "[]"
-    parsed_string = '["""'
-    skip_next = False
-    in_string = False
-    function_level = 0
-    index_level = 0
-    for i, char in enumerate(input_string):
-        if skip_next:
-            skip_next = False
-        elif char in operators and function_level == 0:
-            if input_string[i : i + 1] == "**":
-                char = "**"
-                skip_next = True
-            parsed_string += f'""","""{char}""","""'
-        elif char == "(":
-            if parsed_string[-1] == '"' and function_level == 0:
-                parsed_string += f'{char}'
-            else:
-                function_level += 1
-                parsed_string += char
-        elif char == ")":
-            if function_level == 0:
-                parsed_string += f'{char}""","""'
-            elif function_level == 1:
-                parsed_string += char
-                function_level -= 1
-        else:
-            parsed_string += char
-        parsed_string = parsed_string.strip()
-    parsed_string += '"""]'
-    return parsed_string, eval(parsed_string)
-    # self.parsed_input_string = parsed_string
-    # self.parsed_list = eval(parsed_string)
-
-def _process_terms(parsed_list, namespace, verbose=False, **kwargs):
-    """Process each term in equation using EqTerm class
-    
-    Apply the EqTerm class to each term in the parsed equations
-    and append a placeholder prefix based on the position in the
-    Args:
-      **kwargs: 
-    """
-    ret_lst = []
-    for i, term in enumerate(parsed_list):
-        ret_lst.append(
-            EqTerm(
-                term,
-                namespace=namespace,
-                plchldr_prefix=plchldrpfixlst[i],
-                verbose=verbose,
-                **kwargs,
-            )
-        )
-        if verbose:
-            print(ret_lst[-1].placeholder)
-    terms_list = ret_lst
-    return terms_list
