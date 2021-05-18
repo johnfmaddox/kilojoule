@@ -150,7 +150,7 @@ def process_node(node, namespace=None, verbose=False, **kwargs):
         val = process_node(node.value, namespace)
         slc = process_node(node.slice, namespace)
         code = f"{val['code']}[{slc['code']}]"
-        symbolic = f"{val['symbolic']}_"+"{"+f"{slc['symbolic']}"+"}"
+        symbolic = f"{{{val['symbolic']}}}_"+"{"+f"{slc['symbolic']}"+"}"
         numeric = to_numeric(code, namespace)
         
     # Index
@@ -173,49 +173,64 @@ def process_node(node, namespace=None, verbose=False, **kwargs):
             
         # Subtraction
         elif isinstance(node.op, ast.Sub):
-            code = left['code']+'-'+'('+right['code']+')'
+            code = f"{left['code']} - ({right['code']})"
             if isinstance(node.right, ast.BinOp):
-                right['symbolic'] = '''\\left(''' + right['symbolic'] + '''\\right)'''
-                right['numeric'] = '''\\left(''' + right['numeric'] + '''\\right)'''                
-            symbolic = left['symbolic'] + ' - ' + right['symbolic']
-            numeric = left['numeric'] + ' - ' + right['numeric']
+                if isinstance(node.right.op, ast.Add) or isinstance(node.right.op, ast.Sub):
+                    right['symbolic'] = f" \\left( {right['symbolic']} \\right)"
+                    right['numeric'] = f"\\left( {right['numeric']} \\right)"
+            symbolic = f" {left['symbolic']} - {right['symbolic']} "
+            numeric = f" {left['numeric']} - {right['numeric']} "
             
         # Multiplication
         elif isinstance(node.op, ast.Mult):
             code = f"({left['code']})*({right['code']})"
             if isinstance(node.left, ast.BinOp):
-                if not isinstance(node.left.op, ast.Div):
-                    left['symbolic'] = f"\\left({left['symbolic']}\\right)"
-                    left['numeric'] = f"\\left({left['numeric']}\\right)"                    
+                if (isinstance(node.left.op, ast.Add) or isinstance(node.left.op, ast.Sub)):
+                    left['symbolic'] = f"\\left( {left['symbolic']} \\right)"
+                    left['numeric'] = f"\\left( {left['numeric']} \\right)"                    
             if isinstance(node.right, ast.BinOp):
-                if not isinstance(node.right.op, ast.Div):
-                    right['symbolic'] = f"\\left({right['symbolic']}\\right)"
-                    right['numeric'] = f"\\left({right['numeric']}\\right)"
-            symbolic = f"{left['symbolic']} {multiplication_symbol} {right['symbolic']}"
-            numeric = f"{left['numeric']} {multiplication_symbol} {right['numeric']}"            
+                if (isinstance(node.right.op, ast.Add) or isinstance(node.right.op, ast.Sub)):
+                    right['symbolic'] = f"\\left( {right['symbolic']} \\right)"
+                    right['numeric'] = f"\\left( {right['numeric']} \\right)"
+            symbolic = f" {left['symbolic']} {multiplication_symbol} {right['symbolic']} "
+            numeric = f" {left['numeric']} {multiplication_symbol} {right['numeric']} "
             
         # Division
         elif isinstance(node.op, ast.Div):
             code = f"({left['code']})/({right['code']})"
-            symbolic = f"\\frac{{{left['symbolic']}}}{{{right['symbolic']}}}"
-            numeric = f"\\frac{{{left['numeric']}}}{{{right['numeric']}}}"
+            symbolic = f"\\frac{{ {left['symbolic']} }}{{ {right['symbolic']} }}"
+            numeric = f"\\frac{{ {left['numeric']} }}{{ {right['numeric']} }}"
         
         # Exponent
         elif isinstance(node.op, ast.Pow):
             code = f"({left['code']})**({right['code']})"
             if isinstance(node.left, ast.BinOp):
                 left['symbolic'] = f"\\left({left['symbolic']}\\right)"
-                left['numeric'] = f"\\left({left['numeric']}\\right)"                    
+                left['numeric'] = f"\\left({left['numeric']}\\right)"
+            elif '\ ' in left['numeric']:
+                left['numeric'] = f"\\left({left['numeric']} \\right)"
             if isinstance(node.right, ast.BinOp):
                 if not isinstance(node.right.op, ast.Div):
                     right['symbolic'] = f"\\left({right['symbolic']}\\right)"
                     right['numeric'] = f"\\left({right['numeric']}\\right)"
             symbolic = f"{left['symbolic']}^{right['symbolic']}"
-            numeric = f"{left['numeric']}^{right['numeric']}" 
+            numeric = f"{left['numeric']}^{right['numeric']}"        
 
         else:
             print(f'BinOp not implemented for {node.op.__class__.__name__}')
             ast_to_string(node)
+
+    # Unary Operation
+    elif isinstance(node, ast.UnaryOp):
+        if isinstance(node.op, ast.USub):
+            operand = process_node(node.operand, namespace)
+            symbolic = f"-{operand['symbolic']}"
+            numeric = f"-\\left( {operand['numeric']} \\right)"
+        else:
+            print(f'UnaryOp not implemented for {node.op.__class__.__name__}')
+            ast_to_string(node)
+        
+            
                 
     # Function call
     elif isinstance(node, ast.Call):
@@ -228,15 +243,15 @@ def process_node(node, namespace=None, verbose=False, **kwargs):
         fn_base_name = fn_name_code.split('.')[-1]
         # absolute value
         if fn_base_name == 'abs':
-            symbolic = numeric = '\\left|'
-            symbolic_close = numeric_close = '\\right|'
+            symbolic = numeric = ' \\left| '
+            symbolic_close = numeric_close = ' \\right|'
         # square root
         elif fn_base_name == 'sqrt':
             symbolic = numeric = '\\sqrt{'
             symbolic_close = numeric_close = '}'
         else:
-            symbolic = numeric = f"\\mathrm{{{fn_name_sym}}}\\left("
-            symbolic_close = numeric_close = '\\right)'
+            symbolic = numeric = f"\\mathrm{{ {fn_name_sym} }}\\left( "
+            symbolic_close = numeric_close = ' \\right)'
         code = f"{fn_name_code}("
         arg_idx = 0
         for arg in node.args:
@@ -256,8 +271,8 @@ def process_node(node, namespace=None, verbose=False, **kwargs):
                 symbolic += ', '
                 numeric += ', '
             code += f"{kw.arg} = {val['code']}"
-            symbolic += f"\\mathrm{{{kw.arg}}} = {val['symbolic']}"
-            numeric += f"\\mathrm{{{kw.arg}}} = {val['numeric']}"
+            symbolic += f"\\mathrm{{ {kw.arg} }} = {val['symbolic']}"
+            numeric += f"\\mathrm{{ {kw.arg} }} = {val['numeric']}"
             arg_idx += 1
         code += ')'
         symbolic += symbolic_close
@@ -265,14 +280,14 @@ def process_node(node, namespace=None, verbose=False, **kwargs):
 
         # Quantity
         if fn_base_name == 'Quantity':
-            symbolic = numeric_to_string(eval(code, namespace))
+            symbolic = to_numeric(code, namespace)
             numeric = symbolic
         # .to()
         elif fn_base_name == 'to':
             val = process_node(node.func.value, namespace)
             symbolic = val['symbolic']
             code = f'{val["code"]}.to("{node.args[0].value}")'
-            numeric = numeric_to_string(eval(code, namespace))
+            numeric = to_numeric(code, namespace)
 
     # Attribute
     elif isinstance(node, ast.Attribute):
@@ -332,6 +347,8 @@ class Calculations:
                 RHS = process_node(line.value, self.namespace, self.verbose)
                 RHS_Symbolic = RHS['symbolic']
                 RHS_Numeric = RHS['numeric']
+                if self.verbose:
+                    print(f"LHS_Symbolic: {LHS_Symbolic}\nRHS_Symbolic: {RHS_Symbolic}\nRHS_Numeric: {RHS_Numeric}\nLHS_Numeric: {LHS_Numeric}")
                 result = f"\\begin{{aligned}}\n  {LHS_Symbolic} &= {MID_Symbolic} {RHS_Symbolic} "
                 if self.show_progression:
                     if RHS_Symbolic.strip() != RHS_Numeric.strip() != LHS_Numeric.strip():
@@ -370,8 +387,9 @@ class Calculations:
         result = ''
         for line in string.split('\n'):
             if (not line.startswith("#")) and ('#' in line):
-                #code, comment = line.split("#",1)
-                pass
+                code, comment = line.split("#",1)
+                if not any(i in comment for i in 'hide noshow suppress'.split()):
+                    result += line + '\n'
             else:
                 result += line + '\n'
         return result

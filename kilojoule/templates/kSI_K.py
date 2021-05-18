@@ -24,7 +24,7 @@ properties_dict = {
      'X':'kJ',        # exergy
      'Xdot':'kW',     # exergy flow rate
      'phi':'kJ/kg',   # specific exergy
-     'psi':'kj/kg',   # specific flow exergy
+     'psi':'kJ/kg',   # specific flow exergy
      'y':'',          # mole fraction
      'mf':'',         # mass fraction
      'M':'kg/kmol',   # molar mass
