@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 0.2.4
+===========
+- Refactor display library
+  * uses Abstract Syntaxt Tree (AST) from the core library for parsing
+
 Version 0.2.0
 ===========
 
