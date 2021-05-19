@@ -145,7 +145,8 @@ predefined_unit_types = {
     "v": "specific volume",
     "v_da": "dry air specific volume",
     "v_ha": "humid air specific volume",
-    "V": "volume",
+    "Vol": "volume",
+    "Vel": "velocity",
     "u": "specific energy",
     "U": "energy",
     "h": "specific energy",
@@ -438,11 +439,13 @@ def preferred_units_from_type(quantity_type, unit_system="SI_C"):
     return predefined_unit_systems[unit_system][quantity_type]
 
 # Adapted from: https://stackoverflow.com/questions/6618795/get-locals-from-calling-namespace-in-python
-def get_caller_namespace():
+def get_caller_namespace(n=2):
     """Get the local variables in the caller's frame."""
     frame = inspect.currentframe()
     try:
-        result = frame.f_back.f_back.f_locals
+        command = f"frame.{'.'.join(['f_back' for i in range(n)])}.f_locals"
+        #print(command)
+        result = eval(command)
     finally:
         del frame
     return result

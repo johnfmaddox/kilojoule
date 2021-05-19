@@ -2,6 +2,22 @@
 Changelog
 =========
 
+Version 0.2.7
+===========
+- Add IPython Magics interface for Caculations()
+  * cell magic
+      %%showcalc
+  * line magic
+      %showcalc
+
+Version 0.2.6
+===========
+Bug fixes
+
+Version 0.2.5
+===========
+Bug fixes
+
 Version 0.2.4
 ===========
 - Refactor display library

@@ -12,6 +12,7 @@ external document.
 from string import ascii_lowercase
 from IPython.display import display, HTML, Math, Latex, Markdown
 from sympy import sympify, latex
+#import re
 import regex as re
 import functools
 import inspect
@@ -21,6 +22,7 @@ from .common import get_caller_namespace
 import ast
 
 from .units import units, Quantity
+
 
 multiplication_symbol = ' \cdot '
 
@@ -34,6 +36,8 @@ pre_sympy_latex_substitutions = {
     "math.pi": "pi",
     "Nu": "Nuplchldr",
     "_bar": "bar",
+    "_ddot": "ddot",
+    "_dot": "dot",
     "_ppprime|_tripleprime": "_tripprmplchldr",
     "_pprime|_doubleprime": "_doubprmplchldr",
     "_prime": "_prmplchldr",
@@ -61,12 +65,14 @@ post_sympy_latex_substitutions = {
 }
 
 __variable_latex_subs__ = {
-    'np.log':'\ln ',
-    'math.log':'\ln ',
-    'log':'\ln ',
+    'np.log':r'\ln ',
+    'math.log':r'\ln ',
+    'log':r'\ln ',
 }
-def set_latex(var_name_string, latex_string):
-    __variable_latex_subs__[var_name_string]=latex_string
+
+def set_latex(sub_dict):
+    for key, value in sub_dict.items():
+        __variable_latex_subs__[key]=value
 
 def ast_to_string(ast_node, line_indent=''):
     next_line_indent = line_indent + '  '
@@ -91,7 +97,7 @@ def to_numeric(code, namespace=None):
         numeric = eval(code, namespace)
         numeric = numeric_to_string(numeric)
     except Exception as e:
-        numeric = code
+        numeric = '??'
     return numeric
 
 
@@ -110,6 +116,8 @@ def numeric_to_string(numeric):
 
 
 def to_latex(code):
+    if '[' in code:
+        return index_to_latex(code)
     if code in __variable_latex_subs__.keys():
         return __variable_latex_subs__[code]
     else:
@@ -120,6 +128,16 @@ def to_latex(code):
             code = re.sub(key, value, code)
         return code
 
+def index_to_latex(code):
+    var,slc = code.split('[',1)
+    var_sym = to_latex(var)
+    slc = slc[:-1]
+    try:
+        slc_sym = to_latex(slc)
+    except Execption as e:
+        slc_sym = slc
+    symbolic = f"{{ {var_sym} }}_{{ {slc_sym} }}"
+    return symbolic
 
 def process_node(node, namespace=None, verbose=False, **kwargs):
     namespace = namespace or get_caller_namespace()
@@ -150,7 +168,7 @@ def process_node(node, namespace=None, verbose=False, **kwargs):
         val = process_node(node.value, namespace)
         slc = process_node(node.slice, namespace)
         code = f"{val['code']}[{slc['code']}]"
-        symbolic = f"{{{val['symbolic']}}}_"+"{"+f"{slc['symbolic']}"+"}"
+        symbolic = f"{{{val['symbolic']}}}_{{ {slc['symbolic']} }}"
         numeric = to_numeric(code, namespace)
         
     # Index
@@ -167,9 +185,9 @@ def process_node(node, namespace=None, verbose=False, **kwargs):
         
         # Addition
         if isinstance(node.op, ast.Add):
-            code = left['code'] + ' + ' + right['code']            
-            symbolic = left['symbolic'] + ' + ' + right['symbolic']
-            numeric = left['numeric'] + ' + ' + right['numeric']
+            code = f"{left['code']} + {right['code']}"
+            symbolic = f"{left['symbolic']} + {right['symbolic']}"
+            numeric = f"{left['numeric']} + {right['numeric']}"
             
         # Subtraction
         elif isinstance(node.op, ast.Sub):
@@ -297,7 +315,7 @@ def process_node(node, namespace=None, verbose=False, **kwargs):
         numeric = symbolic
         if 'nested_attr' not in kwargs:
             *paren, attr = code.split('.')
-            symbolic = '''\\underset{''' + '.'.join(paren) + '''}{''' + attr + '''}'''
+            symbolic = f"\\underset{{ {'.'.join(paren)} }}{{ {attr} }}"
             numeric = symbolic
     
     else:
@@ -314,18 +332,24 @@ class Calculations:
     def __init__(
         self,
         namespace=None,
+        input_string=None,
         comments=True,
         progression=True,
         return_latex=False,
         verbose=False,
+        execute=False,
         **kwargs,
     ):
         self.namespace = namespace or get_caller_namespace()
+        self.cell_string = input_string or self.namespace["_ih"][-1]
         self.output = ''
         self.show_progression = progression
         self.comments = comments
         self.verbose = verbose
-        self.cell_string = self.namespace["_ih"][-1]
+        if execute:
+            # self.namespace = get_caller_namespace(n=3)
+            # print(self.namespace)
+            exec(self.cell_string,self.namespace)
         self.input = self.filter_string(self.cell_string)
         self.process_input_string(self.input)
         
@@ -443,7 +467,7 @@ class Quantities:
 
         """
         symbol = to_latex(variable)
-        value =to_numeric(variable, self.namespace)
+        value = to_numeric(variable, self.namespace)
         boxed_styles = ["box", "boxed", "sol", "solution"]
         if self.style in boxed_styles: 
             self.latex_string += r"\Aboxed{ "
