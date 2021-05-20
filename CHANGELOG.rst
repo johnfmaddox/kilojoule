@@ -2,6 +2,10 @@
 Changelog
 =========
 
+Version 0.2.8
+===========
+- Update template to import magics
+
 Version 0.2.7
 ===========
 - Add IPython Magics interface for Caculations()

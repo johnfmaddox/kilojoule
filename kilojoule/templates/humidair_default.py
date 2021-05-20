@@ -4,6 +4,7 @@ import kilojoule.idealgas as idealgas
 from kilojoule.organization import PropertyTable
 from kilojoule.display import Calculations, Summary
 from kilojoule.units import units, Quantity
+import kilojoule.magics
 
 humidair = kilojoule.humidair.Properties()
 water = kilojoule.realfluid.Properties('Water',unit_system='SI_C')

@@ -3,6 +3,8 @@ import kilojoule.idealgas as idealgas
 from kilojoule.organization import PropertyTable
 from kilojoule.display import Calculations, Summary
 from kilojoule.units import units, Quantity
+import kilojoule.magics
+
 
 air = idealgas.Properties('Air',unit_system='USCS_F')
 water = realfluid.Properties('Water',unit_system='USCS_F')
