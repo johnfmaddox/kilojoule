@@ -347,8 +347,6 @@ class Calculations:
         self.comments = comments
         self.verbose = verbose
         if execute:
-            # self.namespace = get_caller_namespace(n=3)
-            # print(self.namespace)
             exec(self.cell_string,self.namespace)
         self.input = self.filter_string(self.cell_string)
         self.process_input_string(self.input)
