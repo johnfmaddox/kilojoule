@@ -358,7 +358,7 @@ class Properties:
                                                         if arg.dimensionless and (0<= arg <= 1): # quality
                                                             kwargs = dict(x=arg, **kwargs)
                                                     except:
-                                                        print(f'Unable to determine property type for {f} based on units')
+                                                        print(f'Unable to determine property type for {arg} based on units')
             elif 0<= arg <= 1: # quality
                 kwargs = dict(x=arg, **kwargs)
             if enthalpy_check:

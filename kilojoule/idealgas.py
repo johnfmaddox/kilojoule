@@ -79,7 +79,7 @@ class Properties:
                                     arg.to('kg/m^3')
                                     kwargs = dict(d=arg, **kwargs)
                                 except:
-                                    print(f'Unable to determine property type for {f} based on units')
+                                    print(f'Unable to determine property type for {arg} based on units')
         for k,v in kwargs.items():
             if not isinstance(v,Quantity):
                 arg_units = preferred_units_from_symbol(k, unit_system=self.unit_system)
