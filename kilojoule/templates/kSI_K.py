@@ -1,8 +1,9 @@
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
-from kilojoule.organization import PropertyTable
+from kilojoule.organization import QuantityTable
 from kilojoule.display import Calculations, Summary
 from kilojoule.units import units, Quantity
+import kilojoule.magics
 
 air = idealgas.Properties('Air',unit_system='kSI_K')
 water = realfluid.Properties('Water',unit_system='kSI_K')
@@ -34,4 +35,4 @@ properties_dict = {
      'c_p':'kJ/kg/K', # constant pressure specific heat
      'k':'',          # specific heat ratio
  }
-states = PropertyTable(properties_dict, unit_system='kSI_K', add_to_namespace=True)
+states = QuantityTable(properties_dict, unit_system='kSI_K', add_to_namespace=True)

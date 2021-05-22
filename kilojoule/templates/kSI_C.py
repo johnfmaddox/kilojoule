@@ -1,6 +1,6 @@
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
-from kilojoule.organization import PropertyTable
+from kilojoule.organization import QuantityTable
 from kilojoule.display import Summary, Calculations
 from kilojoule.units import units, Quantity
 import kilojoule.magics
@@ -27,5 +27,5 @@ properties_dict = {
      'phi':'kJ/kg', # specific exergy
      'psi':'kJ/kg'  # specific flow exergy
  }
-states = PropertyTable(properties_dict, unit_system='kSI_C', add_to_namespace=True)
+states = QuantityTable(properties_dict, unit_system='kSI_C', add_to_namespace=True)
 

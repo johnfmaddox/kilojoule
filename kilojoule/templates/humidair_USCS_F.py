@@ -1,7 +1,7 @@
 import kilojoule.humidair
 import kilojoule.realfluid
 import kilojoule.idealgas as idealgas
-from kilojoule.organization import PropertyTable
+from kilojoule.organization import QuantityTable
 from kilojoule.display import Calculations, Summary
 from kilojoule.units import units, Quantity
 import kilojoule.magics
@@ -40,4 +40,4 @@ properties_dict = {
      'phi':'',                    # relative humidity
      'omega':'lb_water/lb_dry_air'# humidity ratio 
  }
-states = PropertyTable(properties_dict, unit_system='USCS_F', add_to_namespace=True)
+states = QuantityTable(properties_dict, unit_system='USCS_F', add_to_namespace=True)

@@ -76,8 +76,8 @@ class PropertyPlot:
             self.ax = self.fig.add_subplot(1, 1, 1)
         else:
             self.ax = self.fig.add_subplot(*subplot)
-        self.ax.set_ylabel(f"${self.y_symb}$ [$\mathrm{{{Q_(1,self.y_units).units:~L}}}$]")
-        self.ax.set_xlabel(f"${self.x_symb}$ [{Q_(1,self.x_units).units:~P}]")
+        self.ax.set_ylabel(f"${self.y_symb}$ [$\mathrm{{{Quantity(1,self.y_units).units:~L}}}$]")
+        self.ax.set_xlabel(f"${self.x_symb}$ [{Quantity(1,self.x_units).units:~P}]")
         if log_x:
             self.ax.set_xscale("log")
         if log_y:

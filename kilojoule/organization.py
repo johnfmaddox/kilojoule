@@ -1,10 +1,8 @@
 from .units import Q_, units, Quantity
-# from .common import symbol_to_type_dict
 from .common import get_caller_namespace
 import pandas as pd
 from IPython.display import display, HTML, Math, Latex, Markdown
 import re
-# import pint_pandas
 
 default_property_dict = {
     'T':'degC',         # Temperature: unit options ('K','degC','degF','degR')
@@ -81,7 +79,7 @@ class PropertyDict:
         del self.dict[item]
 
 
-class PropertyTable:
+class QuantityTable:
     """Table for storing quantities"""
     def __init__(
         self,
@@ -233,46 +231,6 @@ class PropertyTable:
         a.sort(key=self._natural_keys)
         df = df.reindex(a)
         return df
-        
-    
-    # def to_pandas(self, *args, dropna=True, **kwargs):
-    #     """
-
-    #     Args:
-    #       *args: 
-    #       dropna: remove empty columns (Default value = True)
-    #       **kwargs: 
-
-    #     Returns:
-
-    #     """
-    #     df = pd.DataFrame(self.to_dict())
-    #     for prop in df.keys():
-    #         if self.dict[prop].units is not None:
-    #             df[prop] = df[prop].apply(
-    #                 lambda x: x.to(self.dict[prop].units).m
-    #                 if isinstance(x, units.Quantity)
-    #                 else x
-    #             )
-    #     if dropna:
-    #         df.dropna(axis="columns", how="all", inplace=True)
-    #     df.fillna("-", inplace=True)
-    #     df.index = df.index.map(str)
-    #     for prop in df.keys():
-    #         if self.dict[prop].units is not None:
-    #             df.rename(
-    #                 {prop: f"{prop} [{Q_(1,self.dict[prop].units).units:~P}]"},
-    #                 axis=1,
-    #                 inplace=True,
-    #             )
-    #     def atoi(text):
-    #         return int(text) if text.isdigit() else text
-    #     def natural_keys(text):
-    #         return [ atoi(c) for c in re.split('(\d+)',text) ]
-    #     a = df.index.tolist()
-    #     a.sort(key=self._natural_keys)
-    #     df = df.reindex(a)
-    #     return df
 
     def fix(self, state=None, property_source=None, verbose=False):
         """Fix a state based on known properties

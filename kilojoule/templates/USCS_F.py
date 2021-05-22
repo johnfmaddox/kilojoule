@@ -1,10 +1,9 @@
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
-from kilojoule.organization import PropertyTable
+from kilojoule.organization import QuantityTable
 from kilojoule.display import Calculations, Summary
 from kilojoule.units import units, Quantity
 import kilojoule.magics
-
 
 air = idealgas.Properties('Air',unit_system='USCS_F')
 water = realfluid.Properties('Water',unit_system='USCS_F')
@@ -28,4 +27,4 @@ properties_dict = {
      'phi':'Btu/lb',    # specific exergy
      'psi':'Btu/lb'     # specific flow exergy
  }
-states = PropertyTable(properties_dict, unit_system='USCS_F', add_to_namespace=True)
+states = QuantityTable(properties_dict, unit_system='USCS_F', add_to_namespace=True)

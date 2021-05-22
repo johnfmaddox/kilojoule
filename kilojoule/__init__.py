@@ -27,4 +27,4 @@ __version__ = "0.1.0"
 # from .idealgas import LegacyPropertyPlot as IdealGasPropertyPlot
 # from .display import Calculations as ShowCalculations
 # from .display import Summary as ShowSummary
-# from .organization import PropertyTable as StatesTable
+# from .organization import QuantityTable as StatesTable
