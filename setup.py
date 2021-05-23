@@ -5,7 +5,7 @@ with open("README.rst", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="kilojoule",
-    version="0.2.8",
+    version="0.2.9",
     author="Jack Maddox",
     author_email="jackmaddox@gmail.com",
     description="A convenience package for thermodynamic and heat transfer calculations",

@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 0.2.9
+===========
+- Shorten display for equation progressions without math operations
+- Refactor template files
+
 Version 0.2.8
 ===========
 - Update template to import magics
