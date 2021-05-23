@@ -1,4 +1,4 @@
-from .units import Q_, units, Quantity
+from .units import units, Quantity
 from .common import get_caller_namespace
 import pandas as pd
 from IPython.display import display, HTML, Math, Latex, Markdown

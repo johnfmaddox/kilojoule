@@ -1,38 +1,15 @@
-import kilojoule.realfluid as realfluid
-import kilojoule.idealgas as idealgas
-from kilojoule.organization import QuantityTable
-from kilojoule.display import Calculations, Summary
-from kilojoule.units import units, Quantity
-import kilojoule.magics
+from kilojoule.templates.SI import *
 
-air = idealgas.Properties('Air',unit_system='kSI')
-water = realfluid.Properties('Water',unit_system='kSI')
-
-properties_dict = {
-     'T':'K',         # Temperature
-     'p':'kPa',       # pressure
-     'v':'m^3/kg',    # specific volume
-     'u':'kJ/kg',     # specific internal energy
-     'h':'kJ/kg',     # specific enthalpy
-     's':'kJ/kg/K',   # specific entropy
-     'x':'',          # quality
-     'phase':'',      # phase
-     'm':'kg',        # mass
-     'mdot':'kg/s',   # mass flow rate
-     'Vol':'m^3',     # volume
-     'Vdot':'m^3/s',  # volumetric flow rate
-     'Vel':'m/s',     # velocity
-     'X':'kJ',        # exergy
-     'Xdot':'kW',     # exergy flow rate
-     'phi':'kJ/kg',   # specific exergy
-     'psi':'kj/kg',   # specific flow exergy
-     'y':'',          # mole fraction
-     'mf':'',         # mass fraction
-     'M':'kg/kmol',   # molar mass
-     'N':'kmol',      # quantity
-     'R':'kJ/kg/K',   # quantity
-     'c_v':'kJ/kg/K', # constant volume specific heat
-     'c_p':'kJ/kg/K', # constant pressure specific heat
-     'k':'',          # specific heat ratio
- }
-states = QuantityTable(properties_dict, unit_system='kSI', add_to_namespace=True)
+p.set_units('kPa')
+u.set_units('kJ/kg')
+h.set_units('kJ/kg')
+s.set_units('kJ/kg/K')
+X.set_units('kJ')
+Xdot.set_units('kW')
+phi.set_units('kJ/kg')
+psi.set_units('kJ/kg')
+M.set_units('kg/kmol')
+N.set_units('kmol')
+R.set_units('kJ/kg/K')
+c_v.set_units('kJ/kg/K')
+c_p.set_units('kJ/kg/K')

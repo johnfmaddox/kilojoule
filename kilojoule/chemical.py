@@ -1,5 +1,5 @@
 from .common import preferred_units_from_type, preferred_units_from_symbol, invert_dict
-from .units import units, Q_, Quantity
+from .units import units, Quantity
 from .plotting import PropertyPlot
 import numpy as np
 import thermo.chemical.Chemical as _Chemical
