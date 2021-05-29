@@ -1,10 +1,10 @@
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
 from kilojoule.organization import QuantityTable
-from kilojoule.display import Calculations, Summary
+from kilojoule.display import Calculations, Summary, set_latex
 from kilojoule.units import units, Quantity
 import kilojoule.magics
-from numpy import pi, log
+from numpy import pi, log, sqrt
 
 properties_dict = {
      'T':'K',       # Temperature

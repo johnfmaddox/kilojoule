@@ -1,7 +1,7 @@
 """
     kilojoule
     ~~~~
-    kilojoule is Python module/package to provide convenience functions
+    kilojoule is a Python module/package to provide convenience functions
     for performing thermodynamic and heat transfer calculations.  The
     primary use case for these functions is in scripts written to solve 
     specific problems.  To that end, simplicity of syntax for variables
@@ -16,15 +16,4 @@
     :license: MIT, see LICENSE for more details.
 """
 
-__version__ = "0.1.0"
-
-# Legacy definitions for backwards compatibility with scripts written
-# during code deveopment in ME 321 during Fall 2020
-# from .units import Q_, units, Quantity
-# from .realfluid import Properties as FluidProperties
-# from .realfluid import LegacyPropertyPlot as FluidPropertyPlot
-# from .idealgas import Properties as IdealGasProperties
-# from .idealgas import LegacyPropertyPlot as IdealGasPropertyPlot
-# from .display import Calculations as ShowCalculations
-# from .display import Summary as ShowSummary
-# from .organization import QuantityTable as StatesTable
+__version__ = "0.2.9"

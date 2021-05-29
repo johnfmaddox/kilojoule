@@ -45,8 +45,8 @@ class Properties:
         self._pm = pm.get(f"ig.{fluid}")
         self._pm.config = pm.config
         # legacy definitions/aliases
-        self.Cp = self.cp
-        self.Cv = self.cv
+        self.Cp = self.c_p = self.cp
+        self.Cv = self.c_v = self.cv
         self.mw = self.mm
         self.e = self.u
         self.gamma = self.k
@@ -219,7 +219,7 @@ class Properties:
         :returns:
         """
         # Generic iteration parameters
-        N = 100  # Maximum iterations
+        N = 500  # Maximum iterations
         small = 1e-8  # A "small" number
         epsilon = 1e-6  # Iteration precision
 
@@ -287,7 +287,8 @@ class Properties:
                         dT /= 2.0
                         Tk = Tk1 + dT
             if fail:
-                raise pyro.utility.PMAnalysisError("_invT() failed to converge!")
+                print(f'Tk = {Tk}')
+                raise pm.utility.PMAnalysisError("_invT() failed to converge!")
         return Tk[0], p_[0]
 
     def _p_s(self, s, T):
