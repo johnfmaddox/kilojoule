@@ -1,4 +1,5 @@
 from .units import units, Quantity
+import pint
 from .common import get_caller_namespace
 import pandas as pd
 from IPython.display import display, HTML, Math, Latex, Markdown
@@ -83,22 +84,28 @@ class QuantityTable:
     """Table for storing quantities"""
     def __init__(
         self,
-        properties=default_property_dict,
+        #properties=default_property_dict,
+        properties = None,
         property_source = None,
         unit_system="kSI_C",
         add_to_namespace=None,
     ):
-        self.properties = []
+        self.columns = []
         self.dict = {}
         self.unit_system = None
         self.property_source = None
+        self.states = self.rows
+        self.properties = self.columns
         if add_to_namespace is not None:
             self.parent_namespace = get_caller_namespace()
-        if isinstance(properties, (list, tuple)):
+        else:
+            self.parent_namespace = None
+        if properties is None:
+            pass
+        elif isinstance(properties, (list, tuple)):
             self.unit_system = unit_system
             for prop in properties:
                 self.add_property(prop, add_to_namespace=self.parent_namespace)
-
         elif isinstance(properties, dict):
             for prop, unit in properties.items():
                 self.add_property(prop, units=unit, add_to_namespace=self.parent_namespace)
@@ -111,15 +118,15 @@ class QuantityTable:
         Args:
           property (str): property symbols
           units (str): property units (Default value = None)
-          unit_system (str): unit system to infer units if not defined with the 
+          unit_system (str): unit system to infer units if not defined with the
                              units keyword (Default value = None)
-          property_type (str): property type, i.e. temperature, density, etc (Default value = None) 
+          property_type (str): property type, i.e. temperature, density, etc (Default value = None)
 
         Returns:
 
         """
         property = str(property)
-        self.properties.append(property)
+        self.columns.append(property)
         if units is not None:
             self.dict[property] = PropertyDict(property, units=units)
         elif unit_system is not None:
@@ -137,7 +144,7 @@ class QuantityTable:
     def remove_property(self,property):
         property = str(property)
         try:
-            self.properties.remove(property)
+            self.columns.remove(property)
         except:
             pass
 
@@ -145,7 +152,7 @@ class QuantityTable:
         """Try to detect a list-like structure excluding strings
 
         Args:
-          value: 
+          value:
 
         Returns:
 
@@ -154,75 +161,75 @@ class QuantityTable:
             hasattr(value, "__getitem__") or hasattr(value, "__iter__")
         )
 
-    def display(self, *args, dropna=True, **kwargs):
+    def display(self, *args, dropna=True, transpose=False, **kwargs):
         """
 
         Args:
-          *args: 
+          *args:
           dropna:  (Default value = True)
-          **kwargs: 
+          **kwargs:
 
         Returns:
 
         """
         df = self.to_pandas(*args, dropna=dropna, **kwargs)
-        
+
+        if transpose:
+            df = df.transpose(**kwargs)
+
         display(HTML(df.to_html(**kwargs)))
 
     def to_dict(self):
         """ """
-        return {i: self.dict[i].dict for i in self.properties}
+        return {i: self.dict[i].dict for i in self.columns}
 
     def _atoi(self, text):
         return int(text) if text.isdigit() else text
-    
+
     def _natural_keys(self, text):
         return [ self._atoi(c) for c in re.split('(\d+)',text) ]
 
-    def to_pandas(self, *args, dropna=True, **kwargs):
-        # pint_pandas.PintType.ureg.default_format = "~P"
-        def formatter_func(units):
-            try:
-                formatter = "{:" + units._REGISTRY.default_format + "}"
-                return formatter.format(units)
-            except:
-                formatter = "{:~L}"
-                return formatter.format(units)
+    def to_pandas(self, *args, dropna=True, plainstr=False, **kwargs):
+        """
 
-        def firstQuantity(lst):
-            for item in lst:
-                if isinstance(item,Quantity):
-                    return item
+        Args:
+          *args:
+          dropna: remove empty columns (Default value = True)
+          **kwargs:
 
+        Returns:
+
+        """
         df = pd.DataFrame(self.to_dict())
-
-        df_columns = df.columns.to_frame()
-        units_col = []
-        for col in df.columns:
-            try:
-                units_col.append(formatter_func(firstQuantity(df[col].values).units))
-            except AttributeError:
-                units_col.append('')
-        df_columns["units"] = units_col
-
-        from collections import OrderedDict
-
-        data_for_df = OrderedDict()
-        for i, col in enumerate(df.columns):
-            data_for_df[tuple(df_columns.iloc[i])] = df[col].values.data
-        df_new = pd.DataFrame(data_for_df, columns=data_for_df.keys())
-
-        df_new.columns.names = df.columns.names + ["unit"]
-        df_new.index = df.index
-        df = df_new
-
+        # Note to self: delaying the import of `display.to_latex()` until the .to_pandas()
+        # method is called avoids a circular import race condition...but the library should
+        # probably be restructured so this isn't needed
+        from .display import to_latex
         for prop in df.keys():
-            df[prop] = df[prop].apply(lambda x: x.magnitude if isinstance(x,Quantity) else x)
-        
+            if self.dict[prop].units is not None:
+                df[prop] = df[prop].apply(
+                    lambda x: x.to(self.dict[prop].units).m
+                    if isinstance(x, units.Quantity)
+                    else x
+                )
         if dropna:
             df.dropna(axis="columns", how="all", inplace=True)
         df.fillna("-", inplace=True)
         df.index = df.index.map(str)
+        for prop in df.keys():
+            if not plainstr:
+                if self.dict[prop].units is not None:
+                    df.rename(
+                        {prop: f"${to_latex(prop)}$ [{Quantity(1,self.dict[prop].units).units:~P}]"},
+                        axis=1,
+                        inplace=True,
+                    )
+                elif self.dict[prop].units is not None:
+                    df.rename(
+                        {prop: f"{prop} [{Quantity(1,self.dict[prop].units).units:~P}]"},
+                        axis=1,
+                        inplace=True,
+                    )
         def atoi(text):
             return int(text) if text.isdigit() else text
         def natural_keys(text):
@@ -232,9 +239,80 @@ class QuantityTable:
         df = df.reindex(a)
         return df
 
-    def fix(self, state=None, property_source=None, verbose=False):
+    # def to_pandas(self, *args, dropna=True, **kwargs):
+    #     # pint_pandas.PintType.ureg.default_format = "~P"
+    #     def formatter_func(units):
+    #         try:
+    #             formatter = "{:" + units._REGISTRY.default_format + "}"
+    #             return formatter.format(units)
+    #         except:
+    #             formatter = "{:~L}"
+    #             return formatter.format(units)
+
+    #     def firstQuantity(lst):
+    #         for item in lst:
+    #             if isinstance(item,Quantity):
+    #                 return item
+
+    #     df = pd.DataFrame(self.to_dict())
+
+    #     df_columns = df.columns.to_frame()
+    #     units_col = []
+    #     for col in df.columns:
+    #         try:
+    #             units_col.append(formatter_func(firstQuantity(df[col].values).units))
+    #         except AttributeError:
+    #             units_col.append('')
+    #     df_columns["units"] = units_col
+
+    #     from collections import OrderedDict
+
+    #     data_for_df = OrderedDict()
+    #     for i, col in enumerate(df.columns):
+    #         data_for_df[tuple(df_columns.iloc[i])] = df[col].values.data
+    #     df_new = pd.DataFrame(data_for_df, columns=data_for_df.keys())
+
+    #     df_new.columns.names = df.columns.names + ["unit"]
+    #     df_new.index = df.index
+    #     df = df_new
+
+    #     for prop in df.keys():
+    #         df[prop] = df[prop].apply(lambda x: x.magnitude if isinstance(x,Quantity) else x)
+
+    #     if dropna:
+    #         df.dropna(axis="columns", how="all", inplace=True)
+    #     df.fillna("-", inplace=True)
+    #     df.index = df.index.map(str)
+    #     def atoi(text):
+    #         return int(text) if text.isdigit() else text
+    #     def natural_keys(text):
+    #         return [ atoi(c) for c in re.split('(\d+)',text) ]
+    #     a = df.index.tolist()
+    #     a.sort(key=self._natural_keys)
+    #     df = df.reindex(a)
+    #     return df
+
+    def _identify_symbol(self, quant, property_source):
+        '''Returns the corresponding symbol associated with a quantity for the property data
+        If there are multiple columns with the same units, raise an AmbiguousUnitsError
+        '''
+        for u,s in property_source._units_to_independent_property.items():
+            try:
+                quant.to(u)
+                if len(s)>1:
+                    raise AmbiguousUnitsError(
+                        f'It is not possible to determine the symbol from the argument units: {quant} could be associated with any of the following symbols: {s}\nTry using the (keyword=value) syntax, i.e. ' +
+                        ' or '.join([f'func({i}={quant})' for i in s])
+                    )
+                return s[0]
+            except pint.DimensionalityError:
+                pass
+        else:
+            raise ValueError
+
+    def fix(self, *args, **kwargs):
         """Fix a state based on known properties
-        
+
         Use the known properties at a state to evaluate all unknown
         properties at that state using the property tables store in
         property_source.  If a default property source has been
@@ -247,45 +325,83 @@ class QuantityTable:
         2, or 3 depending on the fluid).
 
         Args:
-          state (str): state to fix 
+          state (str): state to fix
           property_source (property_table): table to use when evaluating properties
                  (Default = None)
-          **kwargs: 
+
+          **kwargs:
 
         """
-        property_source = property_source or self.property_source
-        known_props = self[state].keys()
-        unknown_props = [i for i in self.properties if i not in known_props and hasattr(property_source,i) ]
-        indep_props_comb = [[i,j] for i in known_props for j in known_props if i != j]
-        depri_comb = [['T','p'],['p','T'],['T','h'],['h','T'],['T','u'],['u','T']]
-        for comb in depri_comb:
-            try: indep_props_comb.append(indep_props_comb.pop(indep_props_comb.index(comb)))
-            except: pass
-        if verbose:
-            print(f'property_source: {property_source}')
-            print(f'known_props: {known_props}')
-            print(f'unknown_props: {unknown_props}')
-        for up in unknown_props:
-            if verbose: print(f'trying to fix {up}')
-            for ipc in indep_props_comb:
-                if 'ID' not in ipc:
-                    if verbose: print(ipc)
-                    try:
-                        indep_dict = { ipc[0]:self[state][ipc[0]], ipc[1]:self[state][ipc[1]] }
-                        if verbose: print(f'using: {indep_dict}')
-                        value = getattr(property_source,up)(**indep_dict)
-                        # if 'unknown' in value:
-                        #     raise
-                        self.__setitem__([state,up],value)
-                        if verbose: print(f'{up} for {state}: {value}')
-                        break
-                    except Exception as e:
-                        if verbose: print(e)
+        from .display import numeric_to_string
+        result = ""
+        arg_props = []
+        for arg in args:
+            if '.Properties' in str(type(arg)):
+                property_source = arg
+            elif isinstance(arg, Quantity):
+                arg_props.append(arg)
             else:
-                if verbose: print(f'unable to fix {up} for state {state}')
+                state = str(arg)
+        kwarg_props = {}
+        for key,value in kwargs.items():
+            if key in self.columns:
+                kwarg_props[key] = value
+            elif key == 'property_source':
+                property_source=value
+            elif key == 'state':
+                state = value
+
+        verbose = kwargs.get('verbose',False)
+        property_source = property_source or self.property_source
+        known_props = list(self[state].keys())
+
+        for arg in arg_props:
+            kwarg_props[self._identify_symbol(arg,property_source)]=arg
+        if kwarg_props:
+            result += f'Fixing state {state} using {", ".join([f"${key}={numeric_to_string(val)}$" for key,val in kwarg_props.items()])}'
+            for col in [col for col in self.columns if col not in kwarg_props.keys()]:
+                try:
+                    value = getattr(property_source,col)(**kwarg_props)
+                    self.__setitem__([state,col],value)
+                except Exception as e:
+                    pass
+        else:
+            result += f'Fixing state {state} using previously defined values.'
+            unknown_props = [i for i in self.columns if i not in known_props and hasattr(property_source,i) ]
+            indep_props_comb = [[i,j] for i in known_props for j in known_props if i != j]
+            depri_comb = [['T','p'],['p','T'],['T','h'],['h','T'],['T','u'],['u','T']]
+            for comb in depri_comb:
+                try: indep_props_comb.append(indep_props_comb.pop(indep_props_comb.index(comb)))
+                except: pass
+            if verbose:
+                print(f'property_source: {property_source}')
+                print(f'known_props: {known_props}')
+                print(f'unknown_props: {unknown_props}')
+            for up in unknown_props:
+                exit_loop=False
+                if verbose: print(f'trying to fix {up}')
+                for ipc in indep_props_comb:
+                    if 'ID' not in ipc:
+                        if verbose: print(ipc)
+                        try:
+                            indep_dict = { ipc[0]:self[state][ipc[0]], ipc[1]:self[state][ipc[1]] }
+                            if verbose: print(f'using: {indep_dict}')
+                            value = getattr(property_source,up)(**indep_dict)
+                            # if 'unknown' in value:
+                            #     raise
+                            self.__setitem__([state,up],value)
+                            if verbose: print(f'{up} for {state}: {value}')
+                            exit_loop=True
+                            break
+                        except Exception as e:
+                            if verbose: print(e)
+                    if exit_loop: break
+                else:
+                    if verbose: print(f'unable to fix {up} for state {state}')
+        return result
 
     @property
-    def states(self):
+    def rows(self):
         sts = []
         for prop,prop_dict in self.dict.items():
             for state in prop_dict.dict.keys():
@@ -317,7 +433,7 @@ class QuantityTable:
             else:
                 strt,stp,step = key.indices(len_states)
                 return [self[i] for i in range(start, stop, step)]
-                
+
         if self._list_like(key):
             len_var = len(index)
             if len_var == 0:
@@ -326,7 +442,7 @@ class QuantityTable:
                 key = str(key)
                 state_dict = {
                     i: self.dict[i][key]
-                    for i in self.properties
+                    for i in self.columns
                     if key in self.dict[i].dict.keys()
                 }
                 state_dict["ID"] = key
@@ -341,7 +457,7 @@ class QuantityTable:
             key = str(key)
             state_dict = {
                 i: self.dict[i][key]
-                for i in self.properties
+                for i in self.columns
                 if key in self.dict[i].dict.keys()
             }
             if "ID" not in state_dict.keys():
@@ -361,7 +477,7 @@ class QuantityTable:
             elif len_var == 2:
                 state = str(index[0])
                 property = str(index[1])
-                if property not in self.properties:
+                if property not in self.columns:
                     self.add_property(property)
                 self.dict[property][state] = value
             else:
@@ -371,11 +487,9 @@ class QuantityTable:
 
     def __iter__(self):
         return (self.dict)
-    
+
     def __delitem__(self, item):
         pass
 
     def __str__(self, *args, **kwargs):
-        return self.to_pandas(self, *args, **kwargs).to_string()
-
-
+        return self.to_pandas(self, *args, plainstr=True, **kwargs).to_string()

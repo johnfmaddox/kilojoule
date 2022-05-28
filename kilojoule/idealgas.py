@@ -5,7 +5,7 @@ import pyromat as pm
 import numpy as np
 
 # universal gas constant
-R_u = R_bar = Quantity(8.31446261815324,'kJ/kg/K')
+R_u = R_bar = Quantity(8.31446261815324, "kJ/kmol/K")
 R_u_si = 8.31446261815324
 
 # Default PYroMat units for symbols
@@ -24,7 +24,7 @@ pm_symb_to_units = invert_dict(pm_units_to_symb)
 # class Mixture:
 #     """ """
 #     def __init__(self, formula=None, y=None, mf=None, unit_system="SI_K", verbose=False):
-        
+
 
 # class IdealGasProperty(Quantity):
 #     """ """
@@ -32,7 +32,8 @@ pm_symb_to_units = invert_dict(pm_units_to_symb)
 #         self.property_source = property_source
 #         self.property_symbol = property_symbol
 #         super().__init__(value, units)
-        
+
+
 class Properties:
     """ """
 
@@ -50,47 +51,73 @@ class Properties:
         self.mw = self.mm
         self.e = self.u
         self.gamma = self.k
+        self._units_to_independent_property = {
+            'K':['T'],
+            'Pa':['p'],
+            'm^3/g':['v'],
+            'J/g/K':['s'],
+            'J/g':['u','h'],
+            'g/m^3':['d'],
+        }
 
     def _update_kwargs(self, args, kwargs, min_length=2):
+        enthalpy_check = False
         for arg in args:
             try:
                 arg_symb = arg.property_symbol
                 # print(arg_symb)
-                arg_dict = {arg_symb:arg}
+                arg_dict = {arg_symb: arg}
                 kwargs = dict(**arg_dict, **kwargs)
             except:
                 try:
-                    arg.to('K')
+                    arg.to("K")
                     kwargs = dict(T=arg, **kwargs)
                 except:
                     try:
-                        arg.to('kPa')
+                        arg.to("kPa")
                         kwargs = dict(p=arg, **kwargs)
                     except:
                         try:
-                            arg.to('m^3/kg')
+                            arg.to("m^3/kg")
                             kwargs = dict(v=arg, **kwargs)
                         except:
                             try:
-                                arg.to('kJ/kg/K')
+                                arg.to("kJ/kg/K")
                                 kwargs = dict(s=arg, **kwargs)
                             except:
                                 try:
-                                    arg.to('kg/m^3')
+                                    arg.to("kg/m^3")
                                     kwargs = dict(d=arg, **kwargs)
                                 except:
-                                    print(f'Unable to determine property type for {arg} based on units')
-        for k,v in kwargs.items():
-            if not isinstance(v,Quantity):
+                                    try:
+                                        arg.to("kJ/kg")  # internal energy or enthalpy
+                                        enthalpy_check = True
+                                    except:
+                                        print(
+                                            f"Unable to determine property type for {arg} based on units"
+                                        )
+        if enthalpy_check:
+            raise ValueError(
+                """
+Cannot distinguish between internal energy and enthalpy based on units.
+Use the long-form `(keyword = argument)` notation, i.e.
+>>> s[1] = air.s(p[1],h=h[1]) # short-form for p, long-form for h
+"""
+            )
+        for k, v in kwargs.items():
+            if not isinstance(v, Quantity):
                 arg_units = preferred_units_from_symbol(k, unit_system=self.unit_system)
                 kwargs[k] = Quantity(v, arg_units)
         # If two dependent variables are used, drop one
         keys = kwargs.keys()
-        if 'T' in keys and 'h' in keys: del kwargs['h']
-        if 'T' in keys and 'u' in keys: del kwargs['u']
-        if 'u' in keys and 'h' in keys: del kwargs['u']
+        if "T" in keys and "h" in keys:
+            del kwargs["h"]
+        if "T" in keys and "u" in keys:
+            del kwargs["u"]
+        if "u" in keys and "h" in keys:
+            del kwargs["u"]
         if len(kwargs) < min_length:
-            raise Exception (f'Must supply at least {min_length} independent properties')
+            raise Exception(f"Must supply at least {min_length} independent properties")
         return kwargs
 
     def _to_quantity(self, pm_symb, pm_result, pm_result_type):
@@ -112,7 +139,9 @@ class Properties:
         result_units = pm_symb_to_units[pm_symb]
         return Quantity(pm_result, result_units).to(preferred_units)
 
-    def _get_p_from_others(self, T=None, p=None, d=None, v=None, s=None, h=None, **kwargs):
+    def _get_p_from_others(
+        self, T=None, p=None, d=None, v=None, s=None, h=None, **kwargs
+    ):
         """
         Determines the pressure based on two independent, intensive properties
 
@@ -142,10 +171,14 @@ class Properties:
                     * d.to("kg/m^3").magnitude
                 ) * 0.01
         elif s and T:
-            try: T=T.to('K').magnitude
-            except: pass
-            try: s=s.to('kJ/kg/K').magnitude
-            except: pass
+            try:
+                T = T.to("K").magnitude
+            except:
+                pass
+            try:
+                s = s.to("kJ/kg/K").magnitude
+            except:
+                pass
             try:
                 p = self._pm.p_s(T=T, s=s)[0]
             except Exception as e:
@@ -161,7 +194,7 @@ class Properties:
         return p
 
     def _get_T_from_others(
-            self, T=None, p=None, d=None, v=None, u=None, h=None, s=None, **kwargs
+        self, T=None, p=None, d=None, v=None, u=None, h=None, s=None, **kwargs
     ):
         """
         Determines the temperature based on two independent, intensive properties
@@ -287,7 +320,7 @@ class Properties:
                         dT /= 2.0
                         Tk = Tk1 + dT
             if fail:
-                print(f'Tk = {Tk}')
+                print(f"Tk = {Tk}")
                 raise pm.utility.PMAnalysisError("_invT() failed to converge!")
         return Tk[0], p_[0]
 
@@ -316,8 +349,9 @@ class Properties:
         :param **kwargs: one or two dimensional quantities of p,d,v,u,h,s
         :returns: Temperature as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs,min_length=1)
-        if verbose: print(kwargs)
+        kwargs = self._update_kwargs(args, kwargs, min_length=1)
+        if verbose:
+            print(kwargs)
         pm_result = self._get_T_from_others(**kwargs)
         return self._to_quantity("T", pm_result, "temperature")
 
@@ -333,7 +367,7 @@ class Properties:
         :param **kwargs: two dimensional quantities of T,d,v,u,h,s
         :returns: pressure as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         pm_result = self._get_p_from_others(**kwargs)
         return self._to_quantity("p", pm_result, "pressure")
 
@@ -350,11 +384,11 @@ class Properties:
         :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: constant pressure specific as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs,min_length=1)
-        if 'T' not in kwargs.keys():
+        kwargs = self._update_kwargs(args, kwargs, min_length=1)
+        if "T" not in kwargs.keys():
             T = self._get_T_from_others(**kwargs)
         else:
-            T = kwargs['T']
+            T = kwargs["T"]
             T = T.to("K").magnitude
         pm_result = self._pm.cp(T)[0]
         return self._to_quantity("Cp", pm_result, "specific heat")
@@ -372,11 +406,11 @@ class Properties:
         :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: constant pressure specific as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs,min_length=1)
-        if 'T' not in kwargs.keys():
+        kwargs = self._update_kwargs(args, kwargs, min_length=1)
+        if "T" not in kwargs.keys():
             T_pm = self._get_T_from_others(**kwargs)
         else:
-            T = kwargs['T']
+            T = kwargs["T"]
             T_pm = T.to("K").magnitude
         pm_result = self._pm.cv(T=T_pm)[0]
         return self._to_quantity("Cv", pm_result, "specific heat")
@@ -395,11 +429,11 @@ class Properties:
         :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: constant pressure specific as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs,min_length=1)
-        if 'T' not in kwargs.keys():
+        kwargs = self._update_kwargs(args, kwargs, min_length=1)
+        if "T" not in kwargs.keys():
             T_pm = self._get_T_from_others(**kwargs)
         else:
-            T = kwargs['T']
+            T = kwargs["T"]
             T_pm = T.to("K").magnitude
         pm_result = self._pm.gam(T=T_pm)
         return self._to_quantity("k", pm_result, "dimensionless")
@@ -418,17 +452,17 @@ class Properties:
         :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: density as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
-        if 'T' not in kwargs.keys():
+        kwargs = self._update_kwargs(args, kwargs)
+        if "T" not in kwargs.keys():
             T_pm = self._get_T_from_others(**kwargs)
             kwargw = dict(T=T_pm, **kwargs)
         else:
-            T = kwargs['T']            
+            T = kwargs["T"]
             T_pm = T.to("K").magnitude
-        if 'p' not in kwargs.keys():
+        if "p" not in kwargs.keys():
             p_pm = self._get_p_from_others(**kwargs)
         else:
-            p_pm = kwargs['p'].to("bar").magnitude
+            p_pm = kwargs["p"].to("bar").magnitude
         pm_result = self._pm.d(T=T_pm, p=p_pm)[0]
         return self._to_quantity("d", pm_result, "density")
 
@@ -446,7 +480,7 @@ class Properties:
         :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: specific volume as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         d = self.d(**kwargs)
         return 1 / d
 
@@ -464,11 +498,11 @@ class Properties:
         :param **kwargs: zero, one, or two dimensional quantities of p,d,v,h,s
         :returns: specific internal energy as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs,min_length=1)
-        if 'T' not in kwargs.keys():
+        kwargs = self._update_kwargs(args, kwargs, min_length=1)
+        if "T" not in kwargs.keys():
             T_pm = self._get_T_from_others(**kwargs)
         else:
-            T = kwargs['T']
+            T = kwargs["T"]
             T_pm = T.to("K").magnitude
         pm_result = self._pm.e(T=T_pm)[0]
         return self._to_quantity("e", pm_result, "specific energy")
@@ -486,11 +520,11 @@ class Properties:
         :param **kwargs: zero, one, or two dimensional quantities of p,d,v,u,s
         :returns: specific enthalpy as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs,min_length=1)
-        if 'T' not in kwargs.keys():
+        kwargs = self._update_kwargs(args, kwargs, min_length=1)
+        if "T" not in kwargs.keys():
             T_pm = self._get_T_from_others(**kwargs)
         else:
-            T = kwargs['T']
+            T = kwargs["T"]
             T_pm = T.to("K").magnitude
         pm_result = self._pm.h(T=T_pm)[0]
         return self._to_quantity("h", pm_result, "specific energy")
@@ -503,7 +537,7 @@ class Properties:
         >>> T1 = Quantity(300,'K')
         >>> p1 = Quantity(100,'kPa')
         >>> air.s(T=T1, p=p1)
-        6.7077 kJ/K/kg        
+        6.7077 kJ/K/kg
         >>> air.s(d=d1, u=u1)
         ...
         >>> air.s(h=h1, p=p1)
@@ -514,16 +548,16 @@ class Properties:
         :param **kwargs: zero, one, or two dimensional quantities of d,v,u,h,s
         :returns: specific entropy as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
-        if 'T' not in kwargs.keys():
+        kwargs = self._update_kwargs(args, kwargs)
+        if "T" not in kwargs.keys():
             T_pm = self._get_T_from_others(**kwargs)
         else:
-            T = kwargs['T']
+            T = kwargs["T"]
             T_pm = T.to("K").magnitude
-        if 'p' not in kwargs.keys():
+        if "p" not in kwargs.keys():
             p_pm = self._get_p_from_others(**kwargs)
         else:
-            p = kwargs['p']
+            p = kwargs["p"]
             p_pm = p.to("bar").magnitude
         pm_result = self._pm.s(T=T_pm, p=p_pm)[0]
         return self._to_quantity("s", pm_result, "specific entropy")
@@ -584,9 +618,9 @@ class Properties:
 
         example:
         >>> air.Y
-        {'ig.Ar': 0.012895634840195168, 
-        'ig.CO2': 0.0004771062632750561, 
-        'ig.N2': 0.7552055804206431, 
+        {'ig.Ar': 0.012895634840195168,
+        'ig.CO2': 0.0004771062632750561,
+        'ig.N2': 0.7552055804206431,
         'ig.O2': 0.23142167847588652}
         """
         try:

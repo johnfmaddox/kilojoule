@@ -22,9 +22,9 @@ from .organization import QuantityTable
 from .common import get_caller_namespace
 import ast
 import astor
+from rich import inspect
 
 from .units import units, Quantity
-
 
 multiplication_symbol = " \cdot "
 
@@ -63,10 +63,12 @@ post_sympy_latex_substitutions = {
     r"_\{prmplchldr\}|,prmplchldr": r"'",
     r"_\{prmplchldr,": r"'_\{",
     r",to,": r"\\to{}",
+    r",equals,": r"=",
+    r",equal,": r"=",
     r"dimensionless": "",
 }
 
-__variable_latex_subs__ = {
+variable_name_latex_subs = {
     "np.log": r"\ln ",
     "math.log": r"\ln ",
     "log": r"\ln ",
@@ -75,47 +77,34 @@ __variable_latex_subs__ = {
 
 def set_latex(sub_dict):
     for key, value in sub_dict.items():
-        __variable_latex_subs__[key] = value
+        variable_name_latex_subs[key] = value
 
 
 def _ast_to_string(ast_node, line_indent=""):
     next_line_indent = line_indent + "  "
     if isinstance(ast_node, ast.AST):
-        return (
-            ast_node.__class__.__name__
-            + "("
-            + ",".join(
-                "\n"
-                + next_line_indent
-                + field_name
-                + " = "
-                + _ast_to_string(child_node, next_line_indent)
-                for field_name, child_node in ast.iter_fields(ast_node)
-            )
-            + ")"
-        )
+        return (ast_node.__class__.__name__ + "(" + ",".join(
+            "\n" + next_line_indent + field_name + " = " +
+            _ast_to_string(child_node, next_line_indent)
+            for field_name, child_node in ast.iter_fields(ast_node)) + ")")
     elif isinstance(ast_node, list):
-        return (
-            "["
-            + ",".join(
-                "\n" + next_line_indent + _ast_to_string(child_node, next_line_indent)
-                for child_node in ast_node
-            )
-            + "]"
-        )
+        return ("[" + ",".join("\n" + next_line_indent +
+                               _ast_to_string(child_node, next_line_indent)
+                               for child_node in ast_node) + "]")
     else:
         return repr(ast_node)
 
 
 def to_numeric(code, namespace=None, verbose=False):
-    namespeace = namespace or get_caller_namespace()
+    namespace = namespace or get_caller_namespace()
     if isinstance(code, str):
+        if verbose: print(f'to_numeric: {code}')
         try:
             numeric = eval(code, namespace)
             numeric = numeric_to_string(numeric)
         except Exception as e:
             if verbose:
-                print(e)
+                print(f'Error in to_numeric: {e}')
             numeric = "??"
     else:
         numeric = numeric_to_string(code)
@@ -123,26 +112,28 @@ def to_numeric(code, namespace=None, verbose=False):
 
 
 def numeric_to_string(numeric):
-    if isinstance(numeric, units.Quantity):
+    if isinstance(numeric, units.Quantity) or isinstance(
+            numeric, units.Measurement):
         try:
             numeric = f"{numeric:.5~L}"
-        except:
+        except ValueError:
             numeric = f"{numeric:~L}"
         numeric = re.sub(r"\\\s*$", "", numeric)
     else:
         try:
             numeric = f" {numeric:.5} "
-        except:
+        except ValueError:
             numeric = f" {numeric} "
-
     return numeric
 
 
 def to_latex(code):
+    if code in variable_name_latex_subs.keys():
+        return variable_name_latex_subs[code]
     if "[" in code:
         return index_to_latex(code)
-    if code in __variable_latex_subs__.keys():
-        return __variable_latex_subs__[code]
+    if "_over_" in code:
+        return over_to_latex(code)
     else:
         for k, v in pre_sympy_latex_substitutions.items():
             code = re.sub(k, v, code)
@@ -152,20 +143,36 @@ def to_latex(code):
         return code
 
 
+def over_to_latex(code):
+    """Format a variable name as a fraction if it has '_over_' in it's name"""
+    num, denom = code.split('_over_')
+    try:
+        num_sym = to_latex(num)
+    except Exception as e:
+        num_sym = num
+    try:
+        denom_sym = to_latex(denom)
+    except Exception as e:
+        denom_sym = denom
+    symbolic = f"{{ \\frac{{ {num_sym} }}{{ {denom_sym} }} }}"
+    return symbolic
+
+
 def index_to_latex(code):
+    """Format a variable name with the index in the subscript"""
     var, slc = code.split("[", 1)
     var_sym = to_latex(var)
     slc = slc[:-1]
     try:
         slc_sym = to_latex(slc)
-    except Execption as e:
+    except Exception as e:
         slc_sym = slc
     symbolic = f"{{ {var_sym} }}_{{ {slc_sym} }}"
     return symbolic
 
 
 class FormatCalculation:
-    """Format an assignment statement as a equation progression"""
+    """Format an assignment statement as an equation progression"""
 
     def __init__(
         self,
@@ -251,22 +258,22 @@ class FormatCalculation:
         elif isinstance(node, ast.Name):
             code = node.id
             symbolic = to_latex(code)
-            numeric = to_numeric(code, namespace)
+            numeric = to_numeric(code, namespace, verbose=self.verbose)
 
         # Subscript
         elif isinstance(node, ast.Subscript):
             val = self._process_node(node.value)
             slc = self._process_node(node.slice)
             code = f"{val['code']}[{slc['code']}]"
-            symbolic = f"{{{val['symbolic']}}}_{{ {slc['symbolic']} }}"
-            numeric = to_numeric(code, namespace)
+            symbolic = f"{{{val['symbolic']}}}_{{ {slc['numeric']} }}"
+            numeric = to_numeric(code, namespace, verbose=self.verbose)
 
         # Index
         elif isinstance(node, ast.Index):
             result = self._process_node(node.value)
             code = result["code"]
             symbolic = result["symbolic"]
-            numeric = to_numeric(code, namespace)
+            numeric = to_numeric(code, namespace, verbose=self.verbose)
 
         # Simple Math Operation
         elif isinstance(node, ast.BinOp):
@@ -285,10 +292,11 @@ class FormatCalculation:
                 code = f"{left['code']} - ({right['code']})"
                 if isinstance(node.right, ast.BinOp):
                     if isinstance(node.right.op, ast.Add) or isinstance(
-                        node.right.op, ast.Sub
-                    ):
-                        right["symbolic"] = f" \\left( {right['symbolic']} \\right)"
-                        right["numeric"] = f"\\left( {right['numeric']} \\right)"
+                            node.right.op, ast.Sub):
+                        right[
+                            "symbolic"] = f" \\left( {right['symbolic']} \\right)"
+                        right[
+                            "numeric"] = f"\\left( {right['numeric']} \\right)"
                 if right["numeric"].startswith("-"):
                     right["numeric"] = f"\\left( {right['numeric']} \\right)"
                 symbolic = f" {left['symbolic']} - {right['symbolic']} "
@@ -299,16 +307,17 @@ class FormatCalculation:
                 code = f"({left['code']})*({right['code']})"
                 if isinstance(node.left, ast.BinOp):
                     if isinstance(node.left.op, ast.Add) or isinstance(
-                        node.left.op, ast.Sub
-                    ):
-                        left["symbolic"] = f"\\left( {left['symbolic']} \\right)"
+                            node.left.op, ast.Sub):
+                        left[
+                            "symbolic"] = f"\\left( {left['symbolic']} \\right)"
                         left["numeric"] = f"\\left( {left['numeric']} \\right)"
                 if isinstance(node.right, ast.BinOp):
                     if isinstance(node.right.op, ast.Add) or isinstance(
-                        node.right.op, ast.Sub
-                    ):
-                        right["symbolic"] = f"\\left( {right['symbolic']} \\right)"
-                        right["numeric"] = f"\\left( {right['numeric']} \\right)"
+                            node.right.op, ast.Sub):
+                        right[
+                            "symbolic"] = f"\\left( {right['symbolic']} \\right)"
+                        right[
+                            "numeric"] = f"\\left( {right['numeric']} \\right)"
                 symbolic = (
                     f" {left['symbolic']} {multiplication_symbol} {right['symbolic']} "
                 )
@@ -328,27 +337,34 @@ class FormatCalculation:
                 if isinstance(node.left, ast.BinOp):
                     left["symbolic"] = f"\\left({left['symbolic']}\\right)"
                     left["numeric"] = f"\\left({left['numeric']}\\right)"
-                elif "\ " in left["numeric"]:
+                elif "\ " in left["numeric"] or "^" in left["numeric"]:
                     left["numeric"] = f"\\left({left['numeric']} \\right)"
                 if isinstance(node.right, ast.BinOp):
                     if not isinstance(node.right.op, ast.Div):
-                        right["symbolic"] = f"\\left({right['symbolic']}\\right)"
+                        right[
+                            "symbolic"] = f"\\left({right['symbolic']}\\right)"
                         right["numeric"] = f"\\left({right['numeric']}\\right)"
-                symbolic = f"{left['symbolic']}^{right['symbolic']}"
-                numeric = f"{left['numeric']}^{right['numeric']}"
+
+                symbolic = f"{{{left['symbolic']}}}^{{{right['symbolic']}}}"
+                numeric = f"{{{left['numeric']}}}^{{{right['numeric']}}}"
 
             else:
-                print(f"BinOp not implemented for {node.op.__class__.__name__}")
+                print(
+                    f"BinOp not implemented for {node.op.__class__.__name__}")
                 _ast_to_string(node)
 
         # Unary Operation
         elif isinstance(node, ast.UnaryOp):
+            if verbose: print(f'Processing UnaryOp: {node.operand}')
             if isinstance(node.op, ast.USub):
                 operand = self._process_node(node.operand)
                 symbolic = f"-{operand['symbolic']}"
+                code = symbolic
                 numeric = f"-\\left( {operand['numeric']} \\right)"
             else:
-                print(f"UnaryOp not implemented for {node.op.__class__.__name__}")
+                print(
+                    f"UnaryOp not implemented for {node.op.__class__.__name__}"
+                )
                 _ast_to_string(node)
 
         # Function call
@@ -369,16 +385,19 @@ class FormatCalculation:
                 symbolic = numeric = "\\sqrt{"
                 symbolic_close = numeric_close = "}"
             else:
+                fn_name_sym = re.sub('_', r'\_', fn_name_sym)
                 symbolic = numeric = f"\\mathrm{{ {fn_name_sym} }}\\left( "
                 symbolic_close = numeric_close = " \\right)"
             code = f"{fn_name_code}("
             arg_idx = 0
-            for arg in node.args:
-                if arg_idx > 0:
+            for idx, arg in enumerate(node.args):
+                if idx > 0:
                     code += ", "
                     symbolic += ", "
                     numeric += ", "
+                if verbose: print(f'Processing Arg: {arg}')
                 parg = self._process_node(arg)
+                if verbose: inspect(parg)
                 code += parg["code"]
                 symbolic += parg["symbolic"]
                 numeric += parg["numeric"]
@@ -390,8 +409,9 @@ class FormatCalculation:
                     symbolic += ", "
                     numeric += ", "
                 code += f"{kw.arg} = {val['code']}"
-                symbolic += f"\\mathrm{{ {kw.arg} }} = {val['symbolic']}"
-                numeric += f"\\mathrm{{ {kw.arg} }} = {val['numeric']}"
+                kw_sym = re.sub('_', r'\_', kw.arg)
+                symbolic += f"\\mathrm{{ {kw_sym} }} = {val['symbolic']}"
+                numeric += f"\\mathrm{{ {kw_sym} }} = {val['numeric']}"
                 arg_idx += 1
             code += ")"
             symbolic += symbolic_close
@@ -399,21 +419,48 @@ class FormatCalculation:
 
             # Quantity
             if fn_base_name == "Quantity":
-                symbolic = to_numeric(code)
+                if verbose:
+                    print(f'Processing Quantity: {code}\n      {node.args=}')
+                symbolic = to_numeric(code,
+                                      namespace=self.namespace,
+                                      verbose=self.verbose)
                 numeric = symbolic
+            # .plus_minus()
+            elif fn_base_name == "plus_minus":
+                #                 try:
+                uncertainty = node.args[0].value
+                relative = False
+                for kw in node.keywords:
+                    if kw.arg == 'relative':
+                        relative = eval(astor.to_source(kw.value))
+                if relative: unc_str = f'{100*uncertainty}\\%'
+                else: unc_str = f'{uncertainty}'
+                if verbose:
+                    print(
+                        f'Processing plus_minus: {code}\n      node.args={node.args}\n      node.keywords={node.keywords}'
+                    )
+                    for kw in node.keywords:
+                        print(f'{kw.arg=}; {self._process_node(kw.value)}')
+                        print(eval(astor.to_source(kw.value)))
+                val = self._process_node(node.func.value)
+                symbolic = val["symbolic"]
+                code = val['code']
+                numeric = val['numeric']
+                quantity = eval(code)
+                symbolic = numeric = f'\\left( {quantity.magnitude} \\pm {unc_str} \\right)\\ {quantity.units:~L}'
             # .to()
             elif fn_base_name == "to":
                 val = self._process_node(node.func.value)
                 symbolic = val["symbolic"]
-                code = f'{val["code"]}.to("{node.args[0].value}")'
-                numeric = to_numeric(code)
+                code = val['code']
+                numeric = val['numeric']
             # sum()
             if fn_base_name == "sum":
                 symbolic = numeric = ""
                 if isinstance(node.args[0], ast.ListComp):
-                    listcomp = self._process_node(
-                        node.args[0], join_symb="+", list_delim=["", ""]
-                    )
+                    listcomp = self._process_node(node.args[0],
+                                                  join_symb="+",
+                                                  list_delim=["", ""])
                     elt = self._process_node(node.args[0].elt)
                     for comprehension in node.args[0].generators:
                         symbolic += r"\sum"
@@ -437,7 +484,11 @@ class FormatCalculation:
                 if "in_fn_call" in kwargs:
                     numeric = symbolic
                 else:
-                    numeric = to_numeric(code)
+                    if self.verbose:
+                        print(f"code: {code}")
+                    numeric = to_numeric(code,
+                                         namespace=self.namespace,
+                                         verbose=self.verbose)
 
         # List
         elif isinstance(node, ast.List):
@@ -477,13 +528,9 @@ class FormatCalculation:
                 comp_iter = self._process_node(comprehension.iter)
                 symbolic += f"_{{{target['symbolic']}={comp_iter['symbolic']}}}"
             if len(lst) <= 3:
-                numeric = (
-                    list_delim[0]
-                    + join_symb.join(
-                        [to_numeric(i, self.namespace, self.verbose) for i in lst]
-                    )
-                    + list_delim[1]
-                )
+                numeric = (list_delim[0] + join_symb.join(
+                    [to_numeric(i, self.namespace, self.verbose)
+                     for i in lst]) + list_delim[1])
             else:
                 numeric = f"[{to_numeric(lst[0],self.namespace)}{join_symb}\ldots{join_symb}{to_numeric(lst[-1],self.namespace)}]"
 
@@ -496,7 +543,11 @@ class FormatCalculation:
             symbolic = code
             numeric = f"{eval(code, self.namespace)}"
 
-        output = dict(symbolic=symbolic, numeric=numeric, code=code, list=lst, dict=dct)
+        output = dict(symbolic=symbolic,
+                      numeric=numeric,
+                      code=code,
+                      list=lst,
+                      dict=dct)
         return output
 
 
@@ -512,6 +563,8 @@ class Calculations:
         return_latex=False,
         verbose=False,
         execute=False,
+        repeat_for=False,
+        repeat_n=False,
         **kwargs,
     ):
         self.namespace = namespace or get_caller_namespace()
@@ -521,27 +574,79 @@ class Calculations:
         self.comments = comments
         self.verbose = verbose
         self.kwargs = kwargs
-        if execute:
-            exec(self.cell_string, self.namespace)
-        self.input = self.filter_string(self.cell_string)
-        self.process_input_string(self.input)
+        self.execute = execute
+        self.split_input_string(self.cell_string)
+        if repeat_for:
+            gen_split = repeat_for.split(' in ')
+            gen_var = gen_split[0][1:]
+            gen_range = eval(gen_split[1][:-1], self.namespace)
+            for gen_val in gen_range:
+                self.namespace[gen_var] = gen_val
+                self.process_code_blocks()
+        elif repeat_n:
+            for i in range(repeat_n):
+                self.process_code_blocks()
+        else:
+            self.process_code_blocks()
 
-    def process_code(self, string):
-        output = ""
-        self.parsed_tree = ast.parse(string)
-        for line in self.parsed_tree.body:
-            if isinstance(line, ast.Assign):
-                formatted_calc = FormatCalculation(
-                    line,
-                    namespace=self.namespace,
-                    progression=self.progression,
-                    verbose=self.verbose,
-                    **self.kwargs,
-                )
-                formatted_calc.display()
-                output += formatted_calc.output_string
+    def split_input_string(self, string):
+        """Split a string into top-level complete sections of code"""
+        lines = string.split("\n")
+        self.code_blocks = []
+        code_block_current = ""
+        string_after = ""
+        code_block_ahead = ""
+        for i, line in enumerate(lines):
+            string_after += line + "\n"
+            code_block_ahead += line + "\n"
+            if line.strip().startswith("#"):
+                continue
+            try:
+                parsed_tree = ast.parse(code_block_ahead)
+                tree_length = len(parsed_tree.body)
+            except SyntaxError as e:
+                if code_block_ahead.strip().endswith(r':'): continue
+                else: raise(e)
+            if tree_length == 0:
+                continue
+            elif tree_length == 1:
+                code_block_current = code_block_ahead
+                string_after = ""
+            else:
+                self.code_blocks.append(code_block_current.strip())
+                code_block_current = string_after
+                code_block_ahead = code_block_current
+                string_after = ""
+        else:
+            self.code_blocks.append(code_block_current.strip())
+        new_list = []
+        for i in self.code_blocks:
+            if i.strip().startswith("#") and "\n" in i:
+                splt = True
+                cmd = ""
+                for line in i.split("\n"):
+                    if splt:
+                        if line.strip().startswith("#"):
+                            new_list.append(line)
+                        else:
+                            cmd += line
+                            splt = False
+                    else:
+                        cmd += "\n" + line
+                new_list.append(cmd)
+            else:
+                new_list.append(i)
+        self.code_blocks = new_list
+        return self.code_blocks
 
-    def process_input_string(self, string):
+    def process_code_blocks(self):
+        for code_block in self.code_blocks:
+            if self.execute:
+                exec(code_block, self.namespace)
+            filtered_string = self.filter_string(code_block)
+            self.process_codeblock_string(filtered_string)
+
+    def process_codeblock_string(self, string):
         if self.comments:
             lines = string.split("\n")
             code_block = ""
@@ -561,12 +666,39 @@ class Calculations:
         else:
             self.process_code(string)
 
+    def process_code(self, string):
+        output = ""
+        self.parsed_tree = ast.parse(string)
+        for block in self.parsed_tree.body:
+            if isinstance(block, ast.Assign):
+                formatted_calc = FormatCalculation(
+                    block,
+                    namespace=self.namespace,
+                    progression=self.progression,
+                    verbose=self.verbose,
+                    **self.kwargs,
+                )
+                formatted_calc.display()
+                output += formatted_calc.output_string
+            elif isinstance(block, ast.Expr):
+                result = eval(astor.to_source(block), self.namespace)
+                if result is not None:
+                    display(Markdown(eval(astor.to_source(block), self.namespace)))
+
     def filter_string(self, string):
         result = ""
+        previous_line = ""
         for line in string.split("\n"):
+            if line.endswith(r"\\"):
+                previous_line = line.sub(r"\\$", "")
+                continue
+            else:
+                line = previous_line + line
+                previous_line = ""
             if (not line.startswith("#")) and ("#" in line):
                 code, comment = line.split("#", 1)
-                if not any(i in comment for i in "hide noshow suppress".split()):
+                if not any(i in comment
+                           for i in "hide noshow suppress".split()):
                     result += line + "\n"
             else:
                 result += line + "\n"
@@ -574,7 +706,7 @@ class Calculations:
 
 
 class QuantityTables:
-    """Display all StatesTables in namespace"""
+    """Display all QuantityTables in namespace"""
 
     def __init__(self, namespace=None, **kwargs):
         self.namespace = namespace or get_caller_namespace()
@@ -592,7 +724,12 @@ class Quantities:
     variables.  Otherwise display all variables with units.
     """
 
-    def __init__(self, variables=None, n_col=3, style=None, namespace=None, **kwargs):
+    def __init__(self,
+                 variables=None,
+                 n_col=3,
+                 style=None,
+                 namespace=None,
+                 **kwargs):
         self.namespace = namespace or get_caller_namespace()
         self.style = style
         self.n = 1
@@ -604,9 +741,13 @@ class Quantities:
         else:
             for k, v in sorted(self.namespace.items()):
                 if not k.startswith("_"):
-                    if isinstance(v, units.Quantity):
+                    if isinstance(v, units.Quantity) or isinstance(
+                            v, units.Measurement):
                         self.add_variable(k, **kwargs)
         self.latex_string += r" }\end{align}"
+        # use regex to remove empty line from end of align environment if it exists
+        self.latex_string = re.sub(r'\\\\\s*{\s*}\s*\\end{align}',
+                                   r'\\end{align}', self.latex_string)
         self.latex = self.latex_string
         display(Latex(self.latex_string))
 
@@ -637,24 +778,31 @@ class Quantities:
 
 
 class Summary:
-    """Display all quantities and StatesTables in namespace
+    """Display all quantities and QuantityTables in namespace
 
-    If a list of variables if provided, display only those variables,
+    If a list of variables is provided, display only those variables,
     otherwise display all quantities defined in the namespace.
     """
 
-    def __init__(
-        self, variables=None, n_col=None, namespace=None, style=None, **kwargs
-    ):
+    def __init__(self,
+                 variables=None,
+                 n_col=None,
+                 namespace=None,
+                 style=None,
+                 **kwargs):
         self.namespace = namespace or get_caller_namespace()
         if variables is not None:
             if n_col is None:
                 n_col = 1
-            Quantities(variables, n_col=n_col, namespace=self.namespace, style=style)
+            Quantities(variables,
+                       n_col=n_col,
+                       namespace=self.namespace,
+                       style=style)
         else:
             if n_col is None:
                 n_col = 3
-            self.quantities = Quantities(
-                namespace=self.namespace, n_col=n_col, **kwargs
-            )
-            self.state_tables = QuantityTables(namespace=self.namespace, **kwargs)
+            self.quantities = Quantities(namespace=self.namespace,
+                                         n_col=n_col,
+                                         **kwargs)
+            self.state_tables = QuantityTables(namespace=self.namespace,
+                                               **kwargs)

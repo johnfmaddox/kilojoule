@@ -4,7 +4,21 @@ from kilojoule.organization import QuantityTable
 from kilojoule.display import Calculations, Summary, set_latex
 from kilojoule.units import units, Quantity
 import kilojoule.magics
-from numpy import pi, log, sqrt
+from kilojoule.solution_hash import check_solutions, name_and_date, store_solutions
+
+# Numpy
+import numpy as np
+
+# Plotting
+import matplotlib.pyplot as plt
+units.setup_matplotlib(True)
+
+
+# Math imports
+from numpy import pi, log, log10, sqrt, sin, cos, tan, sinh, cosh, tanh, exp
+from math import e
+ln = log
+
 
 air = idealgas.Properties('Air',unit_system='USCS_R')
 water = realfluid.Properties('Water',unit_system='USCS_R')

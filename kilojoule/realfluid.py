@@ -14,19 +14,19 @@ import numpy as np
 CP_units_to_symb = {
     "K": ["T", "T_critical", "T_triple", "T_max", "T_min", "T_freeze", "T_reducing"],
     "Pa": ["p", "p_critical", "p_triple", "p_max", "p_min", "p_reducing"],
-    "kg/m^3": ["D","rhomass"],
+    "kg/m^3": ["D", "rhomass"],
     "mol/m^3": ["Dmolar"],
     "m^3/kg": ["v"],
     "m^3/mol": ["vmolar"],
-    "J/kg": ["u", "h", "g", "HelmholtzMass","hmass","umass"],
+    "J/kg": ["u", "h", "g", "HelmholtzMass", "hmass", "umass"],
     "J/mol": ["umolar", "hmolar", "gmolar", "HelmholtzMolar"],
-    "J/kg/K": ["C", "CpMass", "CvMass", "s","smass"],
-    "J/mol/K": ["CpMolar", "CvMolar", "smolar","GAS_CONSTANT"],
-    "kg/mol": ["M", "molar_mass","MOLARMASS"],
+    "J/kg/K": ["C", "CpMass", "CvMass", "s", "smass"],
+    "J/mol/K": ["CpMolar", "CvMolar", "smolar", "GAS_CONSTANT"],
+    "kg/mol": ["M", "molar_mass", "MOLARMASS"],
     "m/s": ["speed_of_sound"],
-    "W/m/degK": ["conductivity"],
+    "W/m/delta_degC": ["conductivity"],
     "Pa*s": ["viscosity"],
-    " ": ["phase", "Q", "Prandtl","x"],
+    " ": ["phase", "Q", "Prandtl", "x"],
 }
 CP_symb_to_units = invert_dict(CP_units_to_symb)
 CP_symbUpper_to_units = {k.upper(): v for k, v in CP_symb_to_units.items()}
@@ -66,8 +66,8 @@ CP_type_to_symb = {
     "specific energy": ["u", "h", "g", "HelmholtzMass"],
     "molar specific energy": ["umolar", "hmolar", "gmolar", "HelmholtzMolar"],
     "specific heat": ["C", "CpMass", "CvMass", "s"],
-    "molar specific heat": ["CpMolar", "CvMolar", "smolar","gas_constant"],
-    "molar mass": ["M", "molar_mass","MOLARMASS"],
+    "molar specific heat": ["CpMolar", "CvMolar", "smolar", "gas_constant"],
+    "molar mass": ["M", "molar_mass", "MOLARMASS"],
     "velocity": ["speed_of_sound"],
     "conductivity": ["conductivity"],
     "viscosity": ["viscosity"],
@@ -76,44 +76,45 @@ CP_type_to_symb = {
 CP_symb_to_type = invert_dict(CP_type_to_symb)
 
 CP_kw_to_AS = {
-    "d":"Dmass",
-    "rho":"Dmass",
-    "v":"Dmass",
-    "d_molar":"Dmolar",
-    "h":"Hmass",
-    "h_molar":"Hmolar",
-    "T":"T",
-    "p":"P",
-    "x":"Q",
-    "Q":"Q",
-    "s":"Smass",
-    "s_molar":"Smolar",
-    "u":"Umass",
-    "u_molar":"Umolar",
+    "d": "Dmass",
+    "rho": "Dmass",
+    "v": "Dmass",
+    "d_molar": "Dmolar",
+    "h": "Hmass",
+    "h_molar": "Hmolar",
+    "T": "T",
+    "p": "P",
+    "x": "Q",
+    "Q": "Q",
+    "s": "Smass",
+    "s_molar": "Smolar",
+    "u": "Umass",
+    "u_molar": "Umolar",
 }
 CP_AS_to_kw = invert_dict(CP_kw_to_AS)
 
 CP_kw_to_AS_desired = {
-    "d":"rhomass",
-    "rho":"rhomass",
-    "v":"rhomass",
-    "d_molar":"rhomolar",
-    "h":"hmass",
-    "h_molar":"hmolar",
-    "T":"T",
-    "p":"p",
-    "x":"Q",
-    "Q":"Q",
-    "s":"smass",
-    "s_molar":"smolar",
-    "u":"umass",
-    "u_molar":"umolar",
-    "T_triple":"Ttriple",
+    "d": "rhomass",
+    "rho": "rhomass",
+    "v": "rhomass",
+    "d_molar": "rhomolar",
+    "h": "hmass",
+    "h_molar": "hmolar",
+    "T": "T",
+    "p": "p",
+    "x": "Q",
+    "Q": "Q",
+    "s": "smass",
+    "s_molar": "smolar",
+    "u": "umass",
+    "u_molar": "umolar",
+    "T_triple": "Ttriple",
 }
 
 
 def fluids():
     return FluidsList()
+
 
 def PropertyLookup(
     desired,
@@ -272,19 +273,33 @@ class Properties:
 
     def __init__(self, fluid, unit_system="kSI_C"):
         self.fluid = fluid
-        self.HEOS = CoolProp.AbstractState("HEOS",self.fluid)
-        self.HEOS.update(CoolProp.PT_INPUTS,101325,300)        
+        self.HEOS = CoolProp.AbstractState("HEOS", self.fluid)
+        self.HEOS.update(CoolProp.PT_INPUTS, 101325, 300)
         try:
             self.BICU = CoolProp.AbstractState("BICUBIC&HEOS", self.fluid)
-            self.BICU.update(CoolProp.PT_INPUTS,101325,300)
+            self.BICU.update(CoolProp.PT_INPUTS, 101325, 300)
         except Exception as e:
             pass
         self.unit_system = unit_system
         # legacy definitions/aliases
-        self.Cp = self.cp
-        self.Cv = self.cv
-        self.mu = self.viscosity
+        self.Cp = self.c_p = self.cp
+        self.Cv = self.c_v = self.cv
+        self.mu = self.dynamic_viscosity = self.viscosity
         self.nu = self.kinematic_viscosity
+        self.rho = self.density = self.d
+        self._units_to_independent_property = {
+            'K':['T'],
+            'Pa':['p'],
+            'm^3/g':['v'],
+            'm^3/mol':['v_molar'],
+            'J/g/K':['s'],
+            'J/mol/K':['s_molar'],
+            'J/g':['u','h'],
+            'g/m^3':['d'],
+            'mol/m^3':['d_molar'],
+            '':['x']
+        }
+
 
     def _lookup(self, desired, **kwargs):
         """
@@ -305,64 +320,78 @@ class Properties:
         )
         result.property_source = self
         return result
-    
+
         # if desired == 'T_triple': CP_desired = 'Ttriple'
         # else: CP_desired = desired
         # result = getattr(self.HEOS, CP_desired)()
         # result = Quantity(result, CP_symb_to_units[desired])
         # return result
-        
+
     def _update_kwargs(self, args, kwargs):
         """use argument unit to identify appropriate keyword"""
-        enthalpy_check=False
+        enthalpy_check = False
         for arg in args:
             if isinstance(arg, Quantity):
                 try:
                     arg_symb = arg.property_symbol
-                    arg_dict = {arg_symb:arg}
+                    arg_dict = {arg_symb: arg}
                     kwargs = dict(**arg_dict, **kwargs)
                 except:
                     try:
-                        arg.to('K') # Temperature
+                        arg.to("K")  # Temperature
                         kwargs = dict(T=arg, **kwargs)
                     except:
                         try:
-                            arg.to('kPa') # pressure
+                            arg.to("kPa")  # pressure
                             kwargs = dict(p=arg, **kwargs)
                         except:
                             try:
-                                arg.to('m^3/kg') # specific volume
+                                arg.to("m^3/kg")  # specific volume
                                 kwargs = dict(v=arg, **kwargs)
                             except:
                                 try:
-                                    arg.to('kJ/kg/K') # entropy
+                                    arg.to("kJ/kg/K")  # entropy
                                     kwargs = dict(s=arg, **kwargs)
                                 except:
                                     try:
-                                        arg.to('kg/m^3') # density
+                                        arg.to("kg/m^3")  # density
                                         kwargs = dict(d=arg, **kwargs)
                                     except:
                                         try:
-                                            arg.to('kJ/kmol/K') # molar entropy
+                                            arg.to("kJ/kmol/K")  # molar entropy
                                             kwargs = dict(s_molar=arg, **kwargs)
                                         except:
                                             try:
-                                                arg.to('kmol/m^3') # molar density
+                                                arg.to("kmol/m^3")  # molar density
                                                 kwargs = dict(d_molar=arg, **kwargs)
                                             except:
                                                 try:
-                                                    arg.to('kJ/kg') # internal energy or enthalpy
-                                                    enthalpy_check=True
+                                                    arg.to(
+                                                        "kJ/kg"
+                                                    )  # internal energy or enthalpy
+                                                    enthalpy_check = True
                                                 except:
                                                     try:
-                                                        if arg.dimensionless and (0<= arg <= 1): # quality
-                                                            kwargs = dict(x=arg, **kwargs)
+                                                        if arg.dimensionless and (
+                                                            0 <= arg <= 1
+                                                        ):  # quality
+                                                            kwargs = dict(
+                                                                x=arg, **kwargs
+                                                            )
                                                     except:
-                                                        print(f'Unable to determine property type for {arg} based on units')
-            elif 0<= arg <= 1: # quality
+                                                        print(
+                                                            f"Unable to determine property type for {arg} based on units"
+                                                        )
+            elif 0 <= arg <= 1:  # quality
                 kwargs = dict(x=arg, **kwargs)
             if enthalpy_check:
-                raise Exception ('Cannot distinguish between internal energy and enthalpy based on units.  Use the long-form notation, i.e. prop(...,u=u_value) or prop(...,h=h_value)')
+                raise ValueError(
+                    """
+Cannot distinguish between internal energy and enthalpy based on units.
+Use the long-form `(keyword = argument)` notation, i.e.
+>>> s[1] = water.s(p[1],h=h[1]) # short-form for p, long-form for h
+"""
+                )
         return kwargs
 
     def T(self, *args, **kwargs):
@@ -375,7 +404,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar
         :returns: Temperature as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("T", **kwargs)
 
     def p(self, *args, **kwargs):
@@ -388,7 +417,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar
         :returns: pressure as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("p", **kwargs)
 
     def d(self, *args, **kwargs):
@@ -401,7 +430,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar
         :returns: density as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("D", **kwargs)
 
     def v(self, *args, **kwargs):
@@ -414,7 +443,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,u_molar,h_molar,s_molar,d_molar
         :returns: specific volume as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("v", **kwargs)
 
     def h(self, *args, **kwargs):
@@ -427,7 +456,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
         :returns: specific enthalpy as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("h", **kwargs)
 
     def u(self, *args, **kwargs):
@@ -440,7 +469,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
         :returns: specific internal energy as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("u", **kwargs)
 
     def s(self, *args, **kwargs):
@@ -453,7 +482,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
         :returns: specific entropy as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("s", **kwargs)
 
     def x(self, *args, **kwargs):
@@ -466,14 +495,12 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
         :returns: vapor quality dimensionless quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         value = self._lookup("Q", **kwargs)
-        if 0<=value<=1:
+        if 0 <= value <= 1:
             return value
         else:
-            return 'N/A'
-        
-        
+            return "N/A"
 
     def phase(self, *args, **kwargs):
         """
@@ -485,7 +512,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
         :returns: phase descriptor as a string
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("phase", **kwargs)
 
     def c(self, *args, **kwargs):
@@ -511,7 +538,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar,d_molar
         :returns: constant pressure specific heat as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("CpMass", **kwargs)
 
     def cv(self, *args, **kwargs):
@@ -524,7 +551,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
         :returns: constant volume specific heat as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("CvMass", **kwargs)
 
     @property
@@ -553,7 +580,7 @@ class Properties:
         :returns: constant volume specific heat as a dimensional quantity
         """
         # kwargs = self._update_kwargs(args,kwargs)
-        return self._lookup_trivial("gas_constant", **kwargs)/self.M
+        return self._lookup_trivial("gas_constant", **kwargs) / self.M
 
     @property
     def T_critical(self, *args, **kwargs):
@@ -669,7 +696,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
         :returns: molar density as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("Dmolar", **kwargs)
 
     def v_molar(self, *args, **kwargs):
@@ -682,7 +709,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
         :returns: molar specific volume as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("vmolar", **kwargs)
 
     def h_molar(self, *args, **kwargs):
@@ -695,7 +722,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
         :returns: molar specific enthalpy as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("hmolar", **kwargs)
 
     def u_molar(self, *args, **kwargs):
@@ -708,7 +735,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
         :returns: molar specific internal energy as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("umolar", **kwargs)
 
     def s_molar(self, *args, **kwargs):
@@ -721,7 +748,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar
 
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("smolar", **kwargs)
 
     def cp_molar(self, *args, **kwargs):
@@ -734,7 +761,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
         :returns: molar constant pressure specific heat as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("CpMolar", **kwargs)
 
     def cv_molar(self, *args, **kwargs):
@@ -747,7 +774,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
         :returns: molar constant volume specific heat as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("CvMolar", **kwargs)
 
     def a(self, *args, **kwargs):
@@ -760,7 +787,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,rho,u_molar,h_molar,s_molar,d_molar
         :returns: speed of sound as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("speed_of_sound", **kwargs)
 
     def conductivity(self, *args, **kwargs):
@@ -773,7 +800,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
         :returns: thermal conductivity as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("conductivity", **kwargs)
 
     def viscosity(self, *args, **kwargs):
@@ -786,7 +813,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
         :returns: dynamic viscosity as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("viscosity", **kwargs)
 
     def kinematic_viscosity(self, *args, **kwargs):
@@ -799,8 +826,8 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
         :returns: kinematic viscosity as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
-        return self._lookup("viscosity", **kwargs)/self._lookup("D", **kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
+        return (self._lookup("viscosity", **kwargs) / self._lookup("D", **kwargs)).to('m^2/s')
 
     def thermal_diffusivity(self, *args, **kwargs):
         """
@@ -812,9 +839,11 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,u_molar,h_molar,s_molar,d_molar
         :returns: thermal diffusivity as a dimensional quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
-        return self._lookup("conductivity", **kwargs)/(self._lookup("D", **kwargs)*self._lookup("CpMass", **kwargs))
-    
+        kwargs = self._update_kwargs(args, kwargs)
+        return self._lookup("conductivity", **kwargs) / (
+            self._lookup("D", **kwargs) * self._lookup("CpMass", **kwargs)
+        )
+
     def Pr(self, *args, **kwargs):
         """
         Prandtl number from two independent intensive properties
@@ -825,7 +854,7 @@ class Properties:
         :param **kwargs: any two dimensional quantities of T,p,v,u,h,s,x,d,rho,u_molar,h_molar,s_molar,d_molar
         :returns: Prandtl number as a dimensionless quantity
         """
-        kwargs = self._update_kwargs(args,kwargs)
+        kwargs = self._update_kwargs(args, kwargs)
         return self._lookup("Prandtl", **kwargs)
 
     def property_diagram(
@@ -851,15 +880,19 @@ class Properties:
         )
 
     def Ts_diagram(self, unit_system=None, saturation=None, **kwargs):
-        if self.fluid == 'Air': saturation = saturation or False
-        else: saturation = saturation or True
+        if self.fluid == "Air":
+            saturation = saturation or False
+        else:
+            saturation = saturation or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="s", y="T", unit_system=unit_system, saturation=saturation, **kwargs
         )
 
-    def pv_diagram(self, unit_system=None, saturation=None, log_x=None, log_y=None, **kwargs):
-        if self.fluid == 'Air':
+    def pv_diagram(
+        self, unit_system=None, saturation=None, log_x=None, log_y=None, **kwargs
+    ):
+        if self.fluid == "Air":
             saturation = saturation or False
             log_x = log_x or False
             log_y = log_y or False
@@ -869,36 +902,50 @@ class Properties:
             log_y = log_y or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
-            x="v", y="p", unit_system=unit_system, saturation=saturation, log_x=log_x, log_y=log_y, **kwargs
+            x="v",
+            y="p",
+            unit_system=unit_system,
+            saturation=saturation,
+            log_x=log_x,
+            log_y=log_y,
+            **kwargs,
         )
 
     def Tv_diagram(self, unit_system=None, saturation=None, **kwargs):
-        if self.fluid == 'Air': saturation = saturation or False
-        else: saturation = saturation or True
+        if self.fluid == "Air":
+            saturation = saturation or False
+        else:
+            saturation = saturation or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="v", y="T", unit_system=unit_system, saturation=saturation, **kwargs
         )
 
     def hs_diagram(self, unit_system=None, saturation=None, **kwargs):
-        if self.fluid == 'Air': saturation = saturation or False
-        else: saturation = saturation or True
+        if self.fluid == "Air":
+            saturation = saturation or False
+        else:
+            saturation = saturation or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="s", y="h", unit_system=unit_system, saturation=saturation, **kwargs
         )
 
     def ph_diagram(self, unit_system=None, saturation=None, **kwargs):
-        if self.fluid == 'Air': saturation = saturation or False
-        else: saturation = saturation or True
+        if self.fluid == "Air":
+            saturation = saturation or False
+        else:
+            saturation = saturation or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="h", y="p", unit_system=unit_system, saturation=saturation, **kwargs
         )
 
     def pT_diagram(self, unit_system=None, saturation=None, **kwargs):
-        if self.fluid == 'Air': saturation = saturation or False
-        else: saturation = saturation or True
+        if self.fluid == "Air":
+            saturation = saturation or False
+        else:
+            saturation = saturation or True
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="T", y="p", unit_system=unit_system, saturation=saturation, **kwargs
