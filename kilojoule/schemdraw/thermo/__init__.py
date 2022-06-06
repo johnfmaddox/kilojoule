@@ -5,7 +5,7 @@ from .compressor import Compressor
 from .pump import Pump
 from .hx import HX
 from .shaft import Shaft
-from .pipe import StateLabelInline
+from .pipe import StateLabelInline, Crossover
 
 #from . import legacy
 #import warnings
