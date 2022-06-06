@@ -6,6 +6,7 @@ from .pump import Pump
 from .hx import HX
 from .shaft import Shaft
 from .pipe import StateLabelInline
+from .valve import Valve, Throttle
 
 #from . import legacy
 #import warnings
