@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from typing import Sequence, Union
 import warnings
@@ -30,6 +29,17 @@ class StateLabelInline(Element2Term):
         if label:
             self.label(label)
 
+
+class Crossover(Element):
+    ''' Crossover element showing that intersecting lines are not joined '''
+    def __init__(self, *d, radius: float=0.25, **kwargs):
+        super().__init__(*d, **kwargs)
+        self.segments.append(SegmentArc(center=(0,0), width=2*radius, height=2*radius, theta1=0, theta2=180))
+        self.anchors['center'] = (0,0)
+        self.anchors['N'] = (0,radius)
+        self.anchors['E'] = (radius,0)
+        self.anchors['W'] = (-radius,0)
+        #self.params['']
 
 
 class Label(Element):
