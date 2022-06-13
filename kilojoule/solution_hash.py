@@ -16,11 +16,15 @@ import json
 from os.path import exists
 import sys
 
+import shutil
+import os
+
 from sigfig import round
 import warnings
 import re
 
 default_hash_filename = '.solution_hashes'
+default_student_dir = 'student/'
 default_sigfigs = 4
 
 def name_and_date(Name):
@@ -203,7 +207,7 @@ def read_solution_hashes(filename=default_hash_filename):
     return hashes
 
 
-def store_solutions(sol_list, namespace=None, **kwargs):
+def store_solutions(sol_list=None, namespace=None, filename=default_hash_filename, copy_to_student=True, student_dir=default_student_dir, **kwargs):
     """Accepts a list of solution storage specifications and calls `store_solution()` for each.
 
     Accepts a list of strings or a list of dictionaries.
@@ -215,7 +219,9 @@ def store_solutions(sol_list, namespace=None, **kwargs):
             store_solution(sol,**kwargs)
         elif isinstance(sol,dict):
             store_solution(**sol,**kwargs)
-
+    if copy_to_student:
+        os.makedirs(student_dir, exist_ok=True)
+        shutil.copy2(default_hash_filename, student_dir)
 
 def store_solution(
     name,
