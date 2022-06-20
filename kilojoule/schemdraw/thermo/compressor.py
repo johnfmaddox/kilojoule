@@ -44,17 +44,17 @@ class Compressor(Element):
         topy = lambda x: (x / comp_xlen * (comp_small - comp_large) + comp_large) / 2
         boty = lambda x: -topy(x)
 
-        self.anchors["center"] = [comp_xlen / 2, 0]
-        self.anchors["toplarge"] = [_xloc := comp_xlen / 6, topy(_xloc)]
-        self.anchors["topmid"] = [_xloc := comp_xlen / 2, topy(_xloc)]
+        self.anchors["center"] = (comp_xlen / 2, 0)
+        self.anchors["toplarge"] = (_xloc := comp_xlen / 6, topy(_xloc))
+        self.anchors["topmid"] = (_xloc := comp_xlen / 2, topy(_xloc))
         self.anchors["topsmall"] = (_xloc := comp_xlen * 5 / 6, topy(_xloc))
-        self.anchors["botlarge"] = [_xloc := comp_xlen / 6, boty(_xloc)]
-        self.anchors["botmid"] = [_xloc := comp_xlen / 2, boty(_xloc)]
-        self.anchors["botsmall"] = [_xloc := comp_xlen * 5 / 6, boty(_xloc)]
-        self.anchors["largetop"] = [0, comp_large / 4]
-        self.anchors["largemid"] = [0, 0]
-        self.anchors["largebot"] = [0, -comp_large / 4]
-        self.anchors["smallmid"] = [comp_xlen, 0]
+        self.anchors["botlarge"] = (_xloc := comp_xlen / 6, boty(_xloc))
+        self.anchors["botmid"] = (_xloc := comp_xlen / 2, boty(_xloc))
+        self.anchors["botsmall"] = (_xloc := comp_xlen * 5 / 6, boty(_xloc))
+        self.anchors["largetop"] = (0, comp_large / 4)
+        self.anchors["largemid"] = (0, 0)
+        self.anchors["largebot"] = (0, -comp_large / 4)
+        self.anchors["smallmid"] = (comp_xlen, 0)
         self.anchors["in1"] = self.anchors["botlarge"]
         self.anchors["out1"] = self.anchors["topsmall"]
         self.anchors["in2"] = self.anchors["toplarge"]
@@ -72,18 +72,20 @@ class Compressor(Element):
         self.anchors["E"] = self.anchors["smallmid"]
         self.anchors["W"] = self.anchors["largemid"]
         self.anchors["NNE"] = self.anchors["topsmall"]
-        self.anchors["NE"] = [comp_xlen, comp_small / 2]
-        self.anchors["ENE"] = [comp_xlen, comp_small / 4]
-        self.anchors["ESE"] = [comp_xlen, -comp_small / 4]
-        self.anchors["SE"] = [comp_xlen, -comp_small / 2]
+        self.anchors["NE"] = (comp_xlen, comp_small / 2)
+        self.anchors["ENE"] = (comp_xlen, comp_small / 4)
+        self.anchors["ESE"] = (comp_xlen, -comp_small / 4)
+        self.anchors["SE"] = (comp_xlen, -comp_small / 2)
         self.anchors["SSE"] = self.anchors["botsmall"]
         self.anchors["SSW"] = self.anchors["botlarge"]
-        self.anchors["SW"] = [0, -comp_large / 2]
+        self.anchors["SW"] = (0, -comp_large / 2)
         self.anchors["WSW"] = self.anchors["largebot"]
         self.anchors["WNW"] = self.anchors["largetop"]
-        self.anchors["NW"] = [0, comp_large / 2]
+        self.anchors["NW"] = (0, comp_large / 2)
         self.anchors["NNW"] = self.anchors["toplarge"]
 
         self.params["drop"] = self.anchors["out1"]
+        self.params["droptheta"] = 90
         self.params["lblloc"] = "center"
         self.params["lblofst"] = 0
+        self.params["anchor"] = "in1"

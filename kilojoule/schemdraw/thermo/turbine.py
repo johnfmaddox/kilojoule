@@ -3,23 +3,16 @@
 import numpy as np
 
 from schemdraw.elements import Element
-from schemdraw.elements.twoterm import gap
-from schemdraw.segments import Segment, SegmentBezier
-from .common import *
+from schemdraw.segments import Segment
+from kilojoule.schemdraw.thermo.common import (
+    turbine_small_length,
+    turbine_large_length,
+    turbine_xlength,
+)
 
-turb_large = 3
-turb_small = 1.25
-turb_xlen = turb_large * np.sqrt(3) / 2
-
-
-def centers(x1, y1, x2, y2, r):
-    q = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-    x3 = (x1 + x2) / 2
-    y3 = (y1 + y2) / 2
-
-    xx = (r**2 - (q / 2) ** 2) ** 0.5 * (y1 - y2) / q
-    yy = (r**2 - (q / 2) ** 2) ** 0.5 * (x2 - x1) / q
-    return ((x3 + xx, y3 + yy), (x3 - xx, y3 - yy))
+turb_small = turbine_small_length
+turb_large = turbine_large_length
+turb_xlen = turbine_xlength
 
 
 class Turbine(Element):
@@ -98,25 +91,8 @@ class Turbine(Element):
         self.anchors["NW"] = [0, turb_small / 2]
         self.anchors["NNW"] = self.anchors["topsmall"]
 
+        self.params["lblloc"] = "center"
+        self.params["lblofst"] = 0
         self.params["anchor"] = "in1"
         self.params["drop"] = "out1"
-
-
-#         if (shaft := kwargs.get('shaft', True)):
-#             xc = centers(0,0,0,shaft_width,cut_rad)[0]
-#             st = shaft_width/2
-#             sb = -st
-#             if shaft in ['inlet','E','small']:
-#                 self.segments.append(Segment(
-#                     [[0,st], [-shaft_length,st],gap,
-#                      [0,sb], [-shaft_length,sb]
-#                     ]))
-# #                 self.segments.append(SegmentArc(
-# #                         center=(xc,shaft_width/2),
-# #                         width=(2*shaft_rad),
-# #                         height=(2*shaft_)
-# #                     ))
-#                 self.segments.append(SegmentBezier([[-shaft_length,sb], [-shaft_length-sb/2,sb/2], [-shaft_length,0]]))
-#                 self.segments.append(SegmentBezier([[-shaft_length,sb], [-shaft_length+sb/2,sb/2], [-shaft_length,0]]))
-#                 self.segments.append(SegmentBezier([[-shaft_length,st], [-shaft_length+sb/2,st/2], [-shaft_length,0]]))
-#             pass
+        self.params["droptheta"] = -90
