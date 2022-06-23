@@ -84,8 +84,8 @@ class Compressor(Element):
         self.anchors["NW"] = (0, comp_large / 2)
         self.anchors["NNW"] = self.anchors["toplarge"]
 
-        self.params["drop"] = self.anchors["out1"]
+        self.params["drop"] = self.anchors["outtop"]
         self.params["droptheta"] = 90
         self.params["lblloc"] = "center"
         self.params["lblofst"] = 0
-        self.params["anchor"] = "in1"
+        self.params["anchor"] = "inbot"

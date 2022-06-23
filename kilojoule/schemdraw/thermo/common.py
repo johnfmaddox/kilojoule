@@ -15,12 +15,13 @@ compressor_xlength = turbine_large_length * np.sqrt(3) / 2
 
 # Default style
 default_style = {
-    "lw": 2,
+    "lw": 2,  # line width
     "arrowwidth": 0.2,
     "arrowlength": 0.3,
     "state label shape": "circle",
-    "state label radius scale": 0.75,
+    "state label radius scale": 0.8,
     "state label text offset": (0, -0.025),
     "crossover radius": 0.25,
     "intersect radius": 0.075,
+    "text label offset": 0.2,
 }

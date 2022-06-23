@@ -1,9 +1,8 @@
 from __future__ import annotations
-from ssl import _create_unverified_context
+
 from typing import Sequence, Union
 import warnings
 import math
-from math import atan2, degrees, radians, cos, sin
 
 from icecream import ic
 
@@ -15,12 +14,10 @@ from schemdraw.segments import (
     SegmentCircle,
     SegmentArc,
     SegmentText,
-    SegmentPoly,
-    SegmentBezier,
 )
-from schemdraw.elements import Element, Element2Term, Wire, Label
+from schemdraw.elements import Element, Element2Term, Label
 from schemdraw.elements.twoterm import gap
-from schemdraw.types import XY, Point, Arcdirection, BilateralDirection
+from schemdraw.types import XY, Point, BilateralDirection
 from schemdraw import util
 from kilojoule.schemdraw.thermo.common import default_style
 
@@ -46,7 +43,7 @@ dir_angle.update(car_dir_angle)
 
 
 def angle_between(start, end):
-    angle = degrees(atan2(end[1] - start[1], end[0] - start[0]))
+    angle = math.degrees(math.atan2(end[1] - start[1], end[0] - start[0]))
     return angle
 
 
@@ -91,10 +88,12 @@ class Pipe(Element):
         self._userparams["k"] = k
         self._userparams["arrow"] = arrow
         self._userparams.setdefault("to", (None, None))
-        self.params["state labels"] = []
-        self.params["flow arrows"] = []
-        self.params["crossovers"] = []
-        self.params["intersects"] = []
+        # self._userparams["labels"] = []
+        self._userparams["line labels"] = []
+        self._userparams["flow arrows"] = []
+        self._userparams["crossovers"] = []
+        self._userparams["intersects"] = []
+        self._userparams["reverse"] = False
         self.anchor_line = {}
         self.verbose = verbose
 
@@ -157,6 +156,11 @@ class Pipe(Element):
             self._userparams["shape"] = "E"
         return self
 
+    def reverse(self) -> "Pipe":
+        """Apply reverse left/right"""
+        self._userparams["reverse"] = True
+        return self
+
     def shape(self, shape: str = "-") -> "Pipe":
         """Set the shape of the pipe"""
         self._userparams["shape"] = shape
@@ -172,39 +176,104 @@ class Pipe(Element):
         self._userparams["idot"] = True if not open else "open"
         return self
 
+    def label(
+        self,
+        label: str | Sequence[str],
+        loc: LabelLoc = None,
+        ofst: XY | float | None = None,
+        halign: Halign = None,
+        valign: Valign = None,
+        rotate: bool | float = False,
+        line: int = None,
+        side: str = None,
+        outline: bool = False,
+        **kwargs,
+    ):
+        """Add a label to the Element.
+
+        Args:
+            label: The text string or list of strings. If list, each string will
+                be evenly spaced along the element (e.g. ['-', 'V', '+'])
+            loc: Label position within the Element. Either ('top', 'bottom', 'left',
+                'right'), or the name of an anchor within the Element.
+            ofst: Offset from default label position
+            halign: Horizontal text alignment ('center', 'left', 'right')
+            valign: Vertical text alignment ('center', 'top', 'bottom')
+            rotate: True to rotate label with element, or specify rotation
+                angle in degrees
+            fontsize: Size of label font
+            font: Name/font-family of label text
+            mathfont: Name/font-family of math text
+            color: Color of label
+            line: Line segment to place label
+            side: side of line to place label on ('top', 'above', 'below', 'bottom', 'left', 'right')
+        """
+        lbl = {
+            "label": label,
+            "loc": loc,
+            "ofst": ofst,
+            "halign": halign,
+            "valign": valign,
+            "rotate": rotate,
+            "side": side,
+            "line": line,
+            "outline": outline,
+        }
+        lbl["kwargs"] = kwargs
+        self._userparams["line labels"].append(lbl)
+        return self
+
     def state_label(
         self,
         label: str | Sequence[str],
         loc: LabelLoc = None,
         ofst: XY | float | None = None,
         arrow: str | bool = True,
+        line: int = None,
+        side: str = None,
+        outline: bool = True,
         **kwargs,
     ):
         """Add a state label with optional flow arrow"""
-        state_label = {"label": label, "loc": loc, "ofst": ofst}
+        state_label = {
+            "label": label,
+            "loc": loc,
+            "ofst": ofst,
+            "side": side,
+            "line": line,
+            "outline": outline,
+        }
         state_label.update(kwargs)
-        self.params["state labels"].append(state_label)
-        # self.label(label, loc, **kwargs)
+        self._userparams["line labels"].append(state_label)
         if arrow:
-            self.flow_arrow(loc=loc, arrow=arrow, **kwargs)
+            self.flow_arrow(loc=loc, arrow=arrow, side=side, line=line, **kwargs)
         return self
 
-    def flow_arrow(self, loc: LabelLoc = None, arrow: str | bool = True, **kwargs):
+    def flow_arrow(
+        self, loc: LabelLoc = None, arrow: str | bool = True, line: int = None, **kwargs
+    ):
         """Add a flow arrow"""
-        flow_arrow = {"loc": loc, "arrow": arrow}
+        flow_arrow = {"loc": loc, "arrow": arrow, "line": line}
         flow_arrow.update(kwargs)
-        self.params["flow arrows"].append(flow_arrow)
+        self._userparams["flow arrows"].append(flow_arrow)
         return self
 
-    def _place_state_labels(self):
+    def _place_line_labels(self):
         """Add state labels to the marked segments"""
-        for state_label in self.params.get("state labels", None):
-            radius = state_label.get("radius", None)
+        # for state_label in self._userparams.get("state labels", None):
+        for line_label in self._userparams.get("line labels", None):
+            arrowwidth = line_label.get("arrowwidth", default_style["arrowwidth"])
+            ofst = line_label.get("ofst", arrowwidth) or arrowwidth
+            halign = line_label.get("halign", None)
+            valign = line_label.get("valign", None)
+            side = line_label.get("side", None)
+            outline = line_label["outline"]
+            radius = line_label.get("radius", None)
             # Estimate radius from bounding box of label text
-            if radius is None:
+            if radius is None and outline:
                 txt = SegmentText(
                     pos=(0, 0),
-                    label=state_label["label"],
+                    label=line_label["label"],
                     align=("center", "center"),
                 )
                 bbox = txt.get_bbox()
@@ -212,85 +281,224 @@ class Pipe(Element):
                 # the calculations below correct for that padding before calculating the radius
                 txt_dx = bbox.xmax - 0.4 - bbox.xmin - 0.2
                 txt_dy = bbox.ymax - 0.4 - bbox.ymin + 0.2
-                radius_scale = state_label.get(
+                radius_scale = line_label.get(
                     "radius_scale", default_style["state label radius scale"]
                 )
                 radius = radius_scale * max(
                     (bbox.xmax + 0.2 - bbox.xmin - 0.4) / 2,
                     (bbox.ymax + 0.2 - bbox.ymin - 0.4) / 2,
                 )
-            if state_label["loc"] is None:
-                state_label["loc"] = self.params["lblloc"]
-            loc = self.anchors[state_label["loc"]]
-            line = self.anchor_line[state_label["loc"]]
-            arrowwidth = state_label.get("arrowwidth", default_style["arrowwidth"])
-            ofst = state_label.get("ofst", None)
-            halign = state_label.get("halign", "center")
-            valign = state_label.get("valign", "center")
-            # Mostly horizontal
-            if abs(line["theta"]) <= 45 or 135 <= abs(line["theta"]) <= 225:
-                if ofst is None:
-                    ofst = (0, arrowwidth)
-                elif isinstance(ofst, (float, int)):
-                    ofst = (0, ofst)
-                center = (
-                    loc[0] + ofst[0],
-                    loc[1] + ofst[1] + (ofst[1] / abs(ofst[1])) * radius,
-                )
-            # Mostly vertical
             else:
-                if ofst is None:
-                    ofst = (-arrowwidth, 0)
-                elif isinstance(ofst, (float, int)):
-                    ofst = (ofst, 0)
-                center = (
-                    loc[0] + ofst[0] + (ofst[0] / abs(ofst[0]) * radius),
-                    loc[1] + ofst[1],
+                radius = 0
+            loc = line_label.get("loc", None) or None
+            line_idx = line_label.get("line", None)
+            if line_idx is not None:
+                if isinstance(line_idx, int) and line_idx < 0:
+                    line_idx = len(self.lines) + line_idx
+                if loc is None:
+                    loc = f"mid{line_idx}"
+                else:
+                    loc = f"{loc}{line_idx}"
+            if loc is None:
+                loc = self.params["lblloc"]
+            point = self.anchors[loc]
+            line = self.anchor_line[loc]
+
+            theta = line["theta"]
+            theta = (theta + 360) % 360
+
+            rotate = line_label.get("rotate", None)
+            if rotate is not None and isinstance(rotate, bool):
+                if rotate:  # ensure text isn't upside down
+                    if 90 < theta < 270:
+                        rotate = theta - 180
+                    else:
+                        rotate = theta
+            if not rotate:
+                rotate = 0
+
+            # determine sector of line angle, theta: 360 degrees into 8 sectors
+            for i, a in enumerate([45, 90, 135, 180, 225, 270, 360]):
+                if theta <= a:
+                    sector = i + 1
+                    break
+
+            if (  # place text in postive angle direction
+                (side == "after")
+                or (side in ["top", "above"] and (sector in [1, 2, 7, 8]))  # right half
+                or (
+                    side in ["bottom", "below"] and (sector in [3, 4, 5, 6])
+                )  # left half
+                or (side == "right" and sector in [5, 6, 7, 8])  # bottom half
+                or (side == "left" and sector in [1, 2, 3, 4])  # top half
+                or (side is None and (sector in [1, 2, 7, 8]))  # right half
+            ):
+                ofst = (
+                    math.cos(math.radians(theta + 90)) * (ofst + radius),
+                    math.sin(math.radians(theta + 90)) * (ofst + radius),
                 )
-            text_offset = state_label.get(
+                center = (
+                    point[0] + ofst[0],
+                    point[1] + ofst[1],
+                )
+                if rotate:
+                    halign = halign or "center"
+                if sector in [1, 2, 3, 4]:  # top half
+                    halign = halign or "right"
+                elif sector in [5, 6, 7, 8]:  # bottom half
+                    halign = halign or "left"
+                if sector in [1, 2, 7, 8]:  # right half
+                    valign = valign or "bottom"
+                elif sector in [3, 4, 5, 6]:  # left half
+                    valign = valign or "top"
+                if rotate and theta == 270:
+                    valign = "bottom"
+                    halign = "center"
+
+            elif (  # place text in negative angle direction
+                (side == "before")
+                or (side in ["top", "above"] and (sector in [3, 4, 5, 6]))  # left half
+                or (
+                    side in ["bottom", "below"] and sector in [1, 2, 7, 8]  # right half
+                )
+                or (side == "right" and sector in [1, 2, 3, 4])  # top half
+                or (side == "left" and sector in [5, 6, 7, 8])  # bottom half
+                or (side is None and sector in [3, 4, 5, 6])  # left half
+            ):
+                ofst = (
+                    math.cos(math.radians(theta - 90)) * (ofst + radius),
+                    math.sin(math.radians(theta - 90)) * (ofst + radius),
+                )
+                center = (
+                    point[0] + ofst[0],
+                    point[1] + ofst[1],
+                )
+                if rotate:
+                    halign = halign or "center"
+                if sector in [1, 2, 3, 4]:  # top half
+                    halign = halign or "left"
+                elif sector in [5, 6, 7, 8]:  # bottom half
+                    halign = halign or "right"
+                if sector in [1, 2, 7, 8]:  # right half
+                    valign = valign or "top"
+                elif sector in [3, 4, 5, 6]:  # left half
+                    valign = valign or "bottom"
+                if rotate and theta == 270:
+                    valign = "top"
+                    halign = "center"
+
+            else:  # default to placing after if none of the conditions match
+                ofst = (
+                    math.cos(math.radians(theta + 90)) * (ofst + radius),
+                    math.sin(math.radians(theta + 90)) * (ofst + radius),
+                )
+                center = (
+                    point[0] + ofst[0],
+                    point[1] + ofst[1],
+                )
+                if rotate:
+                    halign = halign or "center"
+                if sector in [1, 2, 3, 4]:  # top half
+                    halign = halign or "right"
+                elif sector in [5, 6, 7, 8]:  # bottom half
+                    halign = halign or "left"
+                if sector in [1, 2, 7, 8]:  # right half
+                    valign = valign or "bottom"
+                elif sector in [3, 4, 5, 6]:  # left half
+                    valign = valign or "top"
+                if rotate and theta == 270:
+                    valign = "center"
+                    halign = "left"
+
+            if outline:
+                halign = "center"
+                valign = "center"
+
+            text_offset = line_label.get(
                 "txtofst", default_style["state label text offset"]
             )
             if isinstance(text_offset, (float, int)):
                 text_offset = (0, text_offset)
+
+            text_offset = (
+                text_offset[0] * math.sin(math.radians(rotate)),
+                text_offset[1] * math.cos(math.radians(rotate)),
+            )
+
             text_center = (center[0] + text_offset[0], center[1] + text_offset[1])
+
             # Place real text label
             self.segments.append(
                 SegmentText(
-                    label=state_label["label"],
+                    label=line_label["label"],
                     pos=text_center,
                     align=(halign, valign),
+                    rotation=rotate,
+                    rotation_mode="anchor",
                 )
             )
 
-            lw = state_label.get("lw", default_style["lw"]) / 2
             # Draw circle/ellipse around state text label
-            label_shape = state_label.get("shape", default_style["state label shape"])
-            if label_shape == "circle":
-                self.segments.append(SegmentCircle(center, radius, lw=lw))
-            elif label_shape == "ellipse":
-                self.segments.append(
-                    SegmentArc(
-                        center,
-                        width=max(1.2 * txt_dx, 4 / 5 * txt_dy),
-                        height=max(txt_dy, 4 / 5 * txt_dx),
-                        theta1=0,
-                        theta2=360,
-                        lw=lw,
-                    )
+            if outline:
+                # default to half the drawing line width for the state outline
+                lw = line_label.get("lw", default_style["lw"]) / 2
+                label_shape = line_label.get(
+                    "shape", default_style["state label shape"]
                 )
-            else:
-                raise ValueError(f"invalid shape descriptor: {label_shape}")
+                if label_shape == "circle":
+                    self.segments.append(SegmentCircle(center, radius, lw=lw))
+                elif label_shape == "ellipse":
+                    self.segments.append(
+                        SegmentArc(
+                            center,
+                            width=max(1.2 * txt_dx, 4 / 5 * txt_dy),
+                            height=max(txt_dy, 4 / 5 * txt_dx),
+                            theta1=0,
+                            theta2=360,
+                            lw=lw,
+                        )
+                    )
+                else:
+                    raise ValueError(f"invalid shape descriptor: {label_shape}")
 
     def _place_flow_arrows(self):
-        for flow_arrow in self.params.get(["flow arrows"], None):
-            if flow_arrow["loc"] is None:
-                flow_arrow["loc"] = self.params["lblloc"]
-            line = self.anchor_line[flow_arrow["loc"]]
+        for flow_arrow in self._userparams.get("flow arrows", None):
+            loc = flow_arrow.get("loc", None)
+            line_idx = flow_arrow.get("line", None)
+            if line_idx is not None:
+                if isinstance(line_idx, int) and line_idx < 0:
+                    line_idx = len(self.lines) + line_idx
+                if loc is None:
+                    loc = f"mid{line_idx}"
+                else:
+                    loc = f"{loc}{line_idx}"
+            if loc is None:
+                loc = self.params["lblloc"]
+            line = self.anchor_line[loc]
             arrowwidth = flow_arrow.get("arrowwidth", default_style["arrowwidth"])
             arrowlength = flow_arrow.get("arrowlength", default_style["arrowlength"])
+            delta = 0.00001 * flow_arrow.get("lw", default_style["lw"]) / 2
+            p0 = self.anchors[loc]
+            theta = line["theta"]
+            sintheta = math.sin(math.radians(theta))
+            costheta = math.cos(math.radians(theta))
+            p1 = Point(
+                (
+                    p0[0] - delta * costheta,
+                    p0[1] - delta * sintheta,
+                )
+            )
+            p2 = Point(
+                (
+                    p0[0] + delta * costheta,
+                    p0[1] + delta * sintheta,
+                )
+            )
+            if flow_arrow.get("reverse", self._userparams["reverse"]):
+                p1, p2 = p2, p1
             self.segments.append(
                 Segment(
-                    [line["start"], line["mid"]],
+                    [p1, p0],
                     arrow="->",
                     arrowwidth=arrowwidth,
                     arrowlength=arrowlength,
@@ -298,7 +506,7 @@ class Pipe(Element):
             )
             self.segments.append(
                 Segment(
-                    [line["mid"], line["end"]],
+                    [p0, p2],
                     arrow="|-",
                     arrowwidth=arrowwidth,
                     arrowlength=arrowlength,
@@ -347,7 +555,7 @@ class Pipe(Element):
         intersect = {"other": other}
         intersect["radius"] = kwargs.get("radius", default_style["intersect radius"])
         intersect.update(kwargs)
-        self.params["intersects"].append(intersect)
+        self._userparams["intersects"].append(intersect)
         return self
 
     def crossover(self, other: Element, **kwargs):
@@ -355,7 +563,7 @@ class Pipe(Element):
         crossover = {"other": other}
         crossover["radius"] = kwargs.get("radius", default_style["crossover radius"])
         crossover.update(kwargs)
-        self.params["crossovers"].append(crossover)
+        self._userparams["crossovers"].append(crossover)
         return self
 
     def _intersection(self, point1, point2, point3, point4):
@@ -392,14 +600,14 @@ class Pipe(Element):
                 "point after 1": Point((x2, y2)),
                 "point before 2": Point((x3, y3)),
                 "point after 2": Point((x4, y4)),
-                "angle 1": degrees(atan2(y2 - y1, x2 - x1)),
-                "angle 2": degrees(atan2(y4 - y3, x4 - x3)),
+                "angle 1": math.degrees(math.atan2(y2 - y1, x2 - x1)),
+                "angle 2": math.degrees(math.atan2(y4 - y3, x4 - x3)),
             }
         return result
 
     def _place_intersects(self):
         """Add dots at intersections with the marked elements"""
-        for intersect in self.params["intersects"]:
+        for intersect in self._userparams["intersects"]:
             other = intersect["other"]
             xy1 = Point(self._cparams.get("at", self.dwgxy))
             xy2 = Point(other.__getattr__("xy"))
@@ -422,7 +630,7 @@ class Pipe(Element):
 
     def _place_crossovers(self):
         """Add crossover symbols at intersections with the marked elements"""
-        for crossover in self.params["crossovers"]:
+        for crossover in self._userparams["crossovers"]:
             other = crossover["other"]
             xy1 = Point(self._cparams.get("at", self.dwgxy))
             xy2 = Point(other.__getattr__("xy"))
@@ -448,8 +656,8 @@ class Pipe(Element):
                             # Insert gap in self.segments[0].path
                             center = ix["point"] - xy1
                             angle1 = ix["angle 1"]
-                            co_dx = radius * cos(math.radians(angle1))
-                            co_dy = radius * sin(math.radians(angle1))
+                            co_dx = radius * math.cos(math.radians(angle1))
+                            co_dy = radius * math.sin(math.radians(angle1))
                             pa = Point((center[0] - co_dx, center[1] - co_dy))
                             pb = Point((center[0] + co_dx, center[1] + co_dy))
                             self.segments[0].path.insert(i + 1 + idxofst, pa)
@@ -512,16 +720,8 @@ class Pipe(Element):
             if to[1] is not None:
                 dy = to[1] - xy[1]
 
-        # if "-" in shape or "|" in shape:
-        #     if dx >= 0:
-        #         shape = shape.replace("-", "E")
-        #     else:
-        #         shape = shape.replace("-", "W")
-        #     if dy >= 0:
-        #         shape = shape.replace("|", "N")
-        #     else:
-        #         shape = shape.replace("|", "S")
-        # if len(shape) > 1 and shape not in ('-|','|-'):
+        ### Parse shape descriptors
+        # split shape string if needed
         if isinstance(shape, str):
             # Split shape string on `white space`, `,`, or `;`
             dirs = re.split("[\s,;]+", shape)
@@ -649,8 +849,14 @@ class Pipe(Element):
                 line["start"][0] + mid_delta[0],
                 line["start"][1] + mid_delta[1],
             )
-            self.anchors[f"mid{idx}"] = line["mid"]
-            self.anchor_line[f"mid{idx}"] = line
+            for loc in ["start", "mid", "end"]:
+                self.anchors[f"{loc}{idx}"] = line[loc]
+                self.anchor_line[f"{loc}{idx}"] = line
+            if idx == 0:
+                self.anchors["start"] = line["start"]
+                self.anchor_line["start"] = line
+            self.anchors["end"] = line["end"]
+            self.anchor_line["end"] = line
 
         self.lines = lines
         self.segments.append(Segment(points, arrow=arrow))
@@ -662,17 +868,17 @@ class Pipe(Element):
         self.anchors["end"] = Point(self.lines[-1]["end"])
         self.params["drop"] = Point(self.lines[-1]["end"])
 
-        # State Labels
-        if self.params["state labels"]:
-            self._place_state_labels()
+        # Labels
+        if self._userparams["line labels"]:
+            self._place_line_labels()
         # Flow Arrows
-        if self.params["flow arrows"]:
+        if self._userparams["flow arrows"]:
             self._place_flow_arrows()
         # Crossovers
-        if self.params["crossovers"]:
+        if self._userparams["crossovers"]:
             self._place_crossovers()
         # Intersections
-        if self.params["intersects"]:
+        if self._userparams["intersects"]:
             self._place_intersects()
 
         if self._cparams.get("dot", False):

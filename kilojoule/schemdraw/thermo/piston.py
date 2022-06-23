@@ -57,14 +57,17 @@ class Cylinder(Element):
     `center`
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, stops=False, **kwargs):
         super().__init__(*args, **kwargs)
         width = kwargs.get("width", piston_width)
         height = kwargs.get("height", 5 * piston_height)
         ofst = kwargs.get("ofst", piston_offset)
         x = width
         y = height
-        self.segments.append(Segment([(-x, y), (x, y), (x, -y), (-x, -y), (-x, y)]))
+        if stops:
+            self.segments()
+        self.segments.append(Segment([(0,0), (0,y), (x,y)]))
+        self.segments.append(Segment([(0,0), (0,-y), (x,-y)]))
 
         self.anchors["center"] = [0, 0]
         self.anchors["N"] = [0, y]

@@ -1,6 +1,4 @@
-import schemdraw
-import schemdraw.elements as elm
-from schemdraw import flow
+
 
 # from .flow import Box, RoundBox, Subroutine, Data, Start, Ellipse, Decision, Connect, Process, RoundProcess
 # from .flow import Terminal, Circle, State, StateEnd
