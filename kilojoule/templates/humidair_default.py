@@ -5,6 +5,20 @@ from kilojoule.organization import QuantityTable
 from kilojoule.display import Calculations, Summary
 from kilojoule.units import units, Quantity
 import kilojoule.magics
+from kilojoule.solution_hash import check_solutions, name_and_date, store_solutions
+
+# Numpy
+import numpy as np
+
+# Plotting
+import matplotlib.pyplot as plt
+units.setup_matplotlib(True)
+
+
+# Math imports
+from numpy import pi, log, log10, sqrt, sin, cos, tan, sinh, cosh, tanh, exp
+from math import e
+ln = log
 
 humidair = kilojoule.humidair.Properties()
 water = kilojoule.realfluid.Properties('Water',unit_system='SI_C')

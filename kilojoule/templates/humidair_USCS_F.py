@@ -5,6 +5,21 @@ from kilojoule.organization import QuantityTable
 from kilojoule.display import Calculations, Summary
 from kilojoule.units import units, Quantity
 import kilojoule.magics
+from kilojoule.solution_hash import check_solutions, name_and_date, store_solutions
+
+# Numpy
+import numpy as np
+
+# Plotting
+import matplotlib.pyplot as plt
+units.setup_matplotlib(True)
+
+
+# Math imports
+from numpy import pi, log, log10, sqrt, sin, cos, tan, sinh, cosh, tanh, exp
+from math import e
+ln = log
+
 
 humidair = kilojoule.humidair.Properties(unit_system='English_F')
 water = kilojoule.realfluid.Properties('Water',unit_system='English_F')
@@ -22,7 +37,7 @@ properties_dict = {
      'm_w':'lb_water',            # mass
      'mdot_a':'lb_dry_air/s',     # mass flow rate
      'mdot_w':'lb_water/s',       # mass flow rate of water
-     'Vol':'ft^3',                # volume 
+     'Vol':'ft^3',                # volume
      'Vdot':'ft^3/s',             # volumetric flow rate
      'Vel':'ft/s',                # velocity
      'X':'Btu',                   # exergy
@@ -38,6 +53,6 @@ properties_dict = {
      'p_w':'psi',                 # partial pressure of water vapor
      'rel_hum':'',                # relative humidity
      'phi':'',                    # relative humidity
-     'omega':'lb_water/lb_dry_air'# humidity ratio 
+     'omega':'lb_water/lb_dry_air'# humidity ratio
  }
 states = QuantityTable(properties_dict, unit_system='USCS_F', add_to_namespace=True)
