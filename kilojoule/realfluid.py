@@ -1,4 +1,4 @@
-from .units import Quantity, units
+from .units import Quantity, ureg
 from .common import (
     invert_dict,
     CP_symbUpper_to_units,
@@ -249,7 +249,7 @@ def PropertyLookup(
     CP_return_type = CP_symb_to_type[desired]
     # Determine the preferred units for the value
     if unit_system is None:
-        result_units = preferred_units_from_type(CP_return_type, units.preferred_units)
+        result_units = preferred_units_from_type(CP_return_type, ureg.preferred_units)
     else:
         result_units = preferred_units_from_type(CP_return_type, unit_system)
     # Convert the returned value to the preferred units
@@ -288,18 +288,17 @@ class Properties:
         self.nu = self.kinematic_viscosity
         self.rho = self.density = self.d
         self._units_to_independent_property = {
-            'K':['T'],
-            'Pa':['p'],
-            'm^3/g':['v'],
-            'm^3/mol':['v_molar'],
-            'J/g/K':['s'],
-            'J/mol/K':['s_molar'],
-            'J/g':['u','h'],
-            'g/m^3':['d'],
-            'mol/m^3':['d_molar'],
-            '':['x']
+            "K": ["T"],
+            "Pa": ["p"],
+            "m^3/g": ["v"],
+            "m^3/mol": ["v_molar"],
+            "J/g/K": ["s"],
+            "J/mol/K": ["s_molar"],
+            "J/g": ["u", "h"],
+            "g/m^3": ["d"],
+            "mol/m^3": ["d_molar"],
+            "": ["x"],
         }
-
 
     def _lookup(self, desired, **kwargs):
         """
@@ -827,7 +826,9 @@ Use the long-form `(keyword = argument)` notation, i.e.
         :returns: kinematic viscosity as a dimensional quantity
         """
         kwargs = self._update_kwargs(args, kwargs)
-        return (self._lookup("viscosity", **kwargs) / self._lookup("D", **kwargs)).to('m^2/s')
+        return (self._lookup("viscosity", **kwargs) / self._lookup("D", **kwargs)).to(
+            "m^2/s"
+        )
 
     def thermal_diffusivity(self, *args, **kwargs):
         """

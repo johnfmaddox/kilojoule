@@ -1,5 +1,5 @@
 from .common import preferred_units_from_type, preferred_units_from_symbol, invert_dict
-from .units import units, Quantity
+from .units import ureg, Quantity
 import matplotlib.pyplot as plt
 from IPython.display import display as mpldisplay
 from IPython.display import clear_output
@@ -8,7 +8,7 @@ import numpy as np
 # Set matplotlib figure size defaults
 plt.rcParams["figure.figsize"] = [6 * 2, 4 * 2]
 plt.rcParams["figure.dpi"] = 100  # 200 e.g. is really fine, but slower
-plt.style.use('seaborn-white')
+plt.style.use("seaborn-white")
 
 n_points_default = 100
 
@@ -63,7 +63,7 @@ class PropertyPlot:
         else:
             self.psychrometric = False
         # Set up matplotlib
-        units.setup_matplotlib()
+        ureg.setup_matplotlib()
         if fig is None:
             self.fig = plt.figure()
         else:
@@ -372,9 +372,9 @@ class PropertyPlot:
                 x1 = x_range[0].to(self.x_units).magnitude
                 x2 = x_range[1].to(self.x_units).magnitude
                 if self.ax.get_xscale() == "log":
-                    x_try = np.geomspace(x1, x2, num=n_points) * units(self.x_units)
+                    x_try = np.geomspace(x1, x2, num=n_points) * ureg(self.x_units)
                 else:
-                    x_try = np.linspace(x1, x2, n_points) * units(self.x_units)
+                    x_try = np.linspace(x1, x2, n_points) * ureg(self.x_units)
                 x = np.array([])
                 y = np.array([])
                 for i in x_try:
@@ -398,9 +398,9 @@ class PropertyPlot:
                 y1 = y_range[0].to(self.y_units).magnitude
                 y2 = y_range[1].to(self.y_units).magnitude
                 if self.ax.get_yscale() == "log":
-                    y_try = np.geomspace(y1, y2, num=n_points) * units(self.y_units)
+                    y_try = np.geomspace(y1, y2, num=n_points) * ureg(self.y_units)
                 else:
-                    y_try = np.linspace(y1, y2, n_points) * units(self.y_units)
+                    y_try = np.linspace(y1, y2, n_points) * ureg(self.y_units)
                 x = np.array([])
                 y = np.array([])
                 for i in y_try:

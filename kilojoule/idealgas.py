@@ -1,5 +1,5 @@
 from .common import preferred_units_from_type, preferred_units_from_symbol, invert_dict
-from .units import units, Quantity
+from .units import ureg, Quantity
 from .plotting import PropertyPlot
 import pyromat as pm
 import numpy as np
@@ -52,12 +52,12 @@ class Properties:
         self.e = self.u
         self.gamma = self.k
         self._units_to_independent_property = {
-            'K':['T'],
-            'Pa':['p'],
-            'm^3/g':['v'],
-            'J/g/K':['s'],
-            'J/g':['u','h'],
-            'g/m^3':['d'],
+            "K": ["T"],
+            "Pa": ["p"],
+            "m^3/g": ["v"],
+            "J/g/K": ["s"],
+            "J/g": ["u", "h"],
+            "g/m^3": ["d"],
         }
 
     def _update_kwargs(self, args, kwargs, min_length=2):
