@@ -2,7 +2,7 @@ import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
 from kilojoule.organization import QuantityTable
 from kilojoule.display import Calculations, Summary, set_latex
-from kilojoule.units import units, Quantity
+from kilojoule.units import ureg, Quantity
 import kilojoule.magics
 import kilojoule.constants as constants
 from kilojoule.tables import Bergman
@@ -13,7 +13,7 @@ import numpy as np
 
 # Plotting
 import matplotlib.pyplot as plt
-units.setup_matplotlib(True)
+ureg.setup_matplotlib(True)
 
 
 # Math imports

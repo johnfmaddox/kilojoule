@@ -1,4 +1,4 @@
-from .units import Quantity, units
+from .units import Quantity, ureg
 from .common import (
     invert_dict,
     CP_symbUpper_to_units,

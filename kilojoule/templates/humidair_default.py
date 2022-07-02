@@ -1,9 +1,9 @@
-import kilojoule.humidair 
+import kilojoule.humidair
 import kilojoule.realfluid
 import kilojoule.idealgas as idealgas
 from kilojoule.organization import QuantityTable
 from kilojoule.display import Calculations, Summary
-from kilojoule.units import units, Quantity
+from kilojoule.units import ureg, Quantity
 import kilojoule.magics
 from kilojoule.solution_hash import check_solutions, name_and_date, store_solutions
 
@@ -12,7 +12,7 @@ import numpy as np
 
 # Plotting
 import matplotlib.pyplot as plt
-units.setup_matplotlib(True)
+ureg.setup_matplotlib(True)
 
 
 # Math imports
@@ -36,7 +36,7 @@ properties_dict = {
      'm_w':'kg_water',             # mass
      'mdot_a':'kg_dry_air/s',      # mass flow rate
      'mdot_w':'kg_water/s',        # mass flow rate
-     'Vol':'m^3',                  # volume 
+     'Vol':'m^3',                  # volume
      'Vdot':'m^3/s',               # volumetric flow rate
      'Vel':'m/s',                  # velocity
      'X':'kJ',                     # exergy

@@ -3,7 +3,7 @@ import kilojoule.realfluid
 import kilojoule.idealgas as idealgas
 from kilojoule.organization import QuantityTable
 from kilojoule.display import Calculations, Summary
-from kilojoule.units import units, Quantity
+from kilojoule.units import ureg, Quantity
 import kilojoule.magics
 from kilojoule.solution_hash import check_solutions, name_and_date, store_solutions
 
@@ -12,7 +12,7 @@ import numpy as np
 
 # Plotting
 import matplotlib.pyplot as plt
-units.setup_matplotlib(True)
+ureg.setup_matplotlib(True)
 
 
 # Math imports

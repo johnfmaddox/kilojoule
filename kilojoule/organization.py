@@ -69,7 +69,7 @@ class PropertyDict:
     def __setitem__(self, item, value):
         if value is not None:
             if self.units is not None:
-                if isinstance(value, units.Quantity):
+                if isinstance(value, Quantity):
                     result = value.to(self.units)
                 else:
                     result = Quantity(value, self.units)
@@ -217,7 +217,7 @@ class QuantityTable:
             if self.dict[prop].units is not None:
                 df[prop] = df[prop].apply(
                     lambda x: x.to(self.dict[prop].units).m
-                    if isinstance(x, units.Quantity)
+                    if isinstance(x, Quantity)
                     else x
                 )
         if dropna:
