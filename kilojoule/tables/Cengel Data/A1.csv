@@ -1,4 +1,4 @@
-#,nme: Table A-1
+# name: Table A-1
 # caption: Molar mass, gas constant, and critical-point properties
 # source: Cengel and Boles 8th Edition
 # notes: The unit kJ/kg/K is equivalent to kPa*m^3/kg/K. The gas constant is calculated from R=R_u/M, where R_u=8.31447 kJ/kmol/K and M is the molar mass.

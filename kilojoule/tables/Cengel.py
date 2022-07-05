@@ -111,12 +111,17 @@ class Table:
         self.columns = s2u.keys()
 
     def _interp(
-        self, dependent_property, independent_property, independent_value, verbose=False
+        self,
+        dependent_property,
+        independent_property,
+        independent_value,
+        df,
+        verbose=False,
     ):
         # Independent Variable Data
-        ind_series = self.df[independent_property].values.quantity.magnitude
+        ind_series = df[independent_property].values.quantity.magnitude
         # Dependent Variable Data
-        dep_series = self.df[dependent_property].values.quantity.magnitude
+        dep_series = df[dependent_property].values.quantity.magnitude
         # Independent Variable Units
         ind_units = self.symbol_to_units[independent_property]
         # Dependent Variable Units
@@ -160,13 +165,24 @@ class Table:
 
     def _property_lookup(self, dep_sym, *args, verbose=False, **kwargs):
         if self._interp_table:
+            df = self.df
+            indep_syms = []
+            indep_vals = []
             for arg in args:
-                indep_sym = self._identify_symbol(arg)
-                indep_val = arg
+                indep_syms.append(self._identify_symbol(arg))
+                indep_vals.append(arg)
             for k, v in kwargs.items():
-                indep_sym = k
-                indep_val = v
-            return self._interp(dep_sym, indep_sym, indep_val, verbose=verbose)
+                indep_syms.append(k)
+                indep_vals.append(v)
+            for sym, val in zip(indep_syms, indep_vals):
+                if isinstance(val, str):
+                    if verbose:
+                        print(f"Filtering datafram with {sym}=={val}")
+                    df = df[df[sym] == val]
+                else:
+                    indep_sym = sym
+                    indep_val = val
+            return self._interp(dep_sym, indep_sym, indep_val, df=df, verbose=verbose)
         else:
             df = self.df
             found = False
