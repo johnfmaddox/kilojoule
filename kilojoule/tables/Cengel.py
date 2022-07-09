@@ -18,6 +18,7 @@ import pint
 pint.set_application_registry(ureg)
 import pint_pandas
 
+import warnings
 
 _transport_property_data_path = os.path.join(
     os.path.realpath(os.path.join(__file__, os.pardir, "Cengel Data"))
@@ -133,6 +134,12 @@ class Table:
             print(
                 f"{dependent_property=}, {independent_property=}, {independent_value=}, {ind_units=}, {dep_units=}"
             )
+        if not isinstance(independent_value, Quantity):
+            # if the value provided is not a Quantity, assume it is in the same units as the table
+            warnings.warn(
+                f"Expected {independent_property}={independent_value} to be a Quantity with units of '{ind_units}' but received a value of type {type(independent_value)}.\nConverting to a Quantity with units of '{ind_units}'...\n To remove this warning, convert the value to a Quantity before using it in this function."
+            )
+            independent_value = Quantity(independent_value, ind_units)
         result = Quantity(
             float(interp_func(independent_value.to(ind_units).magnitude)), dep_units
         )
