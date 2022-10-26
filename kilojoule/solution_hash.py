@@ -77,8 +77,11 @@ def hashq(obj, units=None, sigfigs=None, verbose=False):
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            str_rep = str(round(base_mag, sigfigs=sigfigs))
+            rounded_base_mag = round(base_mag, sigfigs=sigfigs)
+            if rounded_base_mag == 0: rounded_base_mag = 0 # fix for case of `-0.0` being interpreted differently than `0.0`
+            str_rep = str(rounded_base_mag)
     except:
+        if base_mag == 0: ssbase_mag = 0 # fix for case of `-0.0` being interpreted differently than `0.0`
         str_rep = str(base_mag)
     encoded_str = str_rep.encode()
     hash_obj = hashlib.md5(encoded_str)

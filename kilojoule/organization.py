@@ -81,6 +81,7 @@ class PropertyDict:
     def __delitem__(self, item):
         del self.dict[item]
 
+QuantityDict = PropertyDict
 
 class QuantityTable:
     """Table for storing quantities"""
