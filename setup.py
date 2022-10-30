@@ -25,7 +25,8 @@ setuptools.setup(
         "pandas",
         "matplotlib",
         "pint",
-        "pint-pandas" "coolprop",
+        "pint-pandas",
+        "coolprop",
         "pyromat",
         "regex",
         "schemdraw",  # required to use the drawing library
