@@ -29,6 +29,7 @@ setuptools.setup(
         "coolprop",
         "pyromat",
         "regex",
+        "rich",
         "schemdraw",  # required to use the drawing library
         "sigfig",  # required to check solutions
         "emoji",  # optional for "prettier" solution checking
