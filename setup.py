@@ -5,7 +5,7 @@ with open("README.rst", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="kilojoule",
-    version="0.2.9",
+    version="0.2.10",
     author="Jack Maddox",
     author_email="jackmaddox@gmail.com",
     description="A convenience package for thermodynamic and heat transfer calculations",
@@ -19,15 +19,19 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-        'numpy',
-        'scipy',
-        'sympy',
-        'pandas',
-        'matplotlib',
-        'pint',
-        'coolprop',
-        'pyromat',
-        'regex'
+        "numpy",
+        "scipy",
+        "sympy",
+        "pandas",
+        "matplotlib",
+        "pint",
+        "pint-pandas",
+        "coolprop",
+        "pyromat",
+        "regex",
+        "schemdraw",  # required to use the drawing library
+        "sigfig",  # required to check solutions
+        "emoji",  # optional for "prettier" solution checking
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.8",
 )
