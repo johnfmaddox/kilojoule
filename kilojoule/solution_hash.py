@@ -78,10 +78,16 @@ def hashq(obj, units=None, sigfigs=None, verbose=False):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             rounded_base_mag = round(base_mag, sigfigs=sigfigs)
-            if rounded_base_mag == 0: rounded_base_mag = 0 # fix for case of `-0.0` being interpreted differently than `0.0`
+            if rounded_base_mag == 0:
+                rounded_base_mag = (
+                    0  # fix for case of `-0.0` being interpreted differently than `0.0`
+                )
             str_rep = str(rounded_base_mag)
     except:
-        if base_mag == 0: ssbase_mag = 0 # fix for case of `-0.0` being interpreted differently than `0.0`
+        if base_mag == 0:
+            ssbase_mag = (
+                0  # fix for case of `-0.0` being interpreted differently than `0.0`
+            )
         str_rep = str(base_mag)
     encoded_str = str_rep.encode()
     hash_obj = hashlib.md5(encoded_str)
@@ -176,7 +182,7 @@ def check_solution(
         # KeyError if undefined index in a dict
         value = "??"
     if verbose:
-        print(f"{key=}; {value=}")
+        print(f"key={key}; value={value}")
     try:
         result_str_body = f"{to_latex(name)} &= {numeric_to_string(value)} && "
     except:
@@ -288,7 +294,7 @@ def store_solution(
         units = value.units
     key = prefix + name
     if verbose:
-        print(f"{key=}; {value=}")
+        print(f"key={key}; value={value}")
     # Read in existing hash database
     hash_db = read_solution_hashes(filename)
     if isinstance(value, list):
