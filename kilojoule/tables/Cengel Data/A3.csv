@@ -1,0 +1,14 @@
+# name: Table A-3 (b)
+# caption: Properties of common liquids, solids, and foods (b) Solids (values for room temperature unless indicated otherwise)
+# source: Cengel and Boles 8th Edition
+# notes: Sublimation temperature. (At pressures below the triple2point pressure of 518 kPa, carbon dioxide exists as a solid or gas. Also, the freezing-point temperature of carbon dioxide is the triple2point temperature of -56.58C.)
+# notes: The unit kJ/kg/K is equivalent to kPa*m^3/kg/K. The gas constant is calculated from R=R_u/M, where R_u=8.31447 kJ/kmol/K and M is the molar mass.
+# notes: Source of Data: Values are obtained from various handbooks and other sources or are calculated. Water content and freezing2point data of foods are from ASHRAE, Handbook of Fundamentals, SI version (Atlanta, GA: American Society of Heating, Refrigerating and Air2Conditioning Engineers, Inc., 1993), Chapter 30, Table 1. Freezing point is the temperature at which freezing starts for fruits and vegetables, and the average freezing temperature for other foods.
+# delimiter: ,
+# interpolate: False
+#----------------------------------------------------
+substance,T,density,c_p,notes
+#----------------------------------------------------
+None,K,kJ/kg/K,None
+#----------------------------------------------------
+Aluminum,200,2700,0.797
