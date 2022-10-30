@@ -433,7 +433,7 @@ class FormatCalculation:
             # Quantity
             if fn_base_name == "Quantity":
                 if verbose:
-                    print(f"Processing Quantity: {code}\n      {node.args=}")
+                    print(f"Processing Quantity: {code}\n      node.args={node.args}")
                 symbolic = to_numeric(
                     code, namespace=self.namespace, verbose=self.verbose
                 )
@@ -455,7 +455,7 @@ class FormatCalculation:
                         f"Processing plus_minus: {code}\n      node.args={node.args}\n      node.keywords={node.keywords}"
                     )
                     for kw in node.keywords:
-                        print(f"{kw.arg=}; {self._process_node(kw.value)}")
+                        print(f"kw.arg={kw.arg}; {self._process_node(kw.value)}")
                         print(eval(astor.to_source(kw.value)))
                 val = self._process_node(node.func.value)
                 symbolic = val["symbolic"]
