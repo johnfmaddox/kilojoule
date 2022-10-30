@@ -132,7 +132,7 @@ class Table:
         # Run the interp_func and apply the appropriate units
         if verbose:
             print(
-                f"{dependent_property=}, {independent_property=}, {independent_value=}, {ind_units=}, {dep_units=}"
+                f"dependent_property={dependent_property}, independent_property={independent_property}, independent_value={independent_value}, ind_units={ind_units}, dep_units={dep_units}"
             )
         if not isinstance(independent_value, Quantity):
             # if the value provided is not a Quantity, assume it is in the same units as the table
