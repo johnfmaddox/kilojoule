@@ -33,5 +33,5 @@ setuptools.setup(
         "sigfig",  # required to check solutions
         "emoji",  # optional for "prettier" solution checking
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.7",
 )
