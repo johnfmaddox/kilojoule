@@ -26,7 +26,8 @@ from rich import inspect
 
 from .units import ureg, Quantity
 
-env_math_delim = "$$"
+env_math_delim_begin = r"$$"
+env_math_delim_end = r"$$"
 multiplication_symbol = " \cdot "
 
 pre_sympy_latex_substitutions = {
@@ -231,7 +232,7 @@ class FormatCalculation:
             print(
                 f"LHS_Symbolic: {LHS_Symbolic}\nRHS_Symbolic: {RHS_Symbolic}\nRHS_Numeric: {RHS_Numeric}\nLHS_Numeric: {LHS_Numeric}"
             )
-        result = f"{env_math_delim}\\begin{{align}}\n  {LHS_Symbolic} &= {MID_Symbolic} {RHS_Symbolic} "
+        result = f"{env_math_delim_begin}\\begin{{align}}\n  {LHS_Symbolic} &= {MID_Symbolic} {RHS_Symbolic} "
         RSymComp = RHS_Symbolic.replace(" ", "")
         RNumComp = RHS_Numeric.replace(" ", "")
         LNumComp = LHS_Numeric.replace(" ", "")
@@ -247,7 +248,7 @@ class FormatCalculation:
                 result += f" = {LHS_Numeric} "
         else:
             result += f" = {LHS_Numeric}"
-        result += f"\n\\end{{align}}{env_math_delim}\n"
+        result += f"\n\\end{{align}}{env_math_delim_end}\n"
         self.output_string = result
 
     def _process_node(self, node, namespace=None, verbose=False, **kwargs):
@@ -748,7 +749,7 @@ class Quantities:
         self.style = style
         self.n = 1
         self.n_col = n_col
-        self.latex_string = f"{env_math_delim}\\begin{{align}}{{ "
+        self.latex_string = f"{env_math_delim_begin}\\begin{{align}}{{ "
         if variables is not None:
             for variable in variables:
                 self.add_variable(variable, **kwargs)
@@ -757,7 +758,7 @@ class Quantities:
                 if not k.startswith("_"):
                     if isinstance(v, ureg.Quantity) or isinstance(v, ureg.Measurement):
                         self.add_variable(k, **kwargs)
-        self.latex_string += f" }}\\end{{align}}{env_math_delim}"
+        self.latex_string += f" }}\\end{{align}}{env_math_delim_end}"
         # use regex to remove empty line from end of align environment if it exists
         self.latex_string = re.sub(
             r"\\\\\s*{\s*}\s*\\end{align}", r"\\end{align}", self.latex_string
