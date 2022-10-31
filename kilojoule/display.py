@@ -26,8 +26,8 @@ from rich import inspect
 
 from .units import ureg, Quantity
 
-math_delim_begin = r"\["
-math_delim_end = r"\]"
+math_delim_begin = r""
+math_delim_end = r""
 math_latex_environment = r"align"
 multiplication_symbol = " \cdot "
 
