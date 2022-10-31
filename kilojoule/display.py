@@ -26,8 +26,8 @@ from rich import inspect
 
 from .units import ureg, Quantity
 
-env_math_delim_begin = r"$$"
-env_math_delim_end = r"$$"
+env_math_delim_begin = r"begin"
+env_math_delim_end = r"end"
 multiplication_symbol = " \cdot "
 
 pre_sympy_latex_substitutions = {
