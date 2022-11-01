@@ -6,7 +6,6 @@ from kilojoule.display import Calculations, Summary, set_latex
 from kilojoule.units import ureg, Quantity
 import kilojoule.magics
 import kilojoule.constants as constants
-from kilojoule.tables import Bergman
 from kilojoule.solution_hash import check_solutions, name_and_date, store_solutions
 
 # Numpy
