@@ -705,7 +705,10 @@ class Calculations:
             elif isinstance(block, ast.Expr):
                 result = eval(astor.to_source(block), self.namespace)
                 if result is not None:
-                    display(Markdown(eval(astor.to_source(block), self.namespace)))
+                    try:
+                        display(Markdown(eval(astor.to_source(block), self.namespace)))
+                    except TypeError:
+                        pass
 
     def filter_string(self, string):
         result = ""
