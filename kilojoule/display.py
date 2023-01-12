@@ -69,8 +69,8 @@ post_sympy_latex_substitutions = {
     r",equals,": r"=",
     r",equal,": r"=",
     r"dimensionless": "",
-    r"^([A-Za-z])o_molar": "\\bar{\1}^{\\circ}",
-    r"^([A-Za-z])o_f_molar": "\\bar{\1}^{\\circ}_f",
+    r"^([A-Za-z])o_molar": r"\\bar{\1}^{\\circ}",  # Changed value to being a raw string to fix an error in Python 3.9 - this line and the next may need additional edits
+    r"^([A-Za-z])o_f_molar": r"\\bar{\1}^{\\circ}_f",
 }
 
 variable_name_latex_subs = {

@@ -330,68 +330,27 @@ class Properties:
         """use argument unit to identify appropriate keyword"""
         enthalpy_check = False
         for arg in args:
+
             if isinstance(arg, Quantity):
                 try:
                     arg_symb = arg.property_symbol
                     arg_dict = {arg_symb: arg}
                     kwargs = dict(**arg_dict, **kwargs)
+                    return kwargs
                 except:
-                    try:
-                        arg.to("K")  # Temperature
-                        kwargs = dict(T=arg, **kwargs)
-                    except:
+                    for units,sym in self._units_to_independent_property.items():
                         try:
-                            arg.to("kPa")  # pressure
-                            kwargs = dict(p=arg, **kwargs)
+                            arg.to(units) # check if the argument can be converted to the specified unit
+                            if len(sym)>1:
+                                raise AmbiguousUnitsError(f'Unable to determine the property type for {arg}. A value with units {units} could be any of the following: {" ".join(sym)}, use the key-value syntax instead, i.e. {" or ".join([i+"=..." for i in sym])}')
+                            else:
+                                arg.to(units)                                
+                                kwa = {f'{sym}':arg}
+                                kwargs = dict(**kwa, **kwargs)
+                                return kwargs
                         except:
-                            try:
-                                arg.to("m^3/kg")  # specific volume
-                                kwargs = dict(v=arg, **kwargs)
-                            except:
-                                try:
-                                    arg.to("kJ/kg/K")  # entropy
-                                    kwargs = dict(s=arg, **kwargs)
-                                except:
-                                    try:
-                                        arg.to("kg/m^3")  # density
-                                        kwargs = dict(d=arg, **kwargs)
-                                    except:
-                                        try:
-                                            arg.to("kJ/kmol/K")  # molar entropy
-                                            kwargs = dict(s_molar=arg, **kwargs)
-                                        except:
-                                            try:
-                                                arg.to("kmol/m^3")  # molar density
-                                                kwargs = dict(d_molar=arg, **kwargs)
-                                            except:
-                                                try:
-                                                    arg.to(
-                                                        "kJ/kg"
-                                                    )  # internal energy or enthalpy
-                                                    enthalpy_check = True
-                                                except:
-                                                    try:
-                                                        if arg.dimensionless and (
-                                                            0 <= arg <= 1
-                                                        ):  # quality
-                                                            kwargs = dict(
-                                                                x=arg, **kwargs
-                                                            )
-                                                    except:
-                                                        print(
-                                                            f"Unable to determine property type for {arg} based on units"
-                                                        )
-            elif 0 <= arg <= 1:  # quality
-                kwargs = dict(x=arg, **kwargs)
-            if enthalpy_check:
-                raise ValueError(
-                    """
-Cannot distinguish between internal energy and enthalpy based on units.
-Use the long-form `(keyword = argument)` notation, i.e.
->>> s[1] = water.s(p[1],h=h[1]) # short-form for p, long-form for h
-"""
-                )
-        return kwargs
+                            pass
+
 
     def T(self, *args, **kwargs):
         """
