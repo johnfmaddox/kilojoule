@@ -37,7 +37,7 @@ def name_and_date(Name):
 
     today = datetime.now(pytz.timezone("US/Central"))
     display(Markdown(Name))
-    display(Markdown(today.strftime("%B %d, %Y (%-I:%M %p CDT)")))
+    display(Markdown(today.strftime("%B %d, %Y (%I:%M %p CDT)")))
 
 
 class QuietError(Exception):
@@ -107,6 +107,19 @@ def hashq(obj, units=None, sigfigs=None, verbose=False):
     return hexa_value, str_rep, hash_dict
 
 
+def str_to_sol_list(sol_list):
+    # if the first argument is a string rather than a list, convert it to a list of variable names by splitting
+    # on delimeters in the order: comma (","), semicolon (";"), or space (" ")
+    if isinstance(sol_list, str):
+        split_char = " "
+        if "," in sol_list:
+            split_char = ","
+        elif ";" in sol_list:
+            split_char = ";"
+        sol_list = [i.strip() for i in sol_list.split(split_char) if len(i.strip()) > 0]
+    return sol_list
+
+
 def check_solutions(sol_list, n_col=3, namespace=None, **kwargs):
     """Accepts a list of solution check specifications and call `check_solution()` for each.
 
@@ -116,6 +129,7 @@ def check_solutions(sol_list, n_col=3, namespace=None, **kwargs):
     kwargs["namespace"] = namespace
     n = 1
     result_str = r"\begin{align} "
+    sol_list = str_to_sol_list(sol_list)
     for sol in sol_list:
         if isinstance(sol, str):
             result_str += check_solution(sol, single_check=False, **kwargs)
@@ -255,6 +269,7 @@ def store_solutions(
     """
     namespace = namespace or get_caller_namespace()
     kwargs["namespace"] = namespace
+    sol_list = str_to_sol_list(sol_list)
     for sol in sol_list:
         if isinstance(sol, str):
             store_solution(sol, **kwargs)
