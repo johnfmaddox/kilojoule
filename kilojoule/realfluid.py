@@ -330,27 +330,28 @@ class Properties:
         """use argument unit to identify appropriate keyword"""
         enthalpy_check = False
         for arg in args:
-
             if isinstance(arg, Quantity):
                 try:
                     arg_symb = arg.property_symbol
                     arg_dict = {arg_symb: arg}
                     kwargs = dict(**arg_dict, **kwargs)
-                    return kwargs
                 except:
-                    for units,sym in self._units_to_independent_property.items():
+                    for units, sym in self._units_to_independent_property.items():
                         try:
-                            arg.to(units) # check if the argument can be converted to the specified unit
-                            if len(sym)>1:
-                                raise AmbiguousUnitsError(f'Unable to determine the property type for {arg}. A value with units {units} could be any of the following: {" ".join(sym)}, use the key-value syntax instead, i.e. {" or ".join([i+"=..." for i in sym])}')
+                            arg.to(
+                                units
+                            )  # check if the argument can be converted to the specified unit
+                            if len(sym) > 1:
+                                raise AmbiguousUnitsError(
+                                    f'Unable to determine the property type for {arg}. A value with units {units} could be any of the following: {" ".join(sym)}, use the key-value syntax instead, i.e. {" or ".join([i+"=..." for i in sym])}'
+                                )
                             else:
-                                arg.to(units)                                
-                                kwa = {f'{sym}':arg}
-                                kwargs = dict(**kwa, **kwargs)
-                                return kwargs
+                                arg.to(units)
+                                new_kwa = {f"{sym[0]}": arg}
+                                kwargs = dict(**new_kwa, **kwargs)
                         except:
                             pass
-
+        return kwargs
 
     def T(self, *args, **kwargs):
         """

@@ -4,6 +4,7 @@ ureg = UnitRegistry()
 ureg.default_format = ".5~P"
 ureg.default_LaTeX_format = ":~L"
 Quantity = ureg.Quantity
+Measurement = ureg.Measurement
 
 # define custom ureg for dealing with humid air
 # lbmol

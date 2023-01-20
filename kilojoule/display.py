@@ -24,7 +24,7 @@ import ast
 import astor
 from rich import inspect
 
-from .units import ureg, Quantity
+from .units import ureg, Quantity, Measurement
 
 math_delim_begin = r""
 math_delim_end = r""
@@ -760,8 +760,11 @@ class Quantities:
         else:
             for k, v in sorted(self.namespace.items()):
                 if not k.startswith("_"):
-                    if isinstance(v, ureg.Quantity) or isinstance(v, ureg.Measurement):
-                        self.add_variable(k, **kwargs)
+                    try:
+                        if isinstance(v, Quantity) or isinstance(v, Measurement):
+                            self.add_variable(k, **kwargs)
+                    except TypeError:
+                        pass
         self.latex_string += f" }}\\end{{{math_latex_environment}}}{math_delim_end}"
         # use regex to remove empty line from end of align environment if it exists
         self.latex_string = re.sub(
