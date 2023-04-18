@@ -43,3 +43,6 @@ ureg.define("mole_water = [substance_water] = mol_water = mol_w = molw")
 ureg.define("pound_mole_water = 453.59237 * mol_water = lbmol_water = lbmol_w = lbmolw")
 # cubic feet per minute
 ureg.define("cubic_feet_per_minute = ft^3/min = cfm = CFM")
+
+# Currency
+ureg.define("USD = [currency]")
