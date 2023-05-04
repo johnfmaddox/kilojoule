@@ -17,7 +17,7 @@ ureg.setup_matplotlib(True)
 
 
 # Math imports
-from numpy import pi, log, log10, sqrt, sin, cos, tan, sinh, cosh, tanh, exp
+from numpy import pi, log, log10, sqrt, sin, cos, tan, arcsin, arccos, arctan, sinh, cosh, tanh, arcsinh, arccosh, arctanh, exp
 from math import e
 ln = log
 
@@ -25,6 +25,7 @@ ln = log
 import scipy.special
 I_0 = lambda x: scipy.special.iv(0,x.to('').magnitude)
 I_1 = lambda x: scipy.special.iv(1,x.to('').magnitude)
+I_2 = lambda x: scipy.special.iv(2,x.to('').magnitude)
 K_0 = lambda x: scipy.special.kv(0,x.to('').magnitude)
 K_1 = lambda x: scipy.special.kv(1,x.to('').magnitude)
 J_0 = lambda x: scipy.special.jv(0,x.to('').magnitude)
