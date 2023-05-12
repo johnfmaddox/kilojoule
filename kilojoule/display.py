@@ -118,6 +118,8 @@ def to_numeric(code, namespace=None, verbose=False):
         try:
             numeric = eval(code, namespace)
             numeric = numeric_to_string(numeric)
+        except NameError:
+            numeric = code
         except Exception as e:
             if verbose:
                 print(f"Error in to_numeric: {e}")
@@ -132,13 +134,13 @@ def numeric_to_string(numeric):
     if isinstance(numeric, ureg.Quantity) or isinstance(numeric, ureg.Measurement):
         try:
             numeric = f"{numeric:.5~L}"
-        except ValueError:
+        except (ValueError, TypeError):
             numeric = f"{numeric:~L}"
         numeric = re.sub(r"\\\s*$", "", numeric)
     else:
         try:
             numeric = f" {numeric:.5} "
-        except ValueError:
+        except (ValueError, TypeError):
             numeric = f" {numeric} "
     return numeric
 
@@ -192,23 +194,28 @@ def get_node_source(node: ast.AST, input_lines: list) -> str:
 
     Returns the original source code that was parsed to produce the node
     and any text that follows the first # sybmol on the same line"""
-    # NOTE: lineno starts from 1 not 0, so you need to subtract 1 when indexing input lines
-    if node.lineno == node.end_lineno:  # single line
-        source = input_lines[node.lineno - 1][node.col_offset : node.end_col_offset]
-    else:  # multi-line
-        source = [input_lines[node.lineno - 1][node.col_offset :]]
-        for line in range(node.lineno, node.end_lineno - 1):
-            source.append(input_lines[line][node.col_offset :])
-        source.append(
-            input_lines[node.end_lineno - 1][node.col_offset : node.end_col_offset]
-        )
-        source = "\n".join(source)
-    final_line = input_lines[node.end_lineno - 1]
-    if len(final_line) > node.end_col_offset:
-        trailing_source = final_line[node.end_col_offset :]
-        trailing_comment = "#".join(trailing_source.split("#")[1:]).strip()
-    else:
+    if isinstance(node, ast.Index):
+        print(_ast_to_string(node))
+        source = node.value.value
         trailing_comment = None
+    else:
+        # NOTE: lineno starts from 1 not 0, so you need to subtract 1 when indexing input lines
+        if node.lineno == node.end_lineno:  # single line
+            source = input_lines[node.lineno - 1][node.col_offset : node.end_col_offset]
+        else:  # multi-line
+            source = [input_lines[node.lineno - 1][node.col_offset :]]
+            for line in range(node.lineno, node.end_lineno - 1):
+                source.append(input_lines[line][node.col_offset :])
+            source.append(
+                input_lines[node.end_lineno - 1][node.col_offset : node.end_col_offset]
+            )
+            source = "\n".join(source)
+        final_line = input_lines[node.end_lineno - 1]
+        if len(final_line) > node.end_col_offset:
+            trailing_source = final_line[node.end_col_offset :]
+            trailing_comment = "#".join(trailing_source.split("#")[1:]).strip()
+        else:
+            trailing_comment = None
     return source, trailing_comment
 
 
