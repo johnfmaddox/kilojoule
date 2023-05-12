@@ -195,7 +195,6 @@ def get_node_source(node: ast.AST, input_lines: list) -> str:
     Returns the original source code that was parsed to produce the node
     and any text that follows the first # sybmol on the same line"""
     if isinstance(node, ast.Index):
-        print(_ast_to_string(node))
         source = node.value.value
         trailing_comment = None
     else:
@@ -785,7 +784,7 @@ class Calculations:
             self.cell_output += formatted_calc.output_string + "\n"
         elif isinstance(node, ast.Expr):
             result = eval(source_code, self.namespace)
-            self.cell_output += result + "\n"
+            self.cell_output += str(result) + "\n"
         else:
             try:
                 exec(source_code, self.namespace)
@@ -801,13 +800,17 @@ class Calculations:
 class QuantityTables:
     """Display all QuantityTables in namespace"""
 
-    def __init__(self, namespace=None, **kwargs):
+    def __init__(self, namespace=None, show=False, **kwargs):
         self.namespace = namespace or get_caller_namespace()
 
+        self.output_string = ""
         for k, v in sorted(self.namespace.items()):
             if not k.startswith("_"):
                 if isinstance(v, QuantityTable):
-                    v.display()
+                    self.output_string += v.display(show=show)
+
+    def __str__(self):
+        return self.output_string
 
 
 class Quantities:
@@ -817,7 +820,9 @@ class Quantities:
     variables.  Otherwise display all variables with units.
     """
 
-    def __init__(self, variables=None, n_col=3, style=None, namespace=None, **kwargs):
+    def __init__(
+        self, variables=None, n_col=3, style=None, namespace=None, show=False, **kwargs
+    ):
         self.namespace = namespace or get_caller_namespace()
         self.style = style
         self.n = 1
@@ -841,8 +846,9 @@ class Quantities:
             r"\\end{" + math_latex_environment + r"}",
             self.latex_string,
         )
-        self.latex = self.latex_string
-        display(Latex(self.latex_string))
+        self.latex = Latex(self.latex_string)
+        if show:
+            display(self.latex)
 
     def add_variable(self, variable, **kwargs):
         """Add a variable to the display list
@@ -869,6 +875,9 @@ class Quantities:
             self.latex_string += r" }\\{ "
             self.n = 1
 
+    def __str__(self):
+        return self.latex_string
+
 
 class Summary:
     """Display all quantities and QuantityTables in namespace
@@ -878,17 +887,35 @@ class Summary:
     """
 
     def __init__(
-        self, variables=None, n_col=None, namespace=None, style=None, **kwargs
+        self,
+        variables=None,
+        n_col=None,
+        namespace=None,
+        style=None,
+        show=False,
+        **kwargs,
     ):
         self.namespace = namespace or get_caller_namespace()
         if variables is not None:
             if n_col is None:
                 n_col = 1
-            Quantities(variables, n_col=n_col, namespace=self.namespace, style=style)
+            self.quantities = Quantities(
+                variables, n_col=n_col, namespace=self.namespace, style=style, show=show
+            )
         else:
             if n_col is None:
                 n_col = 3
             self.quantities = Quantities(
-                namespace=self.namespace, n_col=n_col, **kwargs
+                namespace=self.namespace, n_col=n_col, show=show, **kwargs
             )
-            self.state_tables = QuantityTables(namespace=self.namespace, **kwargs)
+            self.state_tables = QuantityTables(
+                namespace=self.namespace, show=show, **kwargs
+            )
+
+    def __str__(self):
+        output_string = ""
+        if self.quantities:
+            output_string += "\n" + str(self.quantities)
+        if self.state_tables:
+            output_string += "\n" + str(self.state_tables)
+        return output_string

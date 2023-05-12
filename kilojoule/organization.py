@@ -81,7 +81,9 @@ class PropertyDict:
     def __delitem__(self, item):
         del self.dict[item]
 
+
 QuantityDict = PropertyDict
+
 
 class QuantityTable:
     """Table for storing quantities"""
@@ -169,7 +171,7 @@ class QuantityTable:
             hasattr(value, "__getitem__") or hasattr(value, "__iter__")
         )
 
-    def display(self, *args, dropna=True, transpose=False, **kwargs):
+    def display(self, *args, dropna=True, show=True, transpose=False, **kwargs):
         """
 
         Args:
@@ -185,7 +187,10 @@ class QuantityTable:
         if transpose:
             df = df.transpose(**kwargs)
 
-        display(HTML(df.to_html(**kwargs)))
+        result = df.to_html(**kwargs)
+        if show:
+            display(HTML(result))
+        return result
 
     def to_dict(self):
         """ """
