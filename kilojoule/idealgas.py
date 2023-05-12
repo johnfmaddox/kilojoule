@@ -573,6 +573,8 @@ Use the long-form `(keyword = argument)` notation, i.e.
         """
         try:
             pm_result = self._pm.R
+            if not isinstance(pm_result, float):
+                pm_result = self._pm.R()
         except Exception as e:
             if self.verbose:
                 print(e)
