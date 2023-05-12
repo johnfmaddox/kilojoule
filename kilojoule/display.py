@@ -12,17 +12,12 @@ external document.
 from string import ascii_lowercase
 from IPython.display import display, HTML, Math, Latex, Markdown
 from sympy import sympify, latex
-import traceback
-
-# import re
 import regex as re
-import functools
 import inspect
-import logging
 from .organization import QuantityTable
 from .common import get_caller_namespace
 import ast
-import astor
+
 from rich import inspect
 
 from .units import ureg, Quantity, Measurement
@@ -126,6 +121,7 @@ def to_numeric(code, namespace=None, verbose=False):
         except Exception as e:
             if verbose:
                 print(f"Error in to_numeric: {e}")
+                raise (e)
             numeric = "??"
     else:
         numeric = numeric_to_string(code)
@@ -568,7 +564,7 @@ class FormatCalculation:
                 relative = False
                 for kw in node.keywords:
                     if kw.arg == "relative":
-                        relative = eval(astor.to_source(kw.value))
+                        relative = kw.value.value
                 if relative:
                     unc_str = f"{100*uncertainty}\\%"
                 else:
@@ -579,7 +575,7 @@ class FormatCalculation:
                     )
                     for kw in node.keywords:
                         print(f"kw.arg={kw.arg}; {self._process_node(kw.value)}")
-                        print(eval(astor.to_source(kw.value)))
+                        print(kw.value.value)
                 val = self._process_node(node.func.value)
                 symbolic = val["symbolic"]
                 code = val["code"]
@@ -667,8 +663,7 @@ class FormatCalculation:
                 list_delim = kwargs["list_delim"]
             else:
                 list_delim = ["\\left[", "\\right]"]
-            # lst = ast.unparse(node) # available in python 3.9
-            lst = eval(astor.to_source(node), self.namespace)
+            lst = eval(get_node_source(node, self.input_lines)[0], self.namespace)
             elt = self._process_node(node.elt)
             symbolic = f"{{\\left[ {elt['symbolic']} \\right]}}"
             for comprehension in node.generators:
@@ -692,7 +687,7 @@ class FormatCalculation:
             if self.verbose:
                 print(f"not implemented for {node.__class__.__name__}")
                 _ast_to_string(node)
-            code = astor.to_source(node)
+            code = get_node_source(node, self.input_lines)[0]
             symbolic = code
             if numeric is not None:
                 numeric = f"{eval(code, self.namespace)}"
