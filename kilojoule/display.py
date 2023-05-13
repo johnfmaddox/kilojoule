@@ -157,7 +157,10 @@ def to_latex(code, check_italics=False):
     else:
         for k, v in pre_sympy_latex_substitutions.items():
             code = re.sub(k, v, code)
-        code = latex(sympify(code))
+        try:
+            code = latex(sympify(code))
+        except Exception as e:
+            pass
         for key, value in post_sympy_latex_substitutions.items():
             code = re.sub(key, value, code)
         if check_italics:
@@ -196,6 +199,8 @@ def index_to_latex(code):
 
 
 def adjust_italics(code):
+    # temporarily disable this feature
+    return code
     split_code = code.split("_", 1)
     var = split_code[0]
     var_sympify = latex(sympify(var))
@@ -421,7 +426,7 @@ class FormatCalculation:
         # Simple variable
         elif isinstance(node, ast.Name):
             symbolic = to_latex(code)
-            symbolic = adjust_italics(code)
+            # symbolic = adjust_italics(code)
             if numeric:
                 numeric = to_numeric(code, namespace, verbose=self.verbose)
 
