@@ -183,7 +183,7 @@ def over_to_latex(code, check_italics=False):
     return symbolic
 
 
-def index_to_latex(code):
+def index_to_latex(code, check_italics=False):
     """Format a variable name with the index in the subscript"""
     var, slc = code.split("[", 1)
     print(f"{slc=}")
