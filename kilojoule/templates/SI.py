@@ -5,6 +5,7 @@ from kilojoule.display import Calculations, Summary, set_latex
 from kilojoule.units import ureg, Quantity
 import kilojoule.magics
 from kilojoule.solution_hash import check_solutions, name_and_date, store_solutions
+from IPython.display import Image
 
 # Numpy
 import numpy as np
