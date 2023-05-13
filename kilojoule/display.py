@@ -192,7 +192,6 @@ def index_to_latex(code, check_italics=False):
         slc_sym = to_latex(slc)
     except Exception as e:
         slc_sym = slc
-    print(f"{slc_sym=}")
     symbolic = f"{{ {var_sym} }}_{{ {slc_sym} }}"
     return symbolic
 
