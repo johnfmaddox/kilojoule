@@ -147,31 +147,33 @@ def numeric_to_string(numeric):
     return numeric
 
 
-def to_latex(code):
+def to_latex(code, check_italics=False):
     if code in variable_name_latex_subs.keys():
         return variable_name_latex_subs[code]
     if "[" in code:
-        return index_to_latex(code)
+        return index_to_latex(code, check_italics=check_italics)
     if "_over_" in code:
-        return over_to_latex(code)
+        return over_to_latex(code, check_italics=check_italics)
     else:
         for k, v in pre_sympy_latex_substitutions.items():
             code = re.sub(k, v, code)
         code = latex(sympify(code))
         for key, value in post_sympy_latex_substitutions.items():
             code = re.sub(key, value, code)
+        if check_italics:
+            code = adjust_italics(code)
         return code
 
 
-def over_to_latex(code):
+def over_to_latex(code, check_italics=False):
     """Format a variable name as a fraction if it has '_over_' in it's name"""
     num, denom = code.split("_over_")
     try:
-        num_sym = to_latex(num)
+        num_sym = to_latex(num, check_italics)
     except Exception as e:
         num_sym = num
     try:
-        denom_sym = to_latex(denom)
+        denom_sym = to_latex(denom, check_italics)
     except Exception as e:
         denom_sym = denom
     symbolic = f"{{ \\frac{{ {num_sym} }}{{ {denom_sym} }} }}"
@@ -195,7 +197,6 @@ def index_to_latex(code):
 
 def adjust_italics(code):
     split_code = code.split("_", 1)
-    print(f"{code=}")
     var = split_code[0]
     if len(var) > 1 and "\\" not in var:
         var = f"\\mathrm{{{var}}}"
@@ -422,9 +423,7 @@ class FormatCalculation:
         elif isinstance(node, ast.Subscript):
             val = self._process_node(node.value)
             slc = self._process_node(node.slice)
-            print("here")
             subscript = slc["numeric"]
-            print(f"{subscript=}")
             if isinstance(subscript, str):
                 split_subscript = subscript.split()
                 subscript_list = []
@@ -437,7 +436,6 @@ class FormatCalculation:
 
             # symbolic = f"{{{val['symbolic']}}}_{{ {slc['numeric']} }}"
             symbolic = f"{{{val['symbolic']}}}_{{ {subscript} }}"
-            print(symbolic)
             if numeric:
                 numeric = to_numeric(code, namespace, verbose=self.verbose)
 
@@ -903,7 +901,7 @@ class Quantities:
         Returns:
 
         """
-        symbol = to_latex(variable)
+        symbol = to_latex(variable, check_italics=True)
         value = to_numeric(variable, self.namespace)
         boxed_styles = ["box", "boxed", "sol", "solution"]
         if self.style in boxed_styles:
