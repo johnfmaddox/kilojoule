@@ -186,7 +186,6 @@ def over_to_latex(code, check_italics=False):
 def index_to_latex(code, check_italics=False):
     """Format a variable name with the index in the subscript"""
     var, slc = code.split("[", 1)
-    print(f"{slc=}")
     var_sym = to_latex(var)
     slc = slc[:-1]
     try:
