@@ -120,6 +120,8 @@ def to_numeric(code, namespace=None, verbose=False):
             numeric = numeric_to_string(numeric)
         except NameError:
             numeric = code
+        except SyntaxError:
+            numeric = code
         except Exception as e:
             if verbose:
                 print(f"Error in to_numeric: {e}")
@@ -179,14 +181,39 @@ def over_to_latex(code):
 def index_to_latex(code):
     """Format a variable name with the index in the subscript"""
     var, slc = code.split("[", 1)
+    print(f"{slc=}")
     var_sym = to_latex(var)
     slc = slc[:-1]
     try:
         slc_sym = to_latex(slc)
     except Exception as e:
         slc_sym = slc
+    print(f"{slc_sym=}")
     symbolic = f"{{ {var_sym} }}_{{ {slc_sym} }}"
     return symbolic
+
+
+def adjust_italics(code):
+    split_code = code.split("_", 1)
+    print(f"{code=}")
+    var = split_code[0]
+    if len(var) > 1 and "\\" not in var:
+        var = f"\\mathrm{{{var}}}"
+    if len(split_code) > 1:
+        sub = split_code[1]
+        if sub[0] in "{([<":
+            sub_delims = [sub[0], sub[-1]]
+            subs = sub[1:-1].split(",")
+        else:
+            sub_delims = ["", ""]
+            subs = sub.split(",")
+        for i, s in enumerate(subs):
+            if len(s.strip()) > 1 and "\\" not in s:
+                subs[i] = f"\\mathrm{{{s}}}"
+        sub = sub_delims[0] + ",".join(subs) + sub_delims[1]
+        return f"{var}_{sub}"
+    else:
+        return f"{var}"
 
 
 def get_node_source(node: ast.AST, input_lines: list) -> str:
@@ -387,6 +414,7 @@ class FormatCalculation:
         # Simple variable
         elif isinstance(node, ast.Name):
             symbolic = to_latex(code)
+            symbolic = adjust_italics(code)
             if numeric:
                 numeric = to_numeric(code, namespace, verbose=self.verbose)
 
@@ -394,14 +422,29 @@ class FormatCalculation:
         elif isinstance(node, ast.Subscript):
             val = self._process_node(node.value)
             slc = self._process_node(node.slice)
-            symbolic = f"{{{val['symbolic']}}}_{{ {slc['numeric']} }}"
+            print("here")
+            subscript = slc["numeric"]
+            print(f"{subscript=}")
+            if isinstance(subscript, str):
+                split_subscript = subscript.split()
+                subscript_list = []
+                for i in split_subscript:
+                    if "\\" not in i and len(i) > 1:
+                        subscript_list.append(f"\\mathrm{{{i}}}")
+                    else:
+                        subscript_list.append(i)
+                subscript = "\\,".join(subscript_list)
+
+            # symbolic = f"{{{val['symbolic']}}}_{{ {slc['numeric']} }}"
+            symbolic = f"{{{val['symbolic']}}}_{{ {subscript} }}"
+            print(symbolic)
             if numeric:
                 numeric = to_numeric(code, namespace, verbose=self.verbose)
 
         # Index
         elif isinstance(node, ast.Index):
             result = self._process_node(node.value)
-            symbolic = result["symbolic"]
+            symbolic = f'\\mathrm{{{result["symbolic"]}}}'
             if numeric:
                 numeric = to_numeric(code, namespace, verbose=self.verbose)
 
