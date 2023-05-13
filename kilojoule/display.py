@@ -198,8 +198,11 @@ def index_to_latex(code):
 def adjust_italics(code):
     split_code = code.split("_", 1)
     var = split_code[0]
-    if len(var) > 1 and "\\" not in var:
+    var_sympify = latex(sympify(var))
+    if len(var) > 1 and "\\" not in var and "\\" not in var_sympify:
         var = f"\\mathrm{{{var}}}"
+    else:
+        var = var_sympify
     if len(split_code) > 1:
         sub = split_code[1]
         if sub[0] in "{([<":
@@ -209,8 +212,11 @@ def adjust_italics(code):
             sub_delims = ["", ""]
             subs = sub.split(",")
         for i, s in enumerate(subs):
-            if len(s.strip()) > 1 and "\\" not in s:
+            s_sympify = latex(sympify(s))
+            if len(s.strip()) > 1 and "\\" not in s and "\\" not in s_sympify:
                 subs[i] = f"\\mathrm{{{s}}}"
+            else:
+                subs[i] = s_sympify
         sub = sub_delims[0] + ",".join(subs) + sub_delims[1]
         return f"{var}_{sub}"
     else:
