@@ -988,8 +988,8 @@ class PropertyPlot:
                 x_g = getattr(self.props, self.x_symb)(**prop_dict, x=1).to(
                     self.x_units
                 )
+                isoline = []
                 if x_f > xmin:
-                    isoline = []
                     isoline.append(
                         self.plot_iso_line(
                             iso_symb,
@@ -1013,6 +1013,10 @@ class PropertyPlot:
                             iso_symb, iso_value, x_range=[x_g, xmax], **kwargs
                         )[0]
                     )
+                if len(isoline) == 0:
+                    isoline.append(
+                        self.plot_iso_line(iso_symb, iso_value, x_range[xmin, xmax], **kwargs)[0]
+                    )
             except Exception as e:
                 if verbose:
                     print("Error: {e}")
@@ -1028,7 +1032,7 @@ class PropertyPlot:
                 except Exception as e:
                     if verbose:
                         print("Error: {e}")
-                        print("Attemption to plot across y-axis")
+                        print("Attempting to plot across y-axis")
                     isoline = self.plot_iso_line(
                         iso_symb,
                         iso_value,
