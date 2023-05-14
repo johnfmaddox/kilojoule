@@ -952,6 +952,7 @@ class Summary:
             self.quantities = Quantities(
                 variables, n_col=n_col, namespace=self.namespace, style=style, show=show
             )
+            self.state_tables = None
         else:
             if n_col is None:
                 n_col = 3
