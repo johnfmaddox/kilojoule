@@ -27,6 +27,7 @@ import re
 default_hash_filename = ".solution_hashes"
 default_student_dir = "student/"
 default_sigfigs = 4
+default_machine_zero = 1e-12
 
 try:
     import emoji
@@ -97,7 +98,7 @@ def quiet_hook(kind, message, traceback):
 sys.excepthook = quiet_hook
 
 
-def hashq(obj, units=None, sigfigs=None, verbose=False):
+def hashq(obj, units=None, sigfigs=None, round_machine_zero=True, verbose=False):
     if isinstance(obj, Quantity):
         base = obj.to_base_units()
         base_mag = base.magnitude
@@ -105,6 +106,11 @@ def hashq(obj, units=None, sigfigs=None, verbose=False):
     else:
         base = base_mag = obj
         base_units = units
+    if verbose:
+        print(f"{base_mag=}; {base_units=}")
+    if round_machine_zero:
+        if base_mag < default_machine_zero:
+            base_mag = 0.0
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -136,7 +142,11 @@ def hashq(obj, units=None, sigfigs=None, verbose=False):
             )
     if units is not None:
         str_rep += f" {base_units}"
-    hash_dict = dict(hash=hexa_value, units=units, sigfigs=sigfigs)
+    hash_dict = dict(
+        hash=hexa_value,
+        units=units,
+        sigfigs=sigfigs,
+    )
     return hexa_value, str_rep, hash_dict
 
 
@@ -248,9 +258,18 @@ def check_solution(
         target_hashes = hash_db["hashes"]
         firt_sigfig_hashes = hash_db["first_sigfig_hashes"]
         # target_hashes = [str(i['hash']) for i in read_solution_hash(key)]
+        if "round_machine_zero" in hash_db.keys():
+            round_machine_zero = hash_db["round_machine_zero"]
+        else:
+            round_machine_zero = True
         try:
             hash_value, str_rep, hash_dict = hashq(
-                value, units=units, sigfigs=sigfigs, verbose=verbose, **kwargs
+                value,
+                units=units,
+                sigfigs=sigfigs,
+                round_machine_zero=round_machine_zero,
+                verbose=verbose,
+                **kwargs,
             )
             if verbose:
                 print(f"hash: {hash_value} <-> target: {target_hashes}")
@@ -329,6 +348,7 @@ def store_solution(
     namespace=None,
     prefix="",
     filename=default_hash_filename,
+    round_machine_zero=True,
     verbose=False,
     **kwargs,
 ):
@@ -357,11 +377,21 @@ def store_solution(
         hashes = [
             str(hashq(i, units, sigfigs, verbose=verbose, **kwargs)[0]) for i in value
         ]
+        first_sigfig_hashes = [
+            str(hashq(value, units, sigfigs=1, verbose=verbose, **kwargs)[0])
+            for i in value
+        ]
+        for val in value.magnitude:
+            if round_machine_zero and val < default_machine_zero:
+                round_machine_zero = False
     else:
         hashes = [str(hashq(value, units, sigfigs, verbose=verbose, **kwargs)[0])]
         first_sigfig_hashes = [
             str(hashq(value, units, sigfigs=1, verbose=verbose, **kwargs)[0])
         ]
+        print(value)
+        if round_machine_zero and value.magnitude < default_machine_zero:
+            round_machine_zero = False
     hash_db[key] = dict(
         hashes=hashes,
         first_sigfig_hashes=first_sigfig_hashes,
