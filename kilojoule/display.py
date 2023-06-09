@@ -838,14 +838,18 @@ class Calculations:
         self.symbolic = symbolic
         self.numeric = numeric
         self.cell_output = ""
+        print("here")
+        globals()["__inside_kj_display_Calculations__"] = True
 
         if repeat_for:
             gen_split = repeat_for.split(" in ")
-            gen_var = gen_split[0][1:]
+            gen_var = gen_split[0][1:].strip()
             gen_range = eval(gen_split[1][:-1], self.namespace)
-            # print(f"{gen_range}")
+            if verbose:
+                print(f"{gen_range}")
             for gen_val in gen_range:
-                # print(f"{gen_var=}; {gen_val=}")
+                if verbose:
+                    print(f"{gen_var=}; {gen_val=}")
                 self.namespace[gen_var] = gen_val
                 self.process_body()
         elif repeat_n:
@@ -853,6 +857,7 @@ class Calculations:
                 self.process_body()
         else:
             self.process_body()
+        globals()["__inside_kj_display_Calculations__"] = False
 
     def process_body(self):
         self.cell_output = ""
@@ -1001,9 +1006,15 @@ class Summary:
         n_col=None,
         namespace=None,
         style=None,
-        show=False,
+        show=True,
         **kwargs,
     ):
+        if "__inside_kj_display_Calculations__" in globals():
+            print("in calculations")
+            if globals()["__inside_kj_display_Calculations__"]:
+                show = False
+        else:
+            print("not in calculations")
         self.namespace = namespace or get_caller_namespace()
         if variables is not None:
             if n_col is None:
