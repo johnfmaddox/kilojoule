@@ -838,7 +838,6 @@ class Calculations:
         self.symbolic = symbolic
         self.numeric = numeric
         self.cell_output = ""
-        print("here")
         globals()["__inside_kj_display_Calculations__"] = True
 
         if repeat_for:
@@ -1006,15 +1005,17 @@ class Summary:
         n_col=None,
         namespace=None,
         style=None,
-        show=True,
+        show=None,
         **kwargs,
     ):
-        if "__inside_kj_display_Calculations__" in globals():
-            print("in calculations")
-            if globals()["__inside_kj_display_Calculations__"]:
-                show = False
-        else:
-            print("not in calculations")
+        if show is None:
+            if "__inside_kj_display_Calculations__" in globals():
+                if globals()["__inside_kj_display_Calculations__"]:
+                    show = False
+                else:
+                    show = True
+            else:
+                show = True
         self.namespace = namespace or get_caller_namespace()
         if variables is not None:
             if n_col is None:
