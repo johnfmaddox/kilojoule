@@ -389,7 +389,7 @@ def store_solution(
         first_sigfig_hashes = [
             str(hashq(value, units, sigfigs=1, verbose=verbose, **kwargs)[0])
         ]
-        print(value)
+        # print(value)
         if round_machine_zero and value.magnitude < default_machine_zero:
             round_machine_zero = False
     hash_db[key] = dict(
