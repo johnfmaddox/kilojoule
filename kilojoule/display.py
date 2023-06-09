@@ -110,11 +110,11 @@ def _ast_to_string(ast_node, line_indent=""):
         return repr(ast_node)
 
 
-def to_numeric(code, namespace=None, verbose=False):
+def to_numeric(code, namespace=None, verbose=False, line_indent=""):
     namespace = namespace or get_caller_namespace()
     if isinstance(code, str):
         if verbose:
-            print(f"to_numeric: {code}")
+            print(f"{line_indent}to_numeric: {code}")
         try:
             numeric = eval(code, namespace)
             numeric = numeric_to_string(numeric)
@@ -124,7 +124,7 @@ def to_numeric(code, namespace=None, verbose=False):
             numeric = code
         except Exception as e:
             if verbose:
-                print(f"Error in to_numeric: {e}")
+                print(f"{line_indent}Error in to_numeric: {e}")
                 raise (e)
             numeric = "??"
     else:
@@ -232,7 +232,10 @@ def get_node_source(node: ast.AST, input_lines: list) -> str:
     Returns the original source code that was parsed to produce the node
     and any text that follows the first # sybmol on the same line"""
     if isinstance(node, ast.Index):
-        source = node.value.value
+        if hasattr(node.value, "value"):
+            source = node.value.value
+        elif hasattr(node.value, "id"):
+            source = node.value.id
         trailing_comment = None
     else:
         # NOTE: lineno starts from 1 not 0, so you need to subtract 1 when indexing input lines
@@ -349,9 +352,13 @@ class FormatCalculation:
     def _process_assignment_node(self):
         node = self.input_node
         RHS_Symbolic = ""
+        if self.verbose:
+            print("\n*** Processing RHS ***")
         RHS = self._process_node(node.value, self.namespace, self.verbose)
         RHS_Symbolic = RHS["symbolic"]
         RHS_Numeric = RHS["numeric"]
+        if self.verbose:
+            print("\n*** Processing LHS ***")
         LHS_execution_error = self._execute_code(self.source)
         LHS = self._process_node(node.targets[0], self.namespace, self.verbose)
         LHS_Symbolic = LHS["symbolic"]
@@ -399,6 +406,7 @@ class FormatCalculation:
         symbolic=True,
         numeric=True,
         verbose=None,
+        level=1,
         **kwargs,
     ):
         namespace = namespace or self.namespace
@@ -410,10 +418,11 @@ class FormatCalculation:
         code, trailing_comment = get_node_source(node, input_lines=self.input_lines)
         lst = []
         dct = {}
-
+        line_indent = "  " * level
+        next_level = level + 1
         if self.verbose:
-            print(_ast_to_string(node))
-            print(f"{numeric=}")
+            print(_ast_to_string(node, line_indent=line_indent))
+            print(f"{line_indent}{numeric=}")
 
         # Number or String
         if isinstance(node, ast.Constant):
@@ -426,40 +435,52 @@ class FormatCalculation:
             symbolic = to_latex(code)
             # symbolic = adjust_italics(code)
             if numeric:
-                numeric = to_numeric(code, namespace, verbose=self.verbose)
+                numeric = to_numeric(
+                    code, namespace, verbose=self.verbose, line_indent=line_indent
+                )
 
         # Subscript
         elif isinstance(node, ast.Subscript):
-            val = self._process_node(node.value)
-            slc = self._process_node(node.slice)
-            subscript = slc["numeric"]
-            if isinstance(subscript, str):
-                split_subscript = subscript.split()
-                subscript_list = []
-                for i in split_subscript:
-                    if "\\" not in i and len(i) > 1:
-                        subscript_list.append(f"\\mathrm{{{i}}}")
-                    else:
-                        subscript_list.append(i)
-                subscript = "\\,".join(subscript_list)
-
+            val = self._process_node(node.value, level=next_level)
+            slc = self._process_node(node.slice, level=next_level)
+            subscript = slc["symbolic"]
+            if self.verbose:
+                print(f"{line_indent}  {subscript}")
+            split_subscript = subscript.split()
+            subscript_list = []
+            for i in split_subscript:
+                if "\\" not in i and len(i) > 1:
+                    subscript_list.append(f"\\mathrm{{{i}}}")
+                else:
+                    subscript_list.append(i)
+            subscript = "\\,".join(subscript_list)
             # symbolic = f"{{{val['symbolic']}}}_{{ {slc['numeric']} }}"
             symbolic = f"{{{val['symbolic']}}}_{{ {subscript} }}"
             if numeric:
-                numeric = to_numeric(code, namespace, verbose=self.verbose)
+                numeric = to_numeric(
+                    code, namespace, verbose=self.verbose, line_indent=line_indent
+                )
 
         # Index
         elif isinstance(node, ast.Index):
-            result = self._process_node(node.value)
-            symbolic = f'\\mathrm{{{result["symbolic"]}}}'
+            if self.verbose:
+                print(f"{line_indent}processing index: {code}")
+            source = node
+            result = self._process_node(node.value, level=next_level)
+            # symbolic = f'\\mathrm{{{result["symbolic"]}}}'
+            symbolic = f"\\mathrm{{{to_latex(code)}}}"
+            if self.verbose:
+                print(f"{line_indent}symbolic: {symbolic}")
             if numeric:
-                numeric = to_numeric(code, namespace, verbose=self.verbose)
+                numeric = to_numeric(
+                    code, namespace, verbose=self.verbose, line_indent=line_indent
+                )
 
         # Simple Math Operation
         elif isinstance(node, ast.BinOp):
             self.iscomplex = True
-            left = self._process_node(node.left)
-            right = self._process_node(node.right)
+            left = self._process_node(node.left, level=next_level)
+            right = self._process_node(node.right, level=next_level)
 
             # Addition
             if isinstance(node.op, ast.Add):
@@ -535,21 +556,23 @@ class FormatCalculation:
         # Unary Operation
         elif isinstance(node, ast.UnaryOp):
             if self.verbose:
-                print(f"Processing UnaryOp: {node.operand}")
+                print(f"{line_indent}Processing UnaryOp: {node.operand}")
             if isinstance(node.op, ast.USub):
-                operand = self._process_node(node.operand)
+                operand = self._process_node(node.operand, level=next_level)
                 symbolic = f"-{operand['symbolic']}"
                 # code = symbolic
                 if numeric:
                     numeric = f"-\\left( {operand['numeric']} \\right)"
             else:
-                print(f"UnaryOp not implemented for {node.op.__class__.__name__}")
-                _ast_to_string(node)
+                print(
+                    f"{line_indent}UnaryOp not implemented for {node.op.__class__.__name__}"
+                )
+                _ast_to_string(node, line_indent=line_indent)
 
         # Function call
         elif isinstance(node, ast.Call):
             if isinstance(node.func, ast.Attribute):
-                attr = self._process_node(node.func, in_fn_call=True)
+                attr = self._process_node(node.func, in_fn_call=True, level=next_level)
                 fn_name_sym = attr["symbolic"]
                 fn_name_code = attr["code"]
             else:
@@ -578,8 +601,8 @@ class FormatCalculation:
                     if numeric:
                         numeric += ", "
                 if verbose:
-                    print(f"Processing Arg: {arg}")
-                parg = self._process_node(arg)
+                    print(f"{line_indent}Processing Arg: {arg}")
+                parg = self._process_node(arg, level=next_level)
                 if verbose:
                     inspect(parg)
                 code += parg["code"]
@@ -588,7 +611,7 @@ class FormatCalculation:
                     numeric += parg["numeric"]
                 arg_idx += 1
             for kw in node.keywords:
-                val = self._process_node(kw.value)
+                val = self._process_node(kw.value, level=next_level)
                 if arg_idx > 0:
                     code += ", "
                     symbolic += ", "
@@ -608,9 +631,14 @@ class FormatCalculation:
             # Quantity
             if fn_base_name == "Quantity":
                 if verbose:
-                    print(f"Processing Quantity: {code}\n      node.args={node.args}")
+                    print(
+                        f"{line_indent}Processing Quantity: {code}\n{line_indent}  node.args={node.args}"
+                    )
                 symbolic = to_numeric(
-                    code, namespace=self.namespace, verbose=self.verbose
+                    code,
+                    namespace=self.namespace,
+                    verbose=self.verbose,
+                    line_indent=line_indent,
                 )
                 numeric = symbolic
             # .plus_minus()
@@ -627,12 +655,14 @@ class FormatCalculation:
                     unc_str = f"{uncertainty}"
                 if verbose:
                     print(
-                        f"Processing plus_minus: {code}\n      node.args={node.args}\n      node.keywords={node.keywords}"
+                        f"{line_indent}Processing plus_minus: {code}\n{line_indent}  node.args={node.args}\n{line_indent}  node.keywords={node.keywords}"
                     )
                     for kw in node.keywords:
-                        print(f"kw.arg={kw.arg}; {self._process_node(kw.value)}")
-                        print(kw.value.value)
-                val = self._process_node(node.func.value)
+                        print(
+                            f"{line_indent}kw.arg={kw.arg}; {self._process_node(kw.value, level=next_level)}"
+                        )
+                        print(f"{line_indent}{kw.value.value}")
+                val = self._process_node(node.func.value, level=next_level)
                 symbolic = val["symbolic"]
                 code = val["code"]
                 if numeric is not None:
@@ -643,7 +673,7 @@ class FormatCalculation:
                     numeric = symbolic
             # .to()
             elif fn_base_name == "to":
-                val = self._process_node(node.func.value)
+                val = self._process_node(node.func.value, level=next_level)
                 symbolic = val["symbolic"]
                 code = val["code"]
                 if numeric is not None:
@@ -653,14 +683,22 @@ class FormatCalculation:
                 symbolic = numeric = ""
                 if isinstance(node.args[0], ast.ListComp):
                     listcomp = self._process_node(
-                        node.args[0], join_symb="+", list_delim=["", ""]
+                        node.args[0],
+                        join_symb="+",
+                        list_delim=["", ""],
+                        level=next_level,
                     )
-                    elt = self._process_node(node.args[0].elt)
+                    elt = self._process_node(node.args[0].elt, level=next_level)
                     for comprehension in node.args[0].generators:
                         symbolic += r"\sum"
                         # numeric += r"\sum"
-                        target = self._process_node(comprehension.target)
-                        comp_iter = self._process_node(comprehension.iter)
+                        target = self._process_node(
+                            comprehension.target,
+                            level=next_level,
+                        )
+                        comp_iter = self._process_node(
+                            comprehension.iter, level=next_level
+                        )
                         symbolic += f"_{{{target['symbolic']}={comp_iter['symbolic']}}}"
                         # numeric += f"_{{{target['numeric']}}}"
                     symbolic += f"{{ {elt['symbolic']} }}"
@@ -669,7 +707,7 @@ class FormatCalculation:
 
         # Attribute
         elif isinstance(node, ast.Attribute):
-            val = self._process_node(node.value, nested_attr=True)
+            val = self._process_node(node.value, nested_attr=True, level=next_level)
             code = f"{val['code']}.{node.attr}"
             symbolic = code
             if numeric is not None:
@@ -685,7 +723,10 @@ class FormatCalculation:
                         print(f"code: {code}")
                     if numeric is not None:
                         numeric = to_numeric(
-                            code, namespace=self.namespace, verbose=self.verbose
+                            code,
+                            namespace=self.namespace,
+                            verbose=self.verbose,
+                            line_indent=line_indent,
                         )
 
         # List
@@ -693,12 +734,12 @@ class FormatCalculation:
             lst = []
             for i in node.elts:
                 if self.verbose:
-                    print(i)
-                lst.append(self._process_node(i))
+                    print(f"{line_indent}{i}")
+                lst.append(self._process_node(i), level=next_level)
                 if self.verbose:
-                    print(lst[-1])
+                    print(f"{line_indent}{lst[-1]}")
             if self.verbose:
-                print(lst)
+                print(f"{line_indent}{lst}")
             code = "[" + ",".join([i["code"] for i in lst]) + "]"
             if len(lst) <= 3:
                 symbolic = "[" + ",".join([i["symbolic"] for i in lst]) + "]"
@@ -720,35 +761,45 @@ class FormatCalculation:
             else:
                 list_delim = ["\\left[", "\\right]"]
             lst = eval(get_node_source(node, self.input_lines)[0], self.namespace)
-            elt = self._process_node(node.elt)
+            elt = self._process_node(node.elt, level=next_level)
             symbolic = f"{{\\left[ {elt['symbolic']} \\right]}}"
             for comprehension in node.generators:
-                target = self._process_node(comprehension.target)
-                comp_iter = self._process_node(comprehension.iter)
+                target = self._process_node(comprehension.target, level=next_level)
+                comp_iter = self._process_node(comprehension.iter, level=next_level)
                 symbolic += f"_{{{target['symbolic']}={comp_iter['symbolic']}}}"
             if numeric is not None:
                 if len(lst) <= 3:
                     numeric = (
                         list_delim[0]
                         + join_symb.join(
-                            [to_numeric(i, self.namespace, self.verbose) for i in lst]
+                            [
+                                to_numeric(
+                                    i,
+                                    self.namespace,
+                                    self.verbose,
+                                    line_indent=line_indent,
+                                )
+                                for i in lst
+                            ]
                         )
                         + list_delim[1]
                     )
                 else:
-                    numeric = f"[{to_numeric(lst[0],self.namespace)}{join_symb}\ldots{join_symb}{to_numeric(lst[-1],self.namespace)}]"
+                    numeric = f"[{to_numeric(lst[0],self.namespace, line_indent=line_indent)}{join_symb}\ldots{join_symb}{to_numeric(lst[-1],self.namespace, line_indent=line_indent)}]"
 
         # Not Implemented
         else:
             if self.verbose:
-                print(f"not implemented for {node.__class__.__name__}")
-                _ast_to_string(node)
+                print(f"{line_indent}not implemented for {node.__class__.__name__}")
+                _ast_to_string(node, line_indent=line_indent)
             code = get_node_source(node, self.input_lines)[0]
             symbolic = code
             if numeric is not None:
                 numeric = f"{eval(code, self.namespace)}"
 
         output = dict(symbolic=symbolic, numeric=numeric, code=code, list=lst, dict=dct)
+        if self.verbose:
+            print(f"{line_indent}{type(node)} output: {output}")
         return output
 
 
