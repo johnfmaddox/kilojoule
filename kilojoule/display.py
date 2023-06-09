@@ -450,7 +450,8 @@ class FormatCalculation:
             subscript_list = []
             for i in split_subscript:
                 if "\\" not in i and len(i) > 1:
-                    subscript_list.append(f"\\mathrm{{{i}}}")
+                    # subscript_list.append(f"\\mathrm{{{i}}}")
+                    subscript_list.append(f"{{{i}}}")
                 else:
                     subscript_list.append(i)
             subscript = "\\,".join(subscript_list)
@@ -468,7 +469,11 @@ class FormatCalculation:
             source = node
             result = self._process_node(node.value, level=next_level)
             # symbolic = f'\\mathrm{{{result["symbolic"]}}}'
-            symbolic = f"\\mathrm{{{to_latex(code)}}}"
+            if isinstance(node.value, ast.Name):
+                symbolic = f"{{{to_latex(result['numeric'])}}}"
+            else:
+                # symbolic = f"\\mathrm{{{to_latex(code)}}}"
+                symbolic = f"{{{to_latex(code)}}}"
             if self.verbose:
                 print(f"{line_indent}symbolic: {symbolic}")
             if numeric:
@@ -735,7 +740,7 @@ class FormatCalculation:
             for i in node.elts:
                 if self.verbose:
                     print(f"{line_indent}{i}")
-                lst.append(self._process_node(i), level=next_level)
+                lst.append(self._process_node(i, level=next_level))
                 if self.verbose:
                     print(f"{line_indent}{lst[-1]}")
             if self.verbose:
@@ -838,7 +843,9 @@ class Calculations:
             gen_split = repeat_for.split(" in ")
             gen_var = gen_split[0][1:]
             gen_range = eval(gen_split[1][:-1], self.namespace)
+            # print(f"{gen_range}")
             for gen_val in gen_range:
+                # print(f"{gen_var=}; {gen_val=}")
                 self.namespace[gen_var] = gen_val
                 self.process_body()
         elif repeat_n:
@@ -848,6 +855,7 @@ class Calculations:
             self.process_body()
 
     def process_body(self):
+        self.cell_output = ""
         self.tree = ast.parse(self.cell_string)
         for i, node in enumerate(self.tree.body):
             # print comments if enabled
