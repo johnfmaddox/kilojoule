@@ -150,6 +150,8 @@ def numeric_to_string(numeric):
 def to_latex(code, check_italics=False):
     if code in variable_name_latex_subs.keys():
         return variable_name_latex_subs[code]
+    # print(code)
+    code = str(code)
     if "[" in code:
         return index_to_latex(code, check_italics=check_italics)
     if "_over_" in code:
