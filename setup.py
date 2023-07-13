@@ -34,6 +34,7 @@ setuptools.setup(
         "schemdraw",  # required to use the drawing library
         "sigfig",  # required to check solutions
         "emoji",  # optional for "prettier" solution checking
+        "icecream",
     ],
     python_requires=">=3.8",
 )
