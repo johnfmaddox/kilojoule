@@ -24,7 +24,7 @@ setuptools.setup(
         "sympy",
         "pandas",
         "matplotlib",
-        "pint",
+        "pint==0.20.1",
         "pint-pandas",
         #"uncetainties",
         "coolprop",
