@@ -116,11 +116,15 @@ def to_numeric(code, namespace=None, verbose=False, line_indent=""):
         if verbose:
             print(f"{line_indent}to_numeric: {code}")
         try:
-            numeric = eval(code, namespace)
-            numeric = numeric_to_string(numeric)
+            numeric_num = eval(code, namespace)
+            numeric = numeric_to_string(numeric_num)
         except NameError:
+            if verbose:
+                print(f"Handling NameError")
             numeric = code
         except SyntaxError:
+            if verbose:
+                print(f"Handling SyntaxError")
             numeric = code
         except Exception as e:
             if verbose:
@@ -432,7 +436,7 @@ class FormatCalculation:
             if numeric:
                 numeric = symbolic
 
-        # Simple variable
+        # Name (Simple variable)
         elif isinstance(node, ast.Name):
             symbolic = to_latex(code)
             # symbolic = adjust_italics(code)

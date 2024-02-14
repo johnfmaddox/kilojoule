@@ -911,7 +911,14 @@ class Properties:
             except:
                 pass
         # Enthalpy axis label
-        psych._plot_iso_wrapper(iso_symb='rel_hum',iso_value=1,label=f'Enthalpy, $h$ $\\left[\\mathrm{{{h_units_str}}}\\right]$',linewidth=0,pos=0.5,labelprops=dict(offset=25))    
+        psych._plot_iso_wrapper(
+            iso_symb='rel_hum',
+            iso_value=1,
+            label=f'Enthalpy, $h$ $\\left[\\mathrm{{{h_units_str}}}\\right]$',
+            linewidth=None,
+            pos=0.5,
+            labelprops=dict(offset=25)
+            )    
         
         # Specific volume lines
         vmin = psych.props.v(T=Tmin,omega=wmin)

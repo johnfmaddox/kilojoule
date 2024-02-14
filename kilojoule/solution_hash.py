@@ -98,7 +98,7 @@ def quiet_hook(kind, message, traceback):
 sys.excepthook = quiet_hook
 
 
-def hashq(obj, units=None, sigfigs=None, round_machine_zero=True, verbose=False):
+def hashq(obj, units=None, sigfigs=None, round_machine_zero=True, verbose=False, **kwargs):
     if isinstance(obj, Quantity):
         base = obj.to_base_units()
         base_mag = base.magnitude
@@ -109,8 +109,11 @@ def hashq(obj, units=None, sigfigs=None, round_machine_zero=True, verbose=False)
     if verbose:
         print(f"{base_mag=}; {base_units=}")
     if round_machine_zero:
-        if base_mag < default_machine_zero:
-            base_mag = 0.0
+        try:
+            if abs(base_mag) < default_machine_zero:
+                base_mag = 0.0
+        except TypeError:
+            pass
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -345,6 +348,7 @@ def store_solution(
     value=None,
     units=None,
     sigfigs=default_sigfigs,
+    append=False,
     namespace=None,
     prefix="",
     filename=default_hash_filename,
@@ -392,9 +396,12 @@ def store_solution(
         # print(value)
         if round_machine_zero and value.magnitude < default_machine_zero:
             round_machine_zero = False
+    if append:
+        hashes.extend(hash_db[key]['hashes'])
+        first_sigfig_hashes.extend(hash_db[key]['first_sigfig_hashes'])
     hash_db[key] = dict(
-        hashes=hashes,
-        first_sigfig_hashes=first_sigfig_hashes,
+        hashes=unique(hashes),
+        first_sigfig_hashes=unique(first_sigfig_hashes),
         units=str(units.__repr__()),
         sigfigs=sigfigs,
     )

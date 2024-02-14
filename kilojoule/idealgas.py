@@ -194,7 +194,7 @@ Use the long-form `(keyword = argument)` notation, i.e.
         return p
 
     def _get_T_from_others(
-        self, T=None, p=None, d=None, v=None, u=None, h=None, s=None, **kwargs
+        self, T=None, p=None, d=None, v=None, u=None, h=None, s=None, verbose=False, **kwargs
     ):
         """
         Determines the temperature based on two independent, intensive properties
@@ -212,14 +212,35 @@ Use the long-form `(keyword = argument)` notation, i.e.
         if T is not None:
             return T.to("K").magnitude
         elif h is not None:
+            if verbose: print(f'Attempting to get T from {h=}')
             T = self._pm.T_h(h=h.to("kJ/kg").magnitude)
+            try:
+                T = T[0]
+            except Exception as e:
+                pass
+        elif u is not None:
+            if verbose: print(f'Attempting to get T from {u=}')
+            from scipy.optimize import fsolve
+            def f(T_guess):
+                T_guess_K = Quantity(T_guess,'K')
+                h_guess = self.h(T=T_guess_K,verbose=verbose)
+                u_guess = h_guess-self.R*T_guess_K
+                error = (u-u_guess).magnitude
+                return error
+            T_initial_guess = self.T(h=u,verbose=verbose)
+            if verbose: print(f'initial guess {T_initial_guess=}')
+            T = fsolve(f, T_initial_guess.to('K').magnitude)
+            if verbose: print(f'{T=}')
+            #T = self._pm.T(u=u.to("kJ/kg").magnitude)
             try:
                 T = T[0]
             except Exception as e:
                 pass
         elif (d or v) and p:
             if v:
+                if verbose: print(f'Attempting to get d from {v=}')
                 d = 1 / v.to("m^3/kg")
+            if verbose: print(f'Attempting to get T from {p=} and {d=}')
             try:
                 T = self._pm.T_d(p=p.to("bar").magnitude, d=d.to("kg/m^3").magnitude)[0]
             except Exception as e:
@@ -229,6 +250,7 @@ Use the long-form `(keyword = argument)` notation, i.e.
                     (R_u_si / self._pm.mw()) * d.to("kg/m^3").magnitude
                 )
         elif s and p:
+            if verbose: print(f'Attempting to get T from {p=} and {s=}')
             T_tmp = self._pm.T_s(p=p.to("bar").magnitude, s=s.to("kJ/kg/K").magnitude)
             try:
                 T = T_tmp[0]
@@ -238,7 +260,9 @@ Use the long-form `(keyword = argument)` notation, i.e.
                 T = T_tmp
         elif (d or v) and s:
             if v:
+                if verbose: print(f'Attempting to get d from {v=}')
                 d = 1 / v.to("m^3/kg")
+            if verbose: print(f'Attempting to get T from {d=} and {s=}')
             T, p = self._invTp_sd(
                 s=s.to("kJ/kg/K").magnitude, d=d.to("kg/m^3").magnitude
             )
@@ -352,7 +376,7 @@ Use the long-form `(keyword = argument)` notation, i.e.
         kwargs = self._update_kwargs(args, kwargs, min_length=1)
         if verbose:
             print(kwargs)
-        pm_result = self._get_T_from_others(**kwargs)
+        pm_result = self._get_T_from_others(verbose=verbose,**kwargs)
         return self._to_quantity("T", pm_result, "temperature")
 
     def p(self, *args, **kwargs):
@@ -507,7 +531,7 @@ Use the long-form `(keyword = argument)` notation, i.e.
         pm_result = self._pm.e(T=T_pm)[0]
         return self._to_quantity("e", pm_result, "specific energy")
 
-    def h(self, *args, **kwargs):
+    def h(self, *args, verbose=False, **kwargs):
         """
         specific enthalpy from one or two independent, intensive properties
 
