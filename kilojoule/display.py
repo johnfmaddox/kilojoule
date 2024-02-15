@@ -22,7 +22,12 @@ from rich import inspect
 
 from .units import ureg, Quantity, Measurement
 
-_in_colab_ = False
+try:
+    import google.colab
+
+    IN_COLAB = True
+except:
+    IN_COLAB = False
 
 math_delim_begin = r""
 math_delim_end = r""
@@ -77,10 +82,15 @@ variable_name_latex_subs = {
     "log": r"\ln ",
 }
 
+
 def enable_mathjax_colab():
-    from IPython.display import HTML
-    display(HTML("<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/"
-             "latest.js?config=default'></script>"))
+    display(
+        HTML(
+            "<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/"
+            "latest.js?config=default'></script>"
+        )
+    )
+
 
 def set_latex(sub_dict):
     for key, value in sub_dict.items():
@@ -351,6 +361,8 @@ class FormatCalculation:
         self._process_assignment_node()
 
     def display(self):
+        if IN_COLAB:
+            enable_mathjax_colab()
         display(Latex(self.output_string))
 
     def _execute_code(self, code, namespace=None):
@@ -405,6 +417,8 @@ class FormatCalculation:
         result += f"\n\\end{{{math_latex_environment}}}{math_delim_end}\n"
         self.output_string = result
         if LHS_execution_error:
+            if IN_COLAB:
+                enable_mathjax_colab()
             display(Markdown(self.output_string))
             print(f"{LHS_execution_error}")
             for i, line in enumerate(self.source.split("\n")):
@@ -889,7 +903,7 @@ class Calculations:
                 self.tree.body[-1], self.input_lines
             )
             self.cell_output += strip_leading_hash(trailing_source_code)
-        if _in_colab_:
+        if IN_COLAB:
             enable_mathjax_colab()
         display(Markdown(self.cell_output))
 
@@ -916,6 +930,8 @@ class Calculations:
             try:
                 exec(source_code, self.namespace)
             except Exception as e:
+                if IN_COLAB:
+                    enable_mathjax_colab()
                 display(Markdown(self.cell_output))
                 print(f"{e}")
                 split_lines = source_code.split("\n")
@@ -975,7 +991,7 @@ class Quantities:
         )
         self.latex = Latex(self.latex_string)
         if show:
-            if _in_colab_:
+            if IN_COLAB:
                 enable_mathjax_colab()
             display(self.latex)
 
