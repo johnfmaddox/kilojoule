@@ -22,6 +22,8 @@ from rich import inspect
 
 from .units import ureg, Quantity, Measurement
 
+_in_colab_ = False
+
 math_delim_begin = r""
 math_delim_end = r""
 math_latex_environment = r"align"
@@ -75,6 +77,10 @@ variable_name_latex_subs = {
     "log": r"\ln ",
 }
 
+def enable_mathjax_colab():
+    from IPython.display import HTML
+    display(HTML("<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/"
+             "latest.js?config=default'></script>"))
 
 def set_latex(sub_dict):
     for key, value in sub_dict.items():
@@ -883,6 +889,8 @@ class Calculations:
                 self.tree.body[-1], self.input_lines
             )
             self.cell_output += strip_leading_hash(trailing_source_code)
+        if _in_colab_:
+            enable_mathjax_colab()
         display(Markdown(self.cell_output))
 
     def process_node(self, node):
@@ -967,6 +975,8 @@ class Quantities:
         )
         self.latex = Latex(self.latex_string)
         if show:
+            if _in_colab_:
+                enable_mathjax_colab()
             display(self.latex)
 
     def add_variable(self, variable, **kwargs):
