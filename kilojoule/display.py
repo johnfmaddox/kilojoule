@@ -11,6 +11,7 @@ external document.
 
 from string import ascii_lowercase
 from IPython.display import display, HTML, Math, Latex, Markdown
+import IPython.display.display as ipydisplay
 from sympy import sympify, latex
 import regex as re
 import inspect
@@ -23,6 +24,16 @@ from rich import inspect
 from .units import ureg, Quantity, Measurement
 
 IN_COLAB = "google.colab" in str(get_ipython())
+
+
+def enable_mathjax_colab():
+    ipydisplay(
+        HTML(
+            "<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/"
+            "latest.js?config=default'></script>"
+        )
+    )
+
 
 math_delim_begin = r""
 math_delim_end = r""
@@ -76,15 +87,6 @@ variable_name_latex_subs = {
     "math.log": r"\ln ",
     "log": r"\ln ",
 }
-
-
-def enable_mathjax_colab():
-    display(
-        HTML(
-            "<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/"
-            "latest.js?config=default'></script>"
-        )
-    )
 
 
 def set_latex(sub_dict):
