@@ -10,6 +10,7 @@ accuracy.
 from .common import get_caller_namespace
 from .units import Quantity
 from .display import numeric_to_string, to_latex, to_numeric, Latex
+from IPython.display import display, Markdown
 
 import hashlib
 import json
@@ -26,12 +27,43 @@ import re
 default_hash_filename = ".solution_hashes"
 default_student_dir = "student/"
 default_sigfigs = 4
+default_machine_zero = 1e-12
+
+try:
+    import emoji
+
+    sol_symbols = {"correct": "✅", "partial": "🚧", "incorrect": "❌"}
+except:
+    sol_symbols = {
+        "correct": "\mathrm{Correct}",
+        "partial": "\mathrm{Partial}",
+        "incorrect": "\mathrm{incorrect}",
+    }
+sol_legend = r"\begin{align*}" + "\n"
+sol_legend += (
+    f"{sol_symbols['correct']}&: "
+    + r"\mathrm{All\, significant\, figures\, are\, correct}"
+    + r"\\"
+    + "\n"
+)
+sol_legend += (
+    f"{sol_symbols['partial']}&: "
+    + r"\mathrm{The\, first\, significant\, figure\, is\, correct}"
+    + r"\\"
+    + "\n"
+)
+sol_legend += (
+    f"{sol_symbols['incorrect']}&: "
+    + r"\mathrm{No\, significant\, figures\, are\, correct}"
+    + "\n"
+)
+sol_legend += r"\end{align*}"
 
 
 def name_and_date(Name):
     if Name == "Jane Doe":
         raise ValueError("Update the Name variable above")
-    from IPython.display import display, Markdown
+    # from IPython.display import display, Markdown
     from datetime import datetime
     import pytz
 
@@ -66,7 +98,7 @@ def quiet_hook(kind, message, traceback):
 sys.excepthook = quiet_hook
 
 
-def hashq(obj, units=None, sigfigs=None, verbose=False):
+def hashq(obj, units=None, sigfigs=None, round_machine_zero=True, verbose=False, **kwargs):
     if isinstance(obj, Quantity):
         base = obj.to_base_units()
         base_mag = base.magnitude
@@ -74,9 +106,19 @@ def hashq(obj, units=None, sigfigs=None, verbose=False):
     else:
         base = base_mag = obj
         base_units = units
+    if verbose:
+        print(f"{base_mag=}; {base_units=}")
+    if round_machine_zero:
+        try:
+            if abs(base_mag) < default_machine_zero:
+                base_mag = 0.0
+        except TypeError:
+            pass
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
+            if isinstance(base_mag, int) and sigfigs is not None:
+                base_mag = float(base_mag)
             rounded_base_mag = round(base_mag, sigfigs=sigfigs)
             if rounded_base_mag == 0:
                 rounded_base_mag = (
@@ -103,7 +145,11 @@ def hashq(obj, units=None, sigfigs=None, verbose=False):
             )
     if units is not None:
         str_rep += f" {base_units}"
-    hash_dict = dict(hash=hexa_value, units=units, sigfigs=sigfigs)
+    hash_dict = dict(
+        hash=hexa_value,
+        units=units,
+        sigfigs=sigfigs,
+    )
     return hexa_value, str_rep, hash_dict
 
 
@@ -120,7 +166,7 @@ def str_to_sol_list(sol_list):
     return sol_list
 
 
-def check_solutions(sol_list, n_col=3, namespace=None, **kwargs):
+def check_solutions(sol_list, n_col=3, namespace=None, legend=False, **kwargs):
     """Accepts a list of solution check specifications and call `check_solution()` for each.
 
     Accepts a list of strings or a list of dictionaries.
@@ -145,6 +191,8 @@ def check_solutions(sol_list, n_col=3, namespace=None, **kwargs):
     result_str += r" \end{align}"
     result_str = re.sub(r"\\\\\s*{\s*}\s*\\end{align}", r"\n\\end{align}", result_str)
     display(Latex(result_str))
+    if legend:
+        display(Latex(sol_legend))
 
     def add_variable(self, variable, **kwargs):
         """Add a variable to the display list
@@ -183,6 +231,7 @@ def check_solution(
     verbose=False,
     raise_error=False,
     single_check=True,
+    legend=False,
     **kwargs,
 ):
     namespace = namespace or get_caller_namespace()
@@ -195,8 +244,8 @@ def check_solution(
         # NameError if undefined variable
         # KeyError if undefined index in a dict
         value = "??"
-    if verbose:
-        print(f"key={key}; value={value}")
+    # if verbose:
+    #     print(f"key={key}; value={value:sigfigs}")
     try:
         result_str_body = f"{to_latex(name)} &= {numeric_to_string(value)} && "
     except:
@@ -210,28 +259,42 @@ def check_solution(
             units = None
         sigfigs = sigfigs or hash_db["sigfigs"]
         target_hashes = hash_db["hashes"]
+        firt_sigfig_hashes = hash_db["first_sigfig_hashes"]
         # target_hashes = [str(i['hash']) for i in read_solution_hash(key)]
+        if "round_machine_zero" in hash_db.keys():
+            round_machine_zero = hash_db["round_machine_zero"]
+        else:
+            round_machine_zero = True
         try:
             hash_value, str_rep, hash_dict = hashq(
-                value, units=units, sigfigs=sigfigs, verbose=verbose, **kwargs
+                value,
+                units=units,
+                sigfigs=sigfigs,
+                round_machine_zero=round_machine_zero,
+                verbose=verbose,
+                **kwargs,
             )
             if verbose:
                 print(f"hash: {hash_value} <-> target: {target_hashes}")
             assert hash_value in target_hashes
-            try:
-                import emoji
-
-                result_str_body += "✅"
-            except:
-                result_str_body += "\mathrm{Correct}"
+            result_str_body += sol_symbols["correct"]
         except AssertionError as err:
+            # Try first sigfig only
             try:
-                result_str_body += "❌"
-            except:
-                result_str_body += "\mathrm{Incorrect}"
-            msg = f"Hash Mismatch for {key}: {hash_value} not in {target_hashes}"
-            if raise_error:
-                raise IncorrectValueError(msg)
+                first_sigfig_hash_value, str_rep, hash_dict = hashq(
+                    value, units=units, sigfigs=1, verbose=verbose, **kwargs
+                )
+                if verbose:
+                    print(
+                        f"first sigfig hash: {first_sigfig_hash_value} <-> target: {firt_sigfig_hashes}"
+                    )
+                assert first_sigfig_hash_value in firt_sigfig_hashes
+                result_str_body += sol_symbols["partial"]
+            except AssertionError as err2:
+                result_str_body += sol_symbols["incorrect"]
+                msg = f"Hash Mismatch for {key}: {hash_value} not in {target_hashes}"
+                if raise_error:
+                    raise IncorrectValueError(msg)
     except KeyError as err:
         if verbose:
             print(f"{name} not in hash database")
@@ -285,9 +348,11 @@ def store_solution(
     value=None,
     units=None,
     sigfigs=default_sigfigs,
+    append=False,
     namespace=None,
     prefix="",
     filename=default_hash_filename,
+    round_machine_zero=True,
     verbose=False,
     **kwargs,
 ):
@@ -316,9 +381,30 @@ def store_solution(
         hashes = [
             str(hashq(i, units, sigfigs, verbose=verbose, **kwargs)[0]) for i in value
         ]
+        first_sigfig_hashes = [
+            str(hashq(value, units, sigfigs=1, verbose=verbose, **kwargs)[0])
+            for i in value
+        ]
+        for val in value.magnitude:
+            if round_machine_zero and val < default_machine_zero:
+                round_machine_zero = False
     else:
         hashes = [str(hashq(value, units, sigfigs, verbose=verbose, **kwargs)[0])]
-    hash_db[key] = dict(hashes=hashes, units=str(units.__repr__()), sigfigs=sigfigs)
+        first_sigfig_hashes = [
+            str(hashq(value, units, sigfigs=1, verbose=verbose, **kwargs)[0])
+        ]
+        # print(value)
+        if round_machine_zero and value.magnitude < default_machine_zero:
+            round_machine_zero = False
+    if append:
+        hashes.extend(hash_db[key]['hashes'])
+        first_sigfig_hashes.extend(hash_db[key]['first_sigfig_hashes'])
+    hash_db[key] = dict(
+        hashes=unique(hashes),
+        first_sigfig_hashes=unique(first_sigfig_hashes),
+        units=str(units.__repr__()),
+        sigfigs=sigfigs,
+    )
     # Save hashes to disk
     with open(filename, "w") as f:
         json.dump(hash_db, f, indent=4)

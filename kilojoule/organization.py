@@ -81,7 +81,9 @@ class PropertyDict:
     def __delitem__(self, item):
         del self.dict[item]
 
+
 QuantityDict = PropertyDict
+
 
 class QuantityTable:
     """Table for storing quantities"""
@@ -169,7 +171,7 @@ class QuantityTable:
             hasattr(value, "__getitem__") or hasattr(value, "__iter__")
         )
 
-    def display(self, *args, dropna=True, transpose=False, **kwargs):
+    def display(self, *args, row=None, rows=None, dropna=True, show=True, transpose=False, **kwargs):
         """
 
         Args:
@@ -182,10 +184,16 @@ class QuantityTable:
         """
         df = self.to_pandas(*args, dropna=dropna, **kwargs)
 
+        if row is not None:
+            df = pd.DataFrame(df.loc[row])
+
         if transpose:
             df = df.transpose(**kwargs)
 
-        display(HTML(df.to_html(**kwargs)))
+        result = df.to_html(**kwargs)
+        if show:
+            display(HTML(result))
+        return result
 
     def to_dict(self):
         """ """
@@ -375,7 +383,8 @@ class QuantityTable:
         for arg in arg_props:
             kwarg_props[self._identify_symbol(arg, property_source)] = arg
         if kwarg_props:
-            result += f'Fixing state {state} using {", ".join([f"${key}={numeric_to_string(val)}$" for key,val in kwarg_props.items()])}'
+            result += f'\n\nFixing state {state} using {", ".join([f"${key}={numeric_to_string(val)}$" for key,val in kwarg_props.items()])}'
+            result += '\n'
             for col in [col for col in self.columns if col not in kwarg_props.keys()]:
                 try:
                     value = getattr(property_source, col)(**kwarg_props)
@@ -442,6 +451,9 @@ class QuantityTable:
                 else:
                     if verbose:
                         print(f"unable to fix {up} for state {state}")
+        result += self.display(row=state,show=False,transpose=True)
+        result += '\n'
+        result += r'<br />'
         return result
 
     @property
