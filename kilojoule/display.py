@@ -22,12 +22,7 @@ from rich import inspect
 
 from .units import ureg, Quantity, Measurement
 
-try:
-    import google.colab
-
-    IN_COLAB = True
-except:
-    IN_COLAB = False
+IN_COLAB = "google.colab" in str(get_ipython())
 
 math_delim_begin = r""
 math_delim_end = r""
