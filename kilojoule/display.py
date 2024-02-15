@@ -11,7 +11,7 @@ external document.
 
 from string import ascii_lowercase
 from IPython.display import display, HTML, Math, Latex, Markdown
-import IPython.display.display as ipydisplay
+
 from sympy import sympify, latex
 import regex as re
 import inspect
@@ -27,7 +27,7 @@ IN_COLAB = "google.colab" in str(get_ipython())
 
 
 def enable_mathjax_colab():
-    ipydisplay(
+    display(
         HTML(
             "<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/"
             "latest.js?config=default'></script>"
