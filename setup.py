@@ -26,7 +26,7 @@ setuptools.setup(
         "matplotlib",
         "pint==0.20.1",
         "pint-pandas",
-        #"uncetainties",
+        "uncetainties",
         "coolprop",
         "pyromat",
         "regex",
