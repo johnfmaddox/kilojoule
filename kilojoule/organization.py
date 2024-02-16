@@ -190,7 +190,7 @@ class QuantityTable:
         if transpose:
             df = df.transpose(**kwargs)
 
-        result = df.to_html(**kwargs)
+        result = df.to_html(**kwargs).replace('NaN','-')
         if show:
             display(HTML(result))
         return result
@@ -231,7 +231,7 @@ class QuantityTable:
                 )
         if dropna:
             df.dropna(axis="columns", how="all", inplace=True)
-        df.fillna("-", inplace=True)
+        #df.fillna("-", inplace=True) # <- removed to avoid incompatible type warning in newer versions of pandas
         df.index = df.index.map(str)
         for prop in df.keys():
             if not plainstr:
