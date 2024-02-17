@@ -66,8 +66,8 @@ class Cylinder(Element):
         y = height
         if stops:
             self.segments()
-        self.segments.append(Segment([(0,0), (0,y), (x,y)]))
-        self.segments.append(Segment([(0,0), (0,-y), (x,-y)]))
+        self.segments.append(Segment([(0, 0), (0, y), (x, y)]))
+        self.segments.append(Segment([(0, 0), (0, -y), (x, -y)]))
 
         self.anchors["center"] = [0, 0]
         self.anchors["N"] = [0, y]

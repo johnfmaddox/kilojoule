@@ -98,7 +98,9 @@ def quiet_hook(kind, message, traceback):
 sys.excepthook = quiet_hook
 
 
-def hashq(obj, units=None, sigfigs=None, round_machine_zero=True, verbose=False, **kwargs):
+def hashq(
+    obj, units=None, sigfigs=None, round_machine_zero=True, verbose=False, **kwargs
+):
     if isinstance(obj, Quantity):
         base = obj.to_base_units()
         base_mag = base.magnitude
@@ -397,8 +399,8 @@ def store_solution(
         if round_machine_zero and value.magnitude < default_machine_zero:
             round_machine_zero = False
     if append:
-        hashes.extend(hash_db[key]['hashes'])
-        first_sigfig_hashes.extend(hash_db[key]['first_sigfig_hashes'])
+        hashes.extend(hash_db[key]["hashes"])
+        first_sigfig_hashes.extend(hash_db[key]["first_sigfig_hashes"])
     hash_db[key] = dict(
         hashes=unique(hashes),
         first_sigfig_hashes=unique(first_sigfig_hashes),

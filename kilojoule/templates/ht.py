@@ -13,41 +13,67 @@ import numpy as np
 
 # Plotting
 import matplotlib.pyplot as plt
+
 ureg.setup_matplotlib(True)
 
 
 # Math imports
-from numpy import pi, log, log10, sqrt, sin, cos, tan, arcsin, arccos, arctan, sinh, cosh, tanh, arcsinh, arccosh, arctanh, exp
+from numpy import (
+    pi,
+    log,
+    log10,
+    sqrt,
+    sin,
+    cos,
+    tan,
+    arcsin,
+    arccos,
+    arctan,
+    sinh,
+    cosh,
+    tanh,
+    arcsinh,
+    arccosh,
+    arctanh,
+    exp,
+)
 from math import e
+
 ln = log
 
 # Bessel Functions
 import scipy.special
-I_0 = lambda x: scipy.special.iv(0,x.to('').magnitude)
-I_1 = lambda x: scipy.special.iv(1,x.to('').magnitude)
-I_2 = lambda x: scipy.special.iv(2,x.to('').magnitude)
-K_0 = lambda x: scipy.special.kv(0,x.to('').magnitude)
-K_1 = lambda x: scipy.special.kv(1,x.to('').magnitude)
-J_0 = lambda x: scipy.special.jv(0,x.to('').magnitude)
-J_1 = lambda x: scipy.special.jv(1,x.to('').magnitude)
+
+I_0 = lambda x: scipy.special.iv(0, x.to("").magnitude)
+I_1 = lambda x: scipy.special.iv(1, x.to("").magnitude)
+I_2 = lambda x: scipy.special.iv(2, x.to("").magnitude)
+K_0 = lambda x: scipy.special.kv(0, x.to("").magnitude)
+K_1 = lambda x: scipy.special.kv(1, x.to("").magnitude)
+J_0 = lambda x: scipy.special.jv(0, x.to("").magnitude)
+J_1 = lambda x: scipy.special.jv(1, x.to("").magnitude)
 
 # Common Variable Name Formatting
-set_latex({
-        'dTdx':r'{\frac{dT}{dx}}',
-        'dTdy':r'{\frac{dT}{dy}}',
-        'dTdz':r'{\frac{dT}{dz}}',
-        'dTdr':r'{\frac{dT}{dr}}',
-        'dTdtheta':r'{\frac{dT}{d\theta}}',
-        'Nu_D_h':r'{Nu_{D_h}}',
-        'Nu_bar_D_h':r'{\overline{Nu}_{D_h}}',
-        'Re_D_h':r'{Re_{D_h}}',
-        'effectiveness':r'{\varepsilon}',
-        })
+set_latex(
+    {
+        "dTdx": r"{\frac{dT}{dx}}",
+        "dTdy": r"{\frac{dT}{dy}}",
+        "dTdz": r"{\frac{dT}{dz}}",
+        "dTdr": r"{\frac{dT}{dr}}",
+        "dTdtheta": r"{\frac{dT}{d\theta}}",
+        "Nu_D_h": r"{Nu_{D_h}}",
+        "Nu_bar_D_h": r"{\overline{Nu}_{D_h}}",
+        "Re_D_h": r"{Re_{D_h}}",
+        "effectiveness": r"{\varepsilon}",
+    }
+)
 
 # Moody Friction Factor Calculation
 from scipy.optimize import bisect
 
-def moody_friction_factor(Re,e=None,D=None,relative_roughness=0,Re_cr=Quantity(2300,''),**kwargs):
+
+def moody_friction_factor(
+    Re, e=None, D=None, relative_roughness=0, Re_cr=Quantity(2300, ""), **kwargs
+):
     """Return the friction factor for fully-developed flow in a circular duct.
 
     Calculate the friction factor for fully-developed internal flow in a circular duct
@@ -90,14 +116,16 @@ def moody_friction_factor(Re,e=None,D=None,relative_roughness=0,Re_cr=Quantity(2
     >>> moody_friction_factor(Re=Quantity(25000,''),relative_roughness=Quantity(0.02,''))
     0.05015684051068188
     """
-    if Re <= Re_cr: # Laminar if less than the critical Reynolds
-        f = 64/Re
+    if Re <= Re_cr:  # Laminar if less than the critical Reynolds
+        f = 64 / Re
     else:
         if e is not None:
-            rel_rough = (e/D).to('').magnitude
+            rel_rough = (e / D).to("").magnitude
         else:
             rel_rough = relative_roughness
+
         def RHS(f):
-            return 1/f**(.5) + 2*log10(rel_rough/3.7 + 2.51/(Re*sqrt(f)))
-        f = Quantity(bisect(RHS,1e-15,1),'')
+            return 1 / f ** (0.5) + 2 * log10(rel_rough / 3.7 + 2.51 / (Re * sqrt(f)))
+
+        f = Quantity(bisect(RHS, 1e-15, 1), "")
     return f

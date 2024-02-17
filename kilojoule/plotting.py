@@ -9,7 +9,8 @@ import numpy as np
 plt.rcParams["figure.figsize"] = [6 * 2, 4 * 2]
 plt.rcParams["figure.dpi"] = 100  # 200 e.g. is really fine, but slower
 import sys
-if sys.version_info < (3,8,0):
+
+if sys.version_info < (3, 8, 0):
     plt.style.use("seaborn-white")
 else:
     plt.style.use("seaborn-v0_8-white")
@@ -1019,7 +1020,9 @@ class PropertyPlot:
                     )
                 if len(isoline) == 0:
                     isoline.append(
-                        self.plot_iso_line(iso_symb, iso_value, x_range[xmin, xmax], **kwargs)[0]
+                        self.plot_iso_line(
+                            iso_symb, iso_value, x_range[xmin, xmax], **kwargs
+                        )[0]
                     )
             except Exception as e:
                 if verbose:

@@ -13,7 +13,7 @@ def invert_dict(original_dict, replace_empty_string=True):
       replace_empty_string:  (Default value = True)
 
     Returns:
-      dictionary 
+      dictionary
 
     """
     new_dict = {value: key for key in original_dict for value in original_dict[key]}
@@ -390,12 +390,12 @@ predefined_unit_systems = {
         "dimensionless": " ",
     },
 }
-predefined_unit_systems['English_F'] = predefined_unit_systems['USCS_F']
-predefined_unit_systems['English_R'] = predefined_unit_systems['USCS_R']
-predefined_unit_systems['Metric_C'] = predefined_unit_systems['kSI_C']
-predefined_unit_systems['Metric_K'] = predefined_unit_systems['kSI']
-predefined_unit_systems['kSI_K'] = predefined_unit_systems['kSI']
-predefined_unit_systems['SI_K'] = predefined_unit_systems['SI']
+predefined_unit_systems["English_F"] = predefined_unit_systems["USCS_F"]
+predefined_unit_systems["English_R"] = predefined_unit_systems["USCS_R"]
+predefined_unit_systems["Metric_C"] = predefined_unit_systems["kSI_C"]
+predefined_unit_systems["Metric_K"] = predefined_unit_systems["kSI"]
+predefined_unit_systems["kSI_K"] = predefined_unit_systems["kSI"]
+predefined_unit_systems["SI_K"] = predefined_unit_systems["SI"]
 
 
 default_isoline_colors = {
@@ -415,7 +415,7 @@ def preferred_units_from_symbol(symbol, unit_system="SI_C"):
     """Get preferred units from a variable name
 
     Args:
-      symbol (str): variable name 
+      symbol (str): variable name
       unit_system (str): "SI_C","SI_K","English_F","English_R" (Default value = "SI_C")
 
     Returns (str):
@@ -438,13 +438,14 @@ def preferred_units_from_type(quantity_type, unit_system="SI_C"):
     """
     return predefined_unit_systems[unit_system][quantity_type]
 
+
 # Adapted from: https://stackoverflow.com/questions/6618795/get-locals-from-calling-namespace-in-python
 def get_caller_namespace(n=2):
     """Get the local variables in the caller's frame."""
     frame = inspect.currentframe()
     try:
         command = f"frame.{'.'.join(['f_back' for i in range(n)])}.f_locals"
-        #print(command)
+        # print(command)
         result = eval(command)
     finally:
         del frame

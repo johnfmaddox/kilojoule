@@ -18,7 +18,6 @@
 
 __version__ = "0.3.2"
 
-
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
 from kilojoule.organization import QuantityTable
@@ -153,3 +152,11 @@ __all__ = [
     "properties_dict",
     "states",
 ]
+
+from . import _version
+
+__version__ = _version.get_versions()["version"]
+
+from . import _version
+
+__version__ = _version.get_versions()["version"]

@@ -171,7 +171,16 @@ class QuantityTable:
             hasattr(value, "__getitem__") or hasattr(value, "__iter__")
         )
 
-    def display(self, *args, row=None, rows=None, dropna=True, show=True, transpose=False, **kwargs):
+    def display(
+        self,
+        *args,
+        row=None,
+        rows=None,
+        dropna=True,
+        show=True,
+        transpose=False,
+        **kwargs,
+    ):
         """
 
         Args:
@@ -190,7 +199,7 @@ class QuantityTable:
         if transpose:
             df = df.transpose(**kwargs)
 
-        result = df.to_html(**kwargs).replace('NaN','-')
+        result = df.to_html(**kwargs).replace("NaN", "-")
         if show:
             display(HTML(result))
         return result
@@ -225,13 +234,13 @@ class QuantityTable:
         for prop in df.keys():
             if self.dict[prop].units is not None:
                 df[prop] = df[prop].apply(
-                    lambda x: x.to(self.dict[prop].units).m
-                    if isinstance(x, Quantity)
-                    else x
+                    lambda x: (
+                        x.to(self.dict[prop].units).m if isinstance(x, Quantity) else x
+                    )
                 )
         if dropna:
             df.dropna(axis="columns", how="all", inplace=True)
-        #df.fillna("-", inplace=True) # <- removed to avoid incompatible type warning in newer versions of pandas
+        # df.fillna("-", inplace=True) # <- removed to avoid incompatible type warning in newer versions of pandas
         df.index = df.index.map(str)
         for prop in df.keys():
             if not plainstr:
@@ -384,7 +393,7 @@ class QuantityTable:
             kwarg_props[self._identify_symbol(arg, property_source)] = arg
         if kwarg_props:
             result += f'\n\nFixing state {state} using {", ".join([f"${key}={numeric_to_string(val)}$" for key,val in kwarg_props.items()])}'
-            result += '\n'
+            result += "\n"
             for col in [col for col in self.columns if col not in kwarg_props.keys()]:
                 try:
                     value = getattr(property_source, col)(**kwarg_props)
@@ -451,9 +460,9 @@ class QuantityTable:
                 else:
                     if verbose:
                         print(f"unable to fix {up} for state {state}")
-        result += self.display(row=state,show=False,transpose=True)
-        result += '\n'
-        result += r'<br />'
+        result += self.display(row=state, show=False, transpose=True)
+        result += "\n"
+        result += r"<br />"
         return result
 
     @property
