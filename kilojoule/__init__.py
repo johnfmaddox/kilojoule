@@ -31,10 +31,56 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ureg.setup_matplotlib(True)
-from numpy import pi, log, log10, sqrt, sin, cos, tan, sinh, cosh, tanh, exp
+# Math imports
+from numpy import (
+    pi,
+    log,
+    log10,
+    sqrt,
+    sin,
+    cos,
+    tan,
+    arcsin,
+    arccos,
+    arctan,
+    sinh,
+    cosh,
+    tanh,
+    arcsinh,
+    arccosh,
+    arctanh,
+    exp,
+)
 from math import e
 
 ln = log
+
+# Bessel Functions
+import scipy.special
+
+I_0 = lambda x: scipy.special.iv(0, x.to("").magnitude)
+I_1 = lambda x: scipy.special.iv(1, x.to("").magnitude)
+I_2 = lambda x: scipy.special.iv(2, x.to("").magnitude)
+K_0 = lambda x: scipy.special.kv(0, x.to("").magnitude)
+K_1 = lambda x: scipy.special.kv(1, x.to("").magnitude)
+J_0 = lambda x: scipy.special.jv(0, x.to("").magnitude)
+J_1 = lambda x: scipy.special.jv(1, x.to("").magnitude)
+
+# Common Variable Name Formatting
+set_latex(
+    {
+        "dTdx": r"{\frac{dT}{dx}}",
+        "dTdy": r"{\frac{dT}{dy}}",
+        "dTdz": r"{\frac{dT}{dz}}",
+        "dTdr": r"{\frac{dT}{dr}}",
+        "dTdtheta": r"{\frac{dT}{d\theta}}",
+        "Nu_D_h": r"{Nu_{D_h}}",
+        "Nu_bar_D_h": r"{\overline{Nu}_{D_h}}",
+        "Re_D_h": r"{Re_{D_h}}",
+        "effectiveness": r"{\varepsilon}",
+    }
+)
+
 properties_dict = {
     "T": "K",  # Temperature
     "p": "Pa",  # pressure
@@ -85,11 +131,24 @@ __all__ = [
     "sin",
     "cos",
     "tan",
+    "arcsin",
+    "arccos",
+    "arctan",
     "sinh",
     "cosh",
     "tanh",
+    "arcsinh",
+    "arccosh",
+    "arctanh",
     "exp",
     "e",
+    "I_0",
+    "I_1",
+    "I_2",
+    "K_0",
+    "K_1",
+    "J_0",
+    "J_1",
     "log",
     "properties_dict",
     "states",
