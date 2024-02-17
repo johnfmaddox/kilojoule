@@ -1,3 +1,7 @@
+# kilojoule-specific excludes
+scratch.ipynb
+kilojoule-imports
+
 # Temporary and binary files
 *~
 *.py[cod]
