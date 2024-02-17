@@ -2,9 +2,19 @@
 kilojoule
 =========
 
+.. image:: https://img.shields.io/pypi/v/kilojoule
+   :target: https://pypi.org/project/kilojoule
+   :alt: PyPI - Version
+
 
 Convenience functions for solving thermodynamic and heat transfer problems
 
+Installation
+------------
+
+.. code-block:: bash
+
+   pip install kilojoule
 
 Description
 ===========
