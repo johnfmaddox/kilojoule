@@ -31,8 +31,4 @@ a consistent syntax regardless of the source and including units
 Variable names are chosen to be consistent with those commonly used in 
 the mechanical engineering texts.  
 
-Note
-====
 
-This project has been set up using PyScaffold 3.2.3. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
