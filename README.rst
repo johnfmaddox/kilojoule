@@ -5,8 +5,6 @@ kilojoule
 .. image:: https://img.shields.io/pypi/v/kilojoule
    :target: https://pypi.org/project/kilojoule
    :alt: PyPI - Version
-.. image:: https://img.shields.io/github/actions/workflow/status/johnfmaddox/kilojoule/release.yml
-   :alt: GitHub Actions Workflow Status
 .. image:: https://img.shields.io/github/v/release/johnfmaddox/kilojoule
    :alt: GitHub Release
 
