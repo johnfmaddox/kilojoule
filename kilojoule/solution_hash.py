@@ -381,7 +381,7 @@ def store_solution(
     # Read in existing hash database
     hash_db = read_solution_hashes(filename)
     if isinstance(value, list):
-#         print('isinstance of list')
+        #         print('isinstance of list')
         hashes = [
             str(hashq(i, units, sigfigs, verbose=verbose, **kwargs)[0]) for i in value
         ]
@@ -393,7 +393,7 @@ def store_solution(
             if round_machine_zero and val < default_machine_zero:
                 round_machine_zero = False
     else:
-#         print('isnotinstance of list')
+        #         print('isnotinstance of list')
         hashes = [str(hashq(value, units, sigfigs, verbose=verbose, **kwargs)[0])]
         first_sigfig_hashes = [
             str(hashq(value, units, sigfigs=1, verbose=verbose, **kwargs)[0])
@@ -404,16 +404,17 @@ def store_solution(
     if append:
         hashes.extend(hash_db[key]["hashes"])
         first_sigfig_hashes.extend(hash_db[key]["first_sigfig_hashes"])
-#     print(f'{hashes}')
+    #     print(f'{hashes}')
     hash_db[key] = dict(
-        hashes=list(unique(hashes)), first_sigfig_hashes=list(unique(first_sigfig_hashes)),
+        hashes=list(unique(hashes)),
+        first_sigfig_hashes=list(unique(first_sigfig_hashes)),
         units=str(units.__repr__()),
         sigfigs=sigfigs,
     )
 
     # Save hashes to disk
     with open(filename, "w") as f:
-#         print(hash_db)
+        #         print(hash_db)
         json.dump(hash_db, f, indent=4)
 
 
@@ -421,15 +422,36 @@ def read_solution_hash(key, filename=default_hash_filename):
     hashes = read_solution_hashes(filename)
     return hashes[key]
 
-def export_html(show_code = False, capture_output=True, **kwargs):
+
+def get_notebook_filename():
+    import os
+
+    environ = os.environ
+    if "COCALC_JUPYTER_FILENAME" in environ:
+        filename = os.path.split(environ["COCALC_JUPYTER_FILENAME"])
+    elif "JPY_SESSION_NAME" in environ:
+        filename = os.path.split(environ["JPY_SESSION NAME"])
+    return filename
+
+
+def export_html(show_code=False, capture_output=True, **kwargs):
     import subprocess
     import os
+
+    filename = get_notebook_filename()
     if show_code:
-        result = subprocess.run(
-            capture_output=capture_output, **kwargs
-        )
+        result = subprocess.run(capture_output=capture_output, **kwargs)
     else:
         result = subprocess.run(
-            ['jupyter', 'nbconvert', '--no-input', '--no-prompt', '--to', 'html_embed', f'{os.environ["COCALC_JUPYTER_FILENAME"].split("/")[-1]}'],
-            capture_output=capture_output, **kwargs
+            [
+                "jupyter",
+                "nbconvert",
+                "--no-input",
+                "--no-prompt",
+                "--to",
+                "html_embed",
+                filename,
+            ],
+            capture_output=capture_output,
+            **kwargs,
         )
