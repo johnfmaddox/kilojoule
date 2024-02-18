@@ -1,6 +1,7 @@
 # kilojoule-specific excludes
 scratch.ipynb
 kilojoule-imports
+bin/
 
 # Temporary and binary files
 *~

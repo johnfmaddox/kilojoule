@@ -376,11 +376,14 @@ class QuantityTable:
 
         result = ""
         arg_props = []
+        prop_dicts = []
         for arg in args:
             if ".Properties" in str(type(arg)):
                 property_source = arg
             elif isinstance(arg, Quantity):
                 arg_props.append(arg)
+            elif isinstance(arg, PropertyDict):
+                prop_dicts.append(arg)
             else:
                 state = str(arg)
         kwarg_props = {}
@@ -391,6 +394,8 @@ class QuantityTable:
                 property_source = value
             elif key == "state":
                 state = value
+        for prop_dict in prop_dicts:
+            kwarg_props[prop_dict.property_symbol] = prop_dict[state]
 
         verbose = kwargs.get("verbose", False)
         property_source = property_source or self.property_source
