@@ -1,18 +1,13 @@
-=========
-kilojoule
-=========
+# kilojoule
 
-.. image:: https://img.shields.io/pypi/v/kilojoule
-   :target: https://pypi.org/project/kilojoule
-   :alt: PyPI - Version
-
+![PyPI - Version](https://img.shields.io/pypi/v/kilojoule)
+![GitHub Release](https://img.shields.io/github/v/release/johnfmaddox/kilojoule)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/johnfmaddox/kilojoule-binder/HEAD?urlpath=git-pull?repo=https://github.com/johnfmaddox/kilojoule-notebooks)
 
 Convenience functions for solving thermodynamic and heat transfer problems
 
 Installation
 ------------
-
-.. code-block:: bash
 
    pip install kilojoule
 
@@ -31,8 +26,4 @@ a consistent syntax regardless of the source and including units
 Variable names are chosen to be consistent with those commonly used in 
 the mechanical engineering texts.  
 
-Note
-====
 
-This project has been set up using PyScaffold 3.2.3. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
