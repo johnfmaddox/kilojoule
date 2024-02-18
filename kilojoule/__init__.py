@@ -68,8 +68,7 @@ J_1 = lambda x: scipy.special.jv(1, x.to("").magnitude)
 # Common Variable Name Formatting
 set_latex(
     {
-        ""
-        "dTdx": r"{\frac{dT}{dx}}",
+        "" "dTdx": r"{\frac{dT}{dx}}",
         "dTdy": r"{\frac{dT}{dy}}",
         "dTdz": r"{\frac{dT}{dz}}",
         "dTdr": r"{\frac{dT}{dr}}",
@@ -78,8 +77,8 @@ set_latex(
         "Nu_bar_D_h": r"{\overline{Nu}_{D_h}}",
         "Re_D_h": r"{Re_{D_h}}",
         "effectiveness": r"{\varepsilon}",
-        "gamma":r"{\gamma}",
-        "Gamma":r"{\Gamma}"
+        "gamma": r"{\gamma}",
+        "Gamma": r"{\Gamma}",
     }
 )
 
@@ -90,7 +89,7 @@ properties_dict = {
     "T": "K",  # Temperature
     "p": "Pa",  # pressure
     "v": "m^3/kg",  # specific volume
-    "density": "kg/m^3", # density
+    "density": "kg/m^3",  # density
     "u": "J/kg",  # specific internal energy
     "h": "J/kg",  # specific enthalpy
     "s": "J/kg/K",  # specific entropy
@@ -99,7 +98,7 @@ properties_dict = {
     "m": "kg",  # mass
     "mdot": "kg/s",  # mass flow rate
     "Vol": "m^3",  # volume
-    "volume": "m^3", # volume
+    "volume": "m^3",  # volume
     "Vdot": "m^3/s",  # volumetric flow rate
     "Vel": "m/s",  # velocity
     "X": "J",  # exergy
@@ -161,11 +160,3 @@ __all__ = [
     "properties_dict",
     "states",
 ]
-
-from . import _version
-
-__version__ = _version.get_versions()["version"]
-
-from . import _version
-
-__version__ = _version.get_versions()["version"]
