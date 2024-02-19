@@ -1,7 +1,0 @@
-include README.rst
-include LICENSE
-include requirements.txt
-graft kilojoule
-recursive-exclude * *.py[co]
-include versioneer.py
-include kilojoule/_version.py
