@@ -108,7 +108,7 @@ properties_dict = {
     "k": "",  # specific heat ratio
 }
 
-states = QuantityTable(properties_dict, unit_system="SI", add_to_namespace=True)
+states = QuantityTable(properties_dict, unit_system="kSI", add_to_namespace=True)
 
 __all__ = [
     "realfluid",
