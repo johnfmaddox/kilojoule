@@ -98,6 +98,8 @@ def set_latex(sub_dict, pre=False, post=False):
         dest_dict = variable_name_latex_subs
     for key, value in sub_dict.items():
         dest_dict[key] = value
+
+
 #     if post or pre:
 #         print(f"{dest_dict}")
 
@@ -180,13 +182,14 @@ def to_latex(code, namespace=None, verbose=False, check_italics=False):
     iter_max = 5
     namespace = namespace or get_caller_namespace()
     try:
-#         print(f'<=== {code=} -> ... ===>')
+        #         print(f'<=== {code=} -> ... ===>')
         obj = eval(code, namespace)
-#         print(f'<=== {code=} -> {obj=} ===>')
-        if hasattr(obj, 'latex'):
+        #         print(f'<=== {code=} -> {obj=} ===>')
+        if hasattr(obj, "latex"):
             return obj.latex
     except Exception as e:
-        if verbose: print(e)
+        if verbose:
+            print(e)
     if code in variable_name_latex_subs.keys():
         return variable_name_latex_subs[code]
     # print(code)
@@ -486,11 +489,14 @@ class FormatCalculation:
         elif isinstance(node, ast.Name):
             if numeric:
                 numeric = to_numeric(
-                    code, namespace=namespace, verbose=self.verbose, line_indent=line_indent, to_units=to_units
+                    code,
+                    namespace=namespace,
+                    verbose=self.verbose,
+                    line_indent=line_indent,
+                    to_units=to_units,
                 )
             symbolic = to_latex(code, namespace=namespace, verbose=self.verbose)
             # symbolic = adjust_italics(code)
-
 
         # Subscript
         elif isinstance(node, ast.Subscript):
@@ -732,18 +738,21 @@ class FormatCalculation:
             # .to()
             elif fn_base_name == "to":
                 if verbose:
-                    print('<=== .to() ')
-                    print(f'{node=}')
-                    print(f'{parg=}')
+                    print("<=== .to() ")
+                    print(f"{node=}")
+                    print(f"{parg=}")
                     inspect(node)
-                    print(f'.to() units -> {code}')
-                    print(f'.to() units -> {node}')
-                val = self._process_node(node.func.value, level=next_level, to_units=parg["symbolic"])
+                    print(f".to() units -> {code}")
+                    print(f".to() units -> {node}")
+                val = self._process_node(
+                    node.func.value, level=next_level, to_units=parg["symbolic"]
+                )
                 symbolic = val["symbolic"]
                 code = val["code"]
                 if numeric is not None:
                     numeric = val["numeric"]
-                if verbose: print('.to() ===>')
+                if verbose:
+                    print(".to() ===>")
             # sum()
             if fn_base_name == "sum":
                 symbolic = numeric = ""
@@ -1000,7 +1009,14 @@ class Quantities:
     """
 
     def __init__(
-        self, variables=None, n_col=3, style=None, namespace=None, show=False, verbose=False, **kwargs
+        self,
+        variables=None,
+        n_col=3,
+        style=None,
+        namespace=None,
+        show=False,
+        verbose=False,
+        **kwargs,
     ):
         self.namespace = namespace or get_caller_namespace()
         self.verbose = verbose
@@ -1042,7 +1058,9 @@ class Quantities:
         Returns:
 
         """
-        symbol = to_latex(variable, namespace=self.namespace, verbose=self.verbose, check_italics=True)
+        symbol = to_latex(
+            variable, namespace=self.namespace, verbose=self.verbose, check_italics=True
+        )
         value = to_numeric(variable, self.namespace)
         boxed_styles = ["box", "boxed", "sol", "solution"]
         if self.style in boxed_styles:
