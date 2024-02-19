@@ -1,20 +1,13 @@
-=========
-kilojoule
-=========
+# kilojoule
 
-.. image:: https://img.shields.io/pypi/v/kilojoule
-   :target: https://pypi.org/project/kilojoule
-   :alt: PyPI - Version
-.. image:: https://img.shields.io/github/v/release/johnfmaddox/kilojoule
-   :alt: GitHub Release
-
+![PyPI - Version](https://img.shields.io/pypi/v/kilojoule)
+![GitHub Release](https://img.shields.io/github/v/release/johnfmaddox/kilojoule)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/johnfmaddox/kilojoule-binder/HEAD?urlpath=git-pull?repo=https://github.com/johnfmaddox/kilojoule-notebooks)
 
 Convenience functions for solving thermodynamic and heat transfer problems
 
 Installation
 ------------
-
-.. code-block:: bash
 
    pip install kilojoule
 

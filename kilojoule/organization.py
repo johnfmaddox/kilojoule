@@ -120,6 +120,13 @@ class QuantityTable:
         else:
             raise ValueError("Expected properties to be a list, tuple, or dict")
 
+    def add_to_namespace(self, namespace=None):
+        """Add table column names to local namespace as primary variables"""
+        if namespace is None:
+            namespace = get_caller_namespace()
+        for column in self.columns:
+            namespace[column] = self.dict[column]
+
     def add_property(
         self, property, units=None, unit_system=None, add_to_namespace=None
     ):

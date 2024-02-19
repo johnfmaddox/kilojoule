@@ -16,7 +16,7 @@
     :license: MIT, see LICENSE for more details.
 """
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
@@ -108,7 +108,7 @@ properties_dict = {
     "k": "",  # specific heat ratio
 }
 
-states = QuantityTable(properties_dict, unit_system="SI", add_to_namespace=True)
+states = QuantityTable(properties_dict, unit_system="kSI", add_to_namespace=True)
 
 __all__ = [
     "realfluid",
@@ -152,3 +152,11 @@ __all__ = [
     "properties_dict",
     "states",
 ]
+
+from . import _version
+
+__version__ = _version.get_versions()["version"]
+
+from . import _version
+
+__version__ = _version.get_versions()["version"]

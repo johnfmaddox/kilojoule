@@ -1,11 +1,12 @@
 import setuptools
 
+
 with open("README.rst", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="kilojoule",
-    version="0.3.2",
+    version="0.3.3",
     author="Jack Maddox",
     author_email="jackmaddox@gmail.com",
     description="A convenience package for engineering calculations with a focus on fluids mechanics, thermodynamics, and heat transfer",
