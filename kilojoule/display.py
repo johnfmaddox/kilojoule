@@ -938,8 +938,6 @@ class Calculations:
                 self.tree.body[-1], self.input_lines
             )
             self.cell_output += strip_leading_hash(trailing_source_code)
-        if IN_COLAB:
-            enable_mathjax_colab()
         display(Markdown(self.cell_output))
 
     def process_node(self, node):
