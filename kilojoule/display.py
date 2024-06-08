@@ -973,7 +973,7 @@ class Calculations:
             self.cell_output += strip_leading_hash(trailing_source_code)
         # if IN_COLAB:
         #     enable_mathjax_colab()
-        # display(Markdown(self.cell_output))
+        display(Markdown(self.cell_output))
 
     def process_node(self, node):
         source_code, trailing_comment = get_node_source(node, self.input_lines)
