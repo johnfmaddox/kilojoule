@@ -69,7 +69,6 @@ if "COLAB_GPU" in os.environ:
         )
 
     get_ipython().events.register("pre_run_cell", setup_typeset)
-IN_COLAB = "google.colab" in str(get_ipython())
 ### END Colab display workaround
 
 
@@ -396,8 +395,6 @@ class FormatCalculation:
         self._process_assignment_node()
 
     def display(self):
-        if IN_COLAB:
-            enable_mathjax_colab()
         display(Latex(self.output_string))
 
     def _execute_code(self, code, namespace=None):
@@ -452,8 +449,6 @@ class FormatCalculation:
         result += f"\n\\end{{{math_latex_environment}}}{math_delim_end}\n"
         self.output_string = result
         if LHS_execution_error:
-            if IN_COLAB:
-                enable_mathjax_colab()
             display(Markdown(self.output_string))
             print(f"{LHS_execution_error}")
             for i, line in enumerate(self.source.split("\n")):
@@ -963,8 +958,6 @@ class Calculations:
             try:
                 exec(source_code, self.namespace)
             except Exception as e:
-                if IN_COLAB:
-                    enable_mathjax_colab()
                 display(Markdown(self.cell_output))
                 print(f"{e}")
                 split_lines = source_code.split("\n")
@@ -1024,8 +1017,6 @@ class Quantities:
         )
         self.latex = Latex(self.latex_string)
         if show:
-            if IN_COLAB:
-                enable_mathjax_colab()
             display(self.latex)
 
     def add_variable(self, variable, **kwargs):
