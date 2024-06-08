@@ -23,16 +23,54 @@ from rich import inspect
 
 from .units import ureg, Quantity, Measurement
 
-IN_COLAB = "google.colab" in str(get_ipython())
+### Colab display workaround
+#### Activate MathJax for the current notebook if running in google colab
+##### from https://github.com/googlecolab/colabtools/issues/142
+import os
 
+if "COLAB_GPU" in os.environ:
+    import IPython
 
-def enable_mathjax_colab():
-    display(
-        HTML(
-            "<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/"
-            "latest.js?config=default'></script>"
+    def setup_typeset():
+        """MathJax initialization for the current cell.
+
+        This installs and configures MathJax for the current output.
+        """
+        IPython.display.display(
+            IPython.display.HTML(
+                """
+        <script src="https://www.gstatic.com/external_hosted/mathjax/latest/MathJax.js?config=TeX-AMS_HTML-full,Safe&delayStartupUntil=configured"></script>
+        <script>
+          (() => {
+            const mathjax = window.MathJax;
+            mathjax.Hub.Config({
+            'tex2jax': {
+              'inlineMath': [['$', '$'], ['\\(', '\\)']],
+              'displayMath': [['$$', '$$'], ['\\[', '\\]']],
+              'processEscapes': true,
+              'processEnvironments': true,
+              'skipTags': ['script', 'noscript', 'style', 'textarea', 'code'],
+              'displayAlign': 'center',
+            },
+            'HTML-CSS': {
+              'styles': {'.MathJax_Display': {'margin': 0}},
+              'linebreaks': {'automatic': true},
+              // Disable to prevent OTF font loading, which aren't part of our
+              // distribution.
+              'imageFont': null,
+            },
+            'messageStyle': 'none'
+          });
+          mathjax.Hub.Configured();
+        })();
+        </script>
+        """
+            )
         )
-    )
+
+    get_ipython().events.register("pre_run_cell", setup_typeset)
+IN_COLAB = "google.colab" in str(get_ipython())
+### END Colab display workaround
 
 
 math_delim_begin = r""
