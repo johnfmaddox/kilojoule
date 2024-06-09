@@ -12,7 +12,7 @@ import sys
 
 try:
     plt.style.use("seaborn-v0_8-white")
-except FileNotFoundError:
+except:
     plt.style.use("seaborn-white")
 
 n_points_default = 100
