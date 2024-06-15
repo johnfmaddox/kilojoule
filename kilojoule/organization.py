@@ -395,7 +395,7 @@ class QuantityTable:
             elif key == "state":
                 state = value
         for prop_dict in prop_dicts:
-            kwarg_props[prop_dict.property_symbol] = prop_dict[state]
+            kwarg_props[prop_dict.property_symbol] = prop_dict.dict[str(state)]
 
         verbose = kwargs.get("verbose", False)
         property_source = property_source or self.property_source
