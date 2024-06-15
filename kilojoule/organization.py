@@ -380,10 +380,11 @@ class QuantityTable:
         for arg in args:
             if ".Properties" in str(type(arg)):
                 property_source = arg
+            elif ".PropertyDict" in str(type(arg)):
+                print(f"PropertyDict: {str(arg)}")
+                prop_dicts.append(arg)
             elif isinstance(arg, Quantity):
                 arg_props.append(arg)
-            elif isinstance(arg, PropertyDict):
-                prop_dicts.append(arg)
             else:
                 state = str(arg)
         kwarg_props = {}
