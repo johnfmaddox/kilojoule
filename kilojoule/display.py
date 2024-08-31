@@ -23,53 +23,16 @@ from rich import inspect
 
 from .units import ureg, Quantity, Measurement
 
-### Colab display workaround
-#### Activate MathJax for the current notebook if running in google colab
-##### from https://github.com/googlecolab/colabtools/issues/142
-import os
+IN_COLAB = "google.colab" in str(get_ipython())
 
-if "COLAB_GPU" in os.environ:
-    import IPython
 
-    def setup_typeset():
-        """MathJax initialization for the current cell.
-
-        This installs and configures MathJax for the current output.
-        """
-        IPython.display.display(
-            IPython.display.HTML(
-                """
-        <script src="https://www.gstatic.com/external_hosted/mathjax/latest/MathJax.js?config=TeX-AMS_HTML-full,Safe&delayStartupUntil=configured"></script>
-        <script>
-          (() => {
-            const mathjax = window.MathJax;
-            mathjax.Hub.Config({
-            'tex2jax': {
-              'inlineMath': [['$', '$'], ['\\(', '\\)']],
-              'displayMath': [['$$', '$$'], ['\\[', '\\]']],
-              'processEscapes': true,
-              'processEnvironments': true,
-              'skipTags': ['script', 'noscript', 'style', 'textarea', 'code'],
-              'displayAlign': 'center',
-            },
-            'HTML-CSS': {
-              'styles': {'.MathJax_Display': {'margin': 0}},
-              'linebreaks': {'automatic': true},
-              // Disable to prevent OTF font loading, which aren't part of our
-              // distribution.
-              'imageFont': null,
-            },
-            'messageStyle': 'none'
-          });
-          mathjax.Hub.Configured();
-        })();
-        </script>
-        """
-            )
+def enable_mathjax_colab():
+    display(
+        HTML(
+            "<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/"
+            "latest.js?config=default'></script>"
         )
-
-    get_ipython().events.register("pre_run_cell", setup_typeset)
-### END Colab display workaround
+    )
 
 
 math_delim_begin = r""
@@ -126,9 +89,17 @@ variable_name_latex_subs = {
 }
 
 
-def set_latex(sub_dict):
+def set_latex(sub_dict, pre=False, post=False):
+    if pre:
+        dest_dict = pre_sympy_latex_substitutions
+    elif post:
+        dest_dict = post_sympy_latex_substitutions
+    else:
+        dest_dict = variable_name_latex_subs
     for key, value in sub_dict.items():
-        variable_name_latex_subs[key] = value
+        dest_dict[key] = value
+#     if post or pre:
+#         print(f"{dest_dict}")
 
 
 def _ast_to_string(ast_node, line_indent=""):
@@ -160,13 +131,15 @@ def _ast_to_string(ast_node, line_indent=""):
         return repr(ast_node)
 
 
-def to_numeric(code, namespace=None, verbose=False, line_indent=""):
+def to_numeric(code, namespace=None, verbose=False, line_indent="", to_units=None):
     namespace = namespace or get_caller_namespace()
     if isinstance(code, str):
         if verbose:
             print(f"{line_indent}to_numeric: {code}")
         try:
             numeric_num = eval(code, namespace)
+            if to_units is not None:
+                numeric_num = numeric_num.to(to_units)
             numeric = numeric_to_string(numeric_num)
         except NameError:
             if verbose:
@@ -182,6 +155,8 @@ def to_numeric(code, namespace=None, verbose=False, line_indent=""):
                 raise (e)
             numeric = "??"
     else:
+        if to_units is not None:
+            code = code.to(to_units)
         numeric = numeric_to_string(code)
     return numeric
 
@@ -201,7 +176,17 @@ def numeric_to_string(numeric):
     return numeric
 
 
-def to_latex(code, check_italics=False):
+def to_latex(code, namespace=None, verbose=False, check_italics=False):
+    iter_max = 5
+    namespace = namespace or get_caller_namespace()
+    try:
+#         print(f'<=== {code=} -> ... ===>')
+        obj = eval(code, namespace)
+#         print(f'<=== {code=} -> {obj=} ===>')
+        if hasattr(obj, 'latex'):
+            return obj.latex
+    except Exception as e:
+        if verbose: print(e)
     if code in variable_name_latex_subs.keys():
         return variable_name_latex_subs[code]
     # print(code)
@@ -217,8 +202,14 @@ def to_latex(code, check_italics=False):
             code = latex(sympify(code))
         except Exception as e:
             pass
-        for key, value in post_sympy_latex_substitutions.items():
-            code = re.sub(key, value, code)
+        iter = 0
+        while iter <= iter_max:
+            pre_code = code
+            for key, value in post_sympy_latex_substitutions.items():
+                code = re.sub(key, value, code)
+            if code == pre_code:
+                break
+            iter += 1
         if check_italics:
             code = adjust_italics(code)
         return code
@@ -283,7 +274,7 @@ def adjust_italics(code):
 
 
 def get_node_source(node: ast.AST, input_lines: list) -> str:
-    """Extract original input string between strarting and ending locations
+    """Extract original input string between starting and ending locations
 
     Returns the original source code that was parsed to produce the node
     and any text that follows the first # sybmol on the same line"""
@@ -395,6 +386,8 @@ class FormatCalculation:
         self._process_assignment_node()
 
     def display(self):
+        if IN_COLAB:
+            enable_mathjax_colab()
         display(Latex(self.output_string))
 
     def _execute_code(self, code, namespace=None):
@@ -449,6 +442,8 @@ class FormatCalculation:
         result += f"\n\\end{{{math_latex_environment}}}{math_delim_end}\n"
         self.output_string = result
         if LHS_execution_error:
+            if IN_COLAB:
+                enable_mathjax_colab()
             display(Markdown(self.output_string))
             print(f"{LHS_execution_error}")
             for i, line in enumerate(self.source.split("\n")):
@@ -463,6 +458,7 @@ class FormatCalculation:
         numeric=True,
         verbose=None,
         level=1,
+        to_units=None,
         **kwargs,
     ):
         namespace = namespace or self.namespace
@@ -488,12 +484,13 @@ class FormatCalculation:
 
         # Name (Simple variable)
         elif isinstance(node, ast.Name):
-            symbolic = to_latex(code)
-            # symbolic = adjust_italics(code)
             if numeric:
                 numeric = to_numeric(
-                    code, namespace, verbose=self.verbose, line_indent=line_indent
+                    code, namespace=namespace, verbose=self.verbose, line_indent=line_indent, to_units=to_units
                 )
+            symbolic = to_latex(code, namespace=namespace, verbose=self.verbose)
+            # symbolic = adjust_italics(code)
+
 
         # Subscript
         elif isinstance(node, ast.Subscript):
@@ -734,11 +731,19 @@ class FormatCalculation:
                     numeric = symbolic
             # .to()
             elif fn_base_name == "to":
-                val = self._process_node(node.func.value, level=next_level)
+                if verbose:
+                    print('<=== .to() ')
+                    print(f'{node=}')
+                    print(f'{parg=}')
+                    inspect(node)
+                    print(f'.to() units -> {code}')
+                    print(f'.to() units -> {node}')
+                val = self._process_node(node.func.value, level=next_level, to_units=parg["symbolic"])
                 symbolic = val["symbolic"]
                 code = val["code"]
                 if numeric is not None:
                     numeric = val["numeric"]
+                if verbose: print('.to() ===>')
             # sum()
             if fn_base_name == "sum":
                 symbolic = numeric = ""
@@ -776,6 +781,7 @@ class FormatCalculation:
             if "nested_attr" not in kwargs:
                 *paren, attr = code.split(".")
                 symbolic = f"\\underset{{ {'.'.join(paren)} }}{{ {attr} }}"
+                symbolic = re.sub("_", r"\_", symbolic)
                 if "in_fn_call" in kwargs:
                     if numeric is not None:
                         numeric = symbolic
@@ -933,6 +939,8 @@ class Calculations:
                 self.tree.body[-1], self.input_lines
             )
             self.cell_output += strip_leading_hash(trailing_source_code)
+        if IN_COLAB:
+            enable_mathjax_colab()
         display(Markdown(self.cell_output))
 
     def process_node(self, node):
@@ -958,6 +966,8 @@ class Calculations:
             try:
                 exec(source_code, self.namespace)
             except Exception as e:
+                if IN_COLAB:
+                    enable_mathjax_colab()
                 display(Markdown(self.cell_output))
                 print(f"{e}")
                 split_lines = source_code.split("\n")
@@ -990,9 +1000,10 @@ class Quantities:
     """
 
     def __init__(
-        self, variables=None, n_col=3, style=None, namespace=None, show=False, **kwargs
+        self, variables=None, n_col=3, style=None, namespace=None, show=False, verbose=False, **kwargs
     ):
         self.namespace = namespace or get_caller_namespace()
+        self.verbose = verbose
         self.style = style
         self.n = 1
         self.n_col = n_col
@@ -1017,6 +1028,8 @@ class Quantities:
         )
         self.latex = Latex(self.latex_string)
         if show:
+            if IN_COLAB:
+                enable_mathjax_colab()
             display(self.latex)
 
     def add_variable(self, variable, **kwargs):
@@ -1029,7 +1042,7 @@ class Quantities:
         Returns:
 
         """
-        symbol = to_latex(variable, check_italics=True)
+        symbol = to_latex(variable, namespace=self.namespace, verbose=self.verbose, check_italics=True)
         value = to_numeric(variable, self.namespace)
         boxed_styles = ["box", "boxed", "sol", "solution"]
         if self.style in boxed_styles:
@@ -1062,6 +1075,7 @@ class Summary:
         namespace=None,
         style=None,
         show=None,
+        verbose=False,
         **kwargs,
     ):
         if show is None:
@@ -1073,6 +1087,7 @@ class Summary:
             else:
                 show = True
         self.namespace = namespace or get_caller_namespace()
+        self.verbose = verbose
         if variables is not None:
             if n_col is None:
                 n_col = 1

@@ -91,7 +91,7 @@ class Table:
             index_col=index_col,
         )
         # treat the second data row as units
-        self._units = self.df.iloc[0, :]
+        self._units = self.df.iloc[0, :].fillna("None")
         self.df.drop(0, inplace=True)
         for idx, col in enumerate(self.df.columns):
             u = self._units[col]
@@ -150,7 +150,7 @@ class Table:
         If there are multiple columns with the same units, raise an AmbiguousUnitsError
         """
         if isinstance(quant, str):
-            s = self.units_to_symbol["None"]
+            s = self.units_to_symbol['None']
         else:
             for u, s in self.units_to_symbol.items():
                 try:

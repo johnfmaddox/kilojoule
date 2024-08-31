@@ -23,10 +23,11 @@ import os
 from sigfig import round
 import warnings
 import re
+from numpy import unique
 
 default_hash_filename = ".solution_hashes"
 default_student_dir = "student/"
-default_sigfigs = 4
+default_sigfigs = 3
 default_machine_zero = 1e-12
 
 try:
@@ -99,7 +100,7 @@ sys.excepthook = quiet_hook
 
 
 def hashq(
-    obj, units=None, sigfigs=None, round_machine_zero=True, verbose=False, **kwargs
+    obj, units=None, sigfigs=None, round_machine_zero=True, verbose=True, **kwargs
 ):
     if isinstance(obj, Quantity):
         base = obj.to_base_units()
@@ -380,6 +381,7 @@ def store_solution(
     # Read in existing hash database
     hash_db = read_solution_hashes(filename)
     if isinstance(value, list):
+#         print('isinstance of list')
         hashes = [
             str(hashq(i, units, sigfigs, verbose=verbose, **kwargs)[0]) for i in value
         ]
@@ -391,6 +393,7 @@ def store_solution(
             if round_machine_zero and val < default_machine_zero:
                 round_machine_zero = False
     else:
+#         print('isnotinstance of list')
         hashes = [str(hashq(value, units, sigfigs, verbose=verbose, **kwargs)[0])]
         first_sigfig_hashes = [
             str(hashq(value, units, sigfigs=1, verbose=verbose, **kwargs)[0])
@@ -401,17 +404,32 @@ def store_solution(
     if append:
         hashes.extend(hash_db[key]["hashes"])
         first_sigfig_hashes.extend(hash_db[key]["first_sigfig_hashes"])
+#     print(f'{hashes}')
     hash_db[key] = dict(
-        hashes=unique(hashes),
-        first_sigfig_hashes=unique(first_sigfig_hashes),
+        hashes=list(unique(hashes)), first_sigfig_hashes=list(unique(first_sigfig_hashes)),
         units=str(units.__repr__()),
         sigfigs=sigfigs,
     )
+
     # Save hashes to disk
     with open(filename, "w") as f:
+#         print(hash_db)
         json.dump(hash_db, f, indent=4)
 
 
 def read_solution_hash(key, filename=default_hash_filename):
     hashes = read_solution_hashes(filename)
     return hashes[key]
+
+def export_html(show_code = False, capture_output=True, **kwargs):
+    import subprocess
+    import os
+    if show_code:
+        result = subprocess.run(
+            capture_output=capture_output, **kwargs
+        )
+    else:
+        result = subprocess.run(
+            ['jupyter', 'nbconvert', '--no-input', '--no-prompt', '--to', 'html_embed', f'{os.environ["COCALC_JUPYTER_FILENAME"].split("/")[-1]}'],
+            capture_output=capture_output, **kwargs
+        )

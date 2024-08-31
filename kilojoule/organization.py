@@ -376,11 +376,14 @@ class QuantityTable:
 
         result = ""
         arg_props = []
+        prop_dicts = []
         for arg in args:
             if ".Properties" in str(type(arg)):
                 property_source = arg
             elif isinstance(arg, Quantity):
                 arg_props.append(arg)
+            elif isinstance(arg, PropertyDict):
+                prop_dicts.append(arg)
             else:
                 state = str(arg)
         kwarg_props = {}
@@ -391,6 +394,8 @@ class QuantityTable:
                 property_source = value
             elif key == "state":
                 state = value
+        for prop_dict in prop_dicts:
+            kwarg_props[prop_dict.property_symbol] = prop_dict.dict[str(state)]
 
         verbose = kwargs.get("verbose", False)
         property_source = property_source or self.property_source
@@ -399,8 +404,10 @@ class QuantityTable:
         for arg in arg_props:
             kwarg_props[self._identify_symbol(arg, property_source)] = arg
         if kwarg_props:
-            result += f'\n\nFixing state {state} using {", ".join([f"${key}={numeric_to_string(val)}$" for key,val in kwarg_props.items()])}'
+            result += f'\n\nFixing state ${state}$ as {property_source.fluid} at {", ".join([f"${key}_{{{state}}}={numeric_to_string(val)}$" for key,val in kwarg_props.items()])}'
             result += "\n"
+            for prop,value in kwarg_props.items():
+                self.__setitem__([state, prop], value)
             for col in [col for col in self.columns if col not in kwarg_props.keys()]:
                 try:
                     value = getattr(property_source, col)(**kwarg_props)
@@ -408,7 +415,7 @@ class QuantityTable:
                 except Exception as e:
                     pass
         else:
-            result += f"Fixing state {state} using previously defined values."
+            result += f"Fixing state ${state}$ as {property_source.fluid} using previously defined values "
             unknown_props = [
                 i
                 for i in self.columns
@@ -436,11 +443,17 @@ class QuantityTable:
                 print(f"property_source: {property_source}")
                 print(f"known_props: {known_props}")
                 print(f"unknown_props: {unknown_props}")
+            exit_loop = False
             for up in unknown_props:
-                exit_loop = False
+                if exit_loop:
+                    result += f'{", ".join([f"${key}_{{{state}}}={numeric_to_string(val)}$" for key,val in indep_dict.items()])}'
+                    break
                 if verbose:
                     print(f"trying to fix {up}")
                 for ipc in indep_props_comb:
+                    if exit_loop:
+
+                        break
                     if "ID" not in ipc:
                         if verbose:
                             print(ipc)
@@ -462,8 +475,7 @@ class QuantityTable:
                         except Exception as e:
                             if verbose:
                                 print(e)
-                    if exit_loop:
-                        break
+
                 else:
                     if verbose:
                         print(f"unable to fix {up} for state {state}")
