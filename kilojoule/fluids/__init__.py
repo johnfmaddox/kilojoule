@@ -42,6 +42,8 @@ from numpy import (
     arccosh,
     arctanh,
     exp,
+    ceil,
+    floor,
 )
 from math import e
 
@@ -63,6 +65,8 @@ J_1 = lambda x: scipy.special.jv(1, x.to("").magnitude)
 # Dictionary of regex substitutions to be applied
 # after sympy processing but before output.
 # - `(?i)` makes the search pattern case insensitive
+# - `(\b|d)` is the beginning of of a string of immediately following a `d`
+# - `(_?)` one or more `_`
 # - the replacement values should be raw strings WITH escaped `\`
 fluid_variables_dict = {
     #
@@ -85,6 +89,7 @@ fluid_variables_dict = {
     r"(?i)Pressure":r"{p}",
     r"(?i)ShearStress":r"{\\tau}",
     r"(?i)SpecificWeight":r"{\\gamma}",
+    r"(\b|d)SW(_?)":r"\g<1>{\\gamma}\g<2>",
     r"(?i)SpecificGravity":r"{SG}",
     r"(?i)Velocity":r"{V}",
     r"(?i)Viscosity":r"{\\mu}",
@@ -106,6 +111,8 @@ set_latex(
         "Nu_bar_D_h": r"{\overline{Nu}_{D_h}}",
         "Re_D_h": r"{Re_{D_h}}",
         "effectiveness": r"{\varepsilon}",
+        "Q":"Q",
+        "N":"N",
     }
 )
 
@@ -185,6 +192,6 @@ __all__ = [
     "log",
     "properties_dict",
     "states",
-]
+] 
 
 
