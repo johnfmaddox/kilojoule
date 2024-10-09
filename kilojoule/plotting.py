@@ -32,6 +32,27 @@ arrowprops_default = dict(
 
 pointprops_default = dict(markersize=4)
 
+# Class Plot:
+#     """ """
+#     def __init__(
+#         self,
+#         x=None,
+#         y=None,
+#         x_units=None,
+#         y_units=None,
+#         unit_system=None,
+#         subplot=None,
+#         log_x=False,
+#         log_y=False,
+#         fig=None,
+#         **kwargs
+#     )
+#         if fig is None:
+#             self.fig = plt.figure()
+#         else:
+#             self.fig = fig
+    
+    
 
 class PropertyPlot:
     """ """
