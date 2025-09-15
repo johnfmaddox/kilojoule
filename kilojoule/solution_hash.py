@@ -15,6 +15,7 @@ from IPython.display import display, Markdown
 import hashlib
 import json
 from os.path import exists
+from pathlib import Path
 import sys
 
 import shutil
@@ -27,6 +28,7 @@ from numpy import unique
 
 default_hash_filename = ".solution_hashes"
 default_student_dir = "student/"
+default_ext_hash_location = Path.home() / "src/solution_hashes/"
 default_sigfigs = 3
 default_machine_zero = 1e-12
 
@@ -134,6 +136,11 @@ def hashq(
                 0  # fix for case of `-0.0` being interpreted differently than `0.0`
             )
         str_rep = str(base_mag)
+    # strip leading zeros and trailing zeros after a decimal
+    str_rep = str_rep.lstrip('0')
+    if '.' in str_rep:
+        str_rep = str_rep.rstrip('0')
+        str_rep = str_rep.rstrip('.')
     encoded_str = str_rep.encode()
     hash_obj = hashlib.md5(encoded_str)
     hexa_value = hash_obj.hexdigest()
@@ -327,6 +334,7 @@ def store_solutions(
     filename=default_hash_filename,
     copy_to_student=True,
     student_dir=default_student_dir,
+    ext_hash_location=default_ext_hash_location,
     **kwargs,
 ):
     """Accepts a list of solution storage specifications and calls `store_solution()` for each.
@@ -344,6 +352,11 @@ def store_solutions(
     if copy_to_student:
         os.makedirs(student_dir, exist_ok=True)
         shutil.copy2(default_hash_filename, student_dir)
+    ext_hash_location = Path(ext_hash_location)
+    if ext_hash_location.exists():
+        dest = ext_hash_location / Path(default_hash_filename).absolute().parent.relative_to(Path.home())
+        os.makedirs(dest, exist_ok=True)
+        shutil.copy2(default_hash_filename, dest)
 
 
 def store_solution(
@@ -414,7 +427,6 @@ def store_solution(
 
     # Save hashes to disk
     with open(filename, "w") as f:
-        #         print(hash_db)
         json.dump(hash_db, f, indent=4)
 
 
@@ -440,7 +452,18 @@ def export_html(show_code=False, capture_output=True, **kwargs):
 
     filename = get_notebook_filename()
     if show_code:
-        result = subprocess.run(capture_output=capture_output, **kwargs)
+        result = subprocess.run(
+            [
+                "jupyter",
+                "nbconvert",
+                "--no-input",
+                "--to",
+                "html_embed",
+                filename,
+            ],
+            capture_output=capture_output,
+            **kwargs,
+        )
     else:
         result = subprocess.run(
             [

@@ -1,6 +1,8 @@
 # kilojoule-specific excludes
 scratch.ipynb
 kilojoule-imports
+**/Cengel*Data/
+
 
 # Temporary and binary files
 *~

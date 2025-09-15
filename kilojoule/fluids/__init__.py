@@ -92,9 +92,11 @@ fluid_variables_dict = {
     r"(\b|d)SW(_?)":r"\g<1>{\\gamma}\g<2>",
     r"(?i)SpecificGravity":r"{SG}",
     r"(?i)Velocity":r"{V}",
+    r"(?i)Kinematic(?i)Viscosity":r"{\\nu}",
     r"(?i)Viscosity":r"{\\mu}",
     r"(?i)VolumeFlowrate":r"{Q}",
-    r"(\b|d)(?i)Volume(_?)":r"\g<1>{V\\kern-0.8em\\raise0.25ex-}\g<2>",
+#     r"(\b|d)(?i)Volume(_?)":r"\g<1>{V\\kern-0.8em\\raise0.25ex-}\g<2>",
+    r"(\b|d)(?i)Volume(_?)":r"\g<1>\\mathcal{V}\g<2>",
     r"(?i)Weight":r"{\\mathcal{W}}",
 }
 set_latex(fluid_variables_dict, post=True)
@@ -192,6 +194,6 @@ __all__ = [
     "log",
     "properties_dict",
     "states",
-] 
+]
 
 

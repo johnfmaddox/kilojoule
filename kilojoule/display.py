@@ -188,8 +188,7 @@ def to_latex(code, namespace=None, verbose=False, check_italics=False):
         if hasattr(obj, "latex"):
             return obj.latex
     except Exception as e:
-        if verbose:
-            print(e)
+        if verbose: print(e)
     if code in variable_name_latex_subs.keys():
         return variable_name_latex_subs[code]
     # print(code)
@@ -497,6 +496,7 @@ class FormatCalculation:
                 )
             symbolic = to_latex(code, namespace=namespace, verbose=self.verbose)
             # symbolic = adjust_italics(code)
+
 
         # Subscript
         elif isinstance(node, ast.Subscript):

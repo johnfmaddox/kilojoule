@@ -10,10 +10,10 @@ plt.rcParams["figure.figsize"] = [6 * 2, 4 * 2]
 plt.rcParams["figure.dpi"] = 100  # 200 e.g. is really fine, but slower
 import sys
 
-try:
-    plt.style.use("seaborn-v0_8-white")
-except:
+if sys.version_info < (3, 8, 0):
     plt.style.use("seaborn-white")
+else:
+    plt.style.use("seaborn-v0_8-white")
 
 n_points_default = 100
 
