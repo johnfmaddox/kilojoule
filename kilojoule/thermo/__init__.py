@@ -92,7 +92,7 @@ thermo_variables_dict = {
     r"(\b|d)(?i)Volume(_?)":r"\g<1>{V\\kern-0.8em\\raise0.25ex-}\g<2>",
     r"(?i)Weight":r"{\\mathcal{W}}",
 }
-set_latex(fluid_variables_dict, post=True)
+set_latex(thermo_variables_dict, post=True)
 
 
 set_latex(
