@@ -186,5 +186,6 @@ __all__ = [
     "properties_dict",
     "states",
 ]
+__all__.extend(properties_dict.keys)
 
 
