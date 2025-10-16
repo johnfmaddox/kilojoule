@@ -450,34 +450,6 @@ def get_notebook_filename():
 
 
 def export_html(show_code=False, capture_output=True, **kwargs):
-    import subprocess
-    import os
-
-    filename = get_notebook_filename()
-    if show_code:
-        result = subprocess.run(
-            [
-                "jupyter",
-                "nbconvert",
-                "--no-input",
-                "--to",
-                "html_embed",
-                filename,
-            ],
-            capture_output=capture_output,
-            **kwargs,
-        )
-    else:
-        result = subprocess.run(
-            [
-                "jupyter",
-                "nbconvert",
-                "--no-input",
-                "--no-prompt",
-                "--to",
-                "html_embed",
-                filename,
-            ],
-            capture_output=capture_output,
-            **kwargs,
-        )
+    import warnings
+    warning.warn('export_html has been moved to the export module; it can be imported with \n\n\tfrom kilojoule.export import export_html\n\n')
+    

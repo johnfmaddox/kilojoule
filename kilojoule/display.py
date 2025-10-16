@@ -208,7 +208,10 @@ def to_latex(code, namespace=None, verbose=False, check_italics=False):
         while iter <= iter_max:
             pre_code = code
             for key, value in post_sympy_latex_substitutions.items():
-                code = re.sub(key, value, code)
+                try:
+                    code = re.sub(key, value, code)
+                except:
+                    pass
             if code == pre_code:
                 break
             iter += 1
