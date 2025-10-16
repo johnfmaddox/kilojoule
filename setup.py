@@ -37,6 +37,8 @@ setuptools.setup(
         "emoji",  # optional for "prettier" solution checking
         "icecream",
         "seaborn",
+        "jupyter-resource-usage",
     ],
     python_requires=">=3.8",
 )
+
