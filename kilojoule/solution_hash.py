@@ -412,8 +412,11 @@ def store_solution(
             str(hashq(value, units, sigfigs=1, verbose=verbose, **kwargs)[0])
         ]
         # print(value)
-        if round_machine_zero and value.magnitude < default_machine_zero:
-            round_machine_zero = False
+        try:
+            if round_machine_zero and value.magnitude < default_machine_zero:
+                round_machine_zero = False
+        except TypeError:
+            print(f'Skipping machine zero check for {name} = {value}')
     if append:
         hashes.extend(hash_db[key]["hashes"])
         first_sigfig_hashes.extend(hash_db[key]["first_sigfig_hashes"])
