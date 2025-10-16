@@ -89,10 +89,11 @@ thermo_variables_dict = {
     r"(?i)Velocity":r"{V}",
     r"(?i)Viscosity":r"{\\mu}",
     r"(?i)VolumeFlowrate":r"{\dot{V\\kern-0.8em\\raise0.25ex-}}",
-    r"(\b|d)(?i)Volume(_?)":r"\g<1>{V\\kern-0.8em\\raise0.25ex-}\g<2>",
+    # r"(\b|d)(?i)Volume(_?)":r"\g<1>{V\\kern-0.8em\\raise0.25ex-}\g<2>",
+    r"(\b|d)(?i)Volume(_?)":r"\g<1>\\mathcal{V}\g<2>",
     r"(?i)Weight":r"{\\mathcal{W}}",
 }
-set_latex(fluid_variables_dict, post=True)
+set_latex(thermo_variables_dict, post=True)
 
 
 set_latex(
@@ -186,5 +187,6 @@ __all__ = [
     "properties_dict",
     "states",
 ]
+
 
 
