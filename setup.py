@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="kilojoule",
-    version="0.4.1",
+    version="0.4.2",
     author="Jack Maddox",
     author_email="jackmaddox@gmail.com",
     description="A convenience package for engineering calculations with a focus on fluids mechanics, thermodynamics, and heat transfer",
@@ -38,6 +38,7 @@ setuptools.setup(
         "icecream",
         "seaborn",
         "jupyter-resource-usage",
+        "ipynbname"
     ],
     python_requires=">=3.8",
 )
