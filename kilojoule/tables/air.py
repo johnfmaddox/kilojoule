@@ -1,3 +1,11 @@
+"""
+    air
+    ~~~
+    Thermophysical properties of air at 1 atm, as a function of
+    temperature. Data is Cengel & Ghajar, "Heat and Mass Transfer",
+    Table A-15. Each property function linearly interpolates the
+    tabulated values (100 K - 3000 K) using scipy.interpolate.interp1d.
+"""
 from kilojoule.units import Quantity
 import numpy as np
 from scipy.interpolate import interp1d
@@ -343,42 +351,77 @@ Pr_interp = interp1d(T_table, Pr_table)
 
 
 def rho(T):
+    """Density of air at 1 atm
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: density as a Quantity in kg/m^3
+    """
     T = T.to("K")
     ret_value = Quantity(rho_interp(T.magnitude), "kg/m^3")
     return ret_value
 
 
 def c_p(T):
+    """Constant-pressure specific heat of air at 1 atm
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: specific heat as a Quantity in kJ/kg/K
+    """
     T = T.to("K")
     ret_value = Quantity(c_p_interp(T.magnitude), "kJ/kg/K")
     return ret_value
 
 
 def mu(T):
+    """Dynamic (absolute) viscosity of air at 1 atm
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: dynamic viscosity as a Quantity in N*s/m^2
+    """
     T = T.to("K")
     ret_value = Quantity(mu_interp(T.magnitude), "N*s/m^2")
     return ret_value
 
 
 def nu(T):
+    """Kinematic viscosity of air at 1 atm
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: kinematic viscosity as a Quantity in m^2/s
+    """
     T = T.to("K")
     ret_value = Quantity(nu_interp(T.magnitude), "m^2/s")
     return ret_value
 
 
 def k(T):
+    """Thermal conductivity of air at 1 atm
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: thermal conductivity as a Quantity in W/m/K
+    """
     T = T.to("K")
     ret_value = Quantity(k_interp(T.magnitude), "W/m/K")
     return ret_value
 
 
 def alpha(T):
+    """Thermal diffusivity of air at 1 atm
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: thermal diffusivity as a Quantity in m^2/s
+    """
     T = T.to("K")
     ret_value = Quantity(alpha_interp(T.magnitude), "m^2/s")
     return ret_value
 
 
 def Pr(T):
+    """Prandtl number of air at 1 atm
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: Prandtl number as a dimensionless Quantity
+    """
     T = T.to("K")
     ret_value = Quantity(Pr_interp(T.magnitude), "")
     return ret_value
