@@ -1,3 +1,10 @@
+"""
+    organization
+    ~~~~~~~~~~~~
+    Storage and tabular display for sets of thermodynamic states. See
+    :class:`QuantityTable` for the main entry point, backed by a
+    :class:`PropertyDict` per property column.
+"""
 from .units import ureg, Quantity
 import pint
 from .common import get_caller_namespace, preferred_units_from_symbol, AmbiguousUnitsError
@@ -25,22 +32,31 @@ default_property_dict = {
 
 
 class PropertyDict:
-    """ """
+    """A single property column of a :class:`QuantityTable`: a dict of
+    per-state values (keyed by state ID, e.g. `"1"`, `"2"`), all held in a
+    common unit.
+
+    Values are coerced to `self.units` on assignment, and re-converted in
+    bulk if `self.units` is changed via :meth:`set_units`.
+    """
 
     def __init__(self, property_symbol=None, units=None, unit_system="SI_C"):
+        """
+        :param property_symbol: symbol this column represents, e.g. 'T' (Default value = None)
+        :param units: units to store values in (Default value = None, inferred from `property_symbol`/`unit_system` via :meth:`set_units`)
+        :param unit_system: unit system used to infer `units` when not given explicitly -- one of 'SI_C', 'SI_K', 'English_F', 'English_R' (Default value = "SI_C")
+        """
         self.dict = {}
         self.property_symbol = property_symbol
         self.unit_system = unit_system
         self.set_units(units)
 
     def set_units(self, units=None):
-        """
+        """Set (or infer) `self.units` and convert any existing values to it
 
-        Args:
-          units:  (Default value = None)
-
-        Returns:
-
+        :param units: units to use (Default value = None, inferred from
+            `self.property_symbol`/`self.unit_system`; falls back to `None`
+            -- unconverted, unit-agnostic storage -- if inference fails)
         """
         if units is None:
             try:
@@ -55,18 +71,22 @@ class PropertyDict:
         self._update_units()
 
     def _update_units(self):
-        """ """
+        """Convert every stored value to `self.units` (a no-op if `self.units` is `None`)"""
         if self.units is not None:
             for k, v in self.dict.items():
                 self.dict[k] = v.to(self.units)
 
     def __repr__(self):
+        """`<kilojoule.PropertyDict for {property_symbol}>`"""
         return f"<kilojoule.PropertyDict for {self.property_symbol}>"
 
     def __getitem__(self, item):
+        """Look up the value for a state, by ID (coerced to `str`)"""
         return self.dict[str(item)]
 
     def __setitem__(self, item, value):
+        """Set the value for a state, by ID (coerced to `str`); converts `value`
+        to `self.units` if a Quantity, or wraps it as one, if `self.units` is set"""
         if value is not None:
             if self.units is not None:
                 if isinstance(value, Quantity):
@@ -79,6 +99,7 @@ class PropertyDict:
         self.dict[str(item)] = result
 
     def __delitem__(self, item):
+        """Remove the value for a state, by ID"""
         del self.dict[item]
 
 
@@ -86,7 +107,16 @@ QuantityDict = PropertyDict
 
 
 class QuantityTable:
-    """Table for storing quantities"""
+    """A table of thermodynamic states (rows) by property (columns), backed
+    by a :class:`PropertyDict` per column.
+
+    States are keyed by an ID string (e.g. `"1"`, `"2"`), set via
+    `table[state, property] = value`; a whole state's properties are read
+    back as a dict via `table[state]`. Supports rendering as a pandas
+    DataFrame or HTML table (:meth:`to_pandas`/:meth:`display`), and
+    filling in a state's unknown properties from a property source given
+    enough independent properties (:meth:`fix`).
+    """
 
     def __init__(
         self,
@@ -96,6 +126,22 @@ class QuantityTable:
         unit_system="kSI_C",
         add_to_namespace=None,
     ):
+        """
+        :param properties: columns to create up front -- a list/tuple of
+            property symbols (units inferred from `unit_system`), or a dict
+            of `{symbol: units}` (Default value = None, no columns; use
+            :meth:`add_property` or `table[state, prop] = value` to add them later)
+        :param property_source: intended as the default property source used
+            by :meth:`fix` when not given explicitly, but currently not
+            stored -- `self.property_source` is unconditionally set to
+            `None` below regardless of this argument (Default value = None)
+        :param unit_system: unit system used to infer units for `properties`
+            given as a list/tuple -- one of 'SI_C', 'SI_K', 'English_F',
+            'English_R'; only takes effect in that (list/tuple) case, since
+            `self.unit_system` is otherwise left at `None` below (Default value = "kSI_C")
+        :param add_to_namespace: if given, also bind each column as a
+            variable in this namespace (or the caller's namespace if `True`) (Default value = None)
+        """
         self.columns = []
         self.dict = {}
         self.unit_system = None
@@ -130,17 +176,14 @@ class QuantityTable:
     def add_property(
         self, property, units=None, unit_system=None, add_to_namespace=None
     ):
-        """
+        """Add a new (initially empty) column to the table
 
-        Args:
-          property (str): property symbols
-          units (str): property units (Default value = None)
-          unit_system (str): unit system to infer units if not defined with the
-                             units keyword (Default value = None)
-          property_type (str): property type, i.e. temperature, density, etc (Default value = None)
-
-        Returns:
-
+        :param property: property symbol for the new column
+        :param units: units for the column (Default value = None, inferred from `unit_system`/`property` if not given)
+        :param unit_system: unit system to infer units from if `units` is not given -- one of 'SI_C', 'SI_K', 'English_F', 'English_R' (Default value = None, falls back to `self.unit_system`)
+        :param add_to_namespace: if given, also bind the new column as a
+            variable in this namespace (or the caller's namespace if `True`) (Default value = None)
+        :returns: the new column's `PropertyDict`
         """
         property = str(property)
         self.columns.append(property)
@@ -159,6 +202,14 @@ class QuantityTable:
         return self.dict[property]
 
     def remove_property(self, property):
+        """Remove a column from `self.columns` (silently a no-op if not present)
+
+        .. note:: only removes the name from `self.columns` -- the
+           underlying `PropertyDict` is left in `self.dict`, just no longer
+           iterated over.
+
+        :param property: property symbol of the column to remove
+        """
         property = str(property)
         try:
             self.columns.remove(property)
@@ -168,11 +219,9 @@ class QuantityTable:
     def _list_like(self, value):
         """Try to detect a list-like structure excluding strings
 
-        Args:
-          value:
-
-        Returns:
-
+        :param value: value to test
+        :returns: `True` if `value` looks like a sequence (has `__getitem__`
+            or `__iter__`) and is not a string
         """
         return not hasattr(value, "strip") and (
             hasattr(value, "__getitem__") or hasattr(value, "__iter__")
@@ -188,15 +237,16 @@ class QuantityTable:
         transpose=False,
         **kwargs,
     ):
-        """
+        """Render the table (or one state's row) as HTML
 
-        Args:
-          *args:
-          dropna:  (Default value = True)
-          **kwargs:
-
-        Returns:
-
+        :param *args: passed through to :meth:`to_pandas`
+        :param row: render only this state's row (Default value = None, renders the full table)
+        :param rows: currently unused (Default value = None)
+        :param dropna: drop columns that are entirely empty (Default value = True)
+        :param show: display the HTML immediately (Default value = True)
+        :param transpose: transpose the table before rendering (Default value = False)
+        :param **kwargs: passed through to :meth:`to_pandas`, `DataFrame.transpose`, and `DataFrame.to_html`
+        :returns: the rendered HTML string
         """
         df = self.to_pandas(*args, dropna=dropna, **kwargs)
 
@@ -212,25 +262,29 @@ class QuantityTable:
         return result
 
     def to_dict(self):
-        """ """
+        """Plain `{column: {state: value}}` nested dict of the table's contents"""
         return {i: self.dict[i].dict for i in self.columns}
 
     def _atoi(self, text):
+        """`int(text)` if `text` is all digits, else `text` unchanged; used by
+        :meth:`_natural_keys` to sort state IDs like "2" before "10\""""
         return int(text) if text.isdigit() else text
 
     def _natural_keys(self, text):
+        """Sort key that splits `text` on runs of digits so numeric state IDs
+        sort in numeric rather than lexical order (e.g. "2" before "10")"""
         return [self._atoi(c) for c in re.split("(\d+)", text)]
 
     def to_pandas(self, *args, dropna=True, plainstr=False, **kwargs):
-        """
+        """Render the table as a pandas DataFrame, magnitudes only (units moved
+        into the column headers) and rows sorted by natural state-ID order
 
-        Args:
-          *args:
-          dropna: remove empty columns (Default value = True)
-          **kwargs:
-
-        Returns:
-
+        :param *args: currently unused
+        :param dropna: drop columns that are entirely empty (Default value = True)
+        :param plainstr: use plain `"symbol [units]"` column headers instead of
+            LaTeX-rendered `"$symbol$ [units]"` (Default value = False)
+        :param **kwargs: currently unused
+        :returns: the resulting DataFrame
         """
         df = pd.DataFrame(self.to_dict())
         # Note to self: delaying the import of `display.to_latex()` until the .to_pandas()
@@ -486,6 +540,8 @@ class QuantityTable:
 
     @property
     def rows(self):
+        """Sorted list of state IDs present in any column (natural sort order,
+        e.g. "2" before "10"); also exposed as `self.states`"""
         sts = []
         for prop, prop_dict in self.dict.items():
             for state in prop_dict.dict.keys():
@@ -495,6 +551,32 @@ class QuantityTable:
         return sts
 
     def __getitem__(self, key, include_all=None):
+        """Look up a state, a single property/state cell, or a range of states
+
+        - `table[state]`: a dict of every column's value for that state, plus `"ID"`
+        - `table[property, state]`: *intended* to read the single value at
+          that cell (see note below -- currently always raises `KeyError`)
+        - `table[start:stop]`: a list of state dicts for the states between
+          `start` and `stop` (by state ID, or by position if not found/`None`)
+
+        :param key: a state ID, a `(property, state)` pair, or a slice of state IDs
+        :param include_all: for slices, index by position in `self.states`
+            rather than via `slice.indices` (Default value = None)
+        :returns: a state dict or a list of state dicts
+
+        .. note:: the 2-element case does `self.dict[property, state]` --
+           a single lookup with a tuple key -- but `self.dict` is only ever
+           keyed by plain column names (see :meth:`add_property`), never by
+           `(property, state)` tuples, so this always raises `KeyError`.
+           The working way to read one cell is `table[state][property]`.
+           Contrast :meth:`__setitem__`, which correctly does
+           `self.dict[property][state] = value` (and uses `(state,
+           property)` argument order, the reverse of this method's).
+
+        .. note:: for a slice whose `start`/`stop` is a positive value not
+           found in `self.states`, `start`/`stop` is left unset and this
+           raises `NameError` rather than the intended `IndexError`.
+        """
         if isinstance(key, slice):
             states = self.states
             len_states = len(states)
@@ -549,6 +631,15 @@ class QuantityTable:
             return state_dict
 
     def __setitem__(self, index, value):
+        """Set a single property/state cell: `table[state, property] = value`
+
+        Creates the column via :meth:`add_property` first if it doesn't
+        already exist.
+
+        :param index: a `(state, property)` pair (single-level and >2-level
+            indices raise `IndexError`, not yet implemented)
+        :param value: the value to store
+        """
         if self._list_like(index):
             len_var = len(index)
             if len_var == 0:
@@ -570,10 +661,16 @@ class QuantityTable:
             raise IndexError("Recieved index of level 1: Not implemented yet")
 
     def __iter__(self):
+        """Intended to iterate over column names, but returns `self.dict` (a
+        `dict`, not an iterator) directly, so `for x in table:` raises
+        `TypeError: iter() returned non-iterator of type 'dict'`. Iterate
+        `table.columns` instead."""
         return self.dict
 
     def __delitem__(self, item):
+        """Intended to delete a state or property, but currently a no-op"""
         pass
 
     def __str__(self, *args, **kwargs):
+        """Plain-text table via `to_pandas(plainstr=True).to_string()`"""
         return self.to_pandas(self, *args, plainstr=True, **kwargs).to_string()
