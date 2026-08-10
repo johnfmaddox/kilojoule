@@ -15,6 +15,12 @@ Unreleased
 - Remove ``kilojoule.chemical`` and ``kilojoule.transport``, unfinished
   modules that were not importable and not reachable from anywhere else in
   the package
+- Remove ``kilojoule.solve``, an earlier draft of ``kilojoule.display``
+  (same ``FormatCalculation``/``Quantities``/``Summary`` surface) that was
+  never imported from anywhere in the package and, despite the prior
+  ``ImportError`` fix above, still referenced several names
+  (``__variable_latex_subs__``, ``pre_sympy_latex_substitutions``,
+  ``multiplication_symbol``) that only exist in ``kilojoule.display``
 - Add a real pytest suite (import smoke tests across every submodule, basic
   unit-registry checks) and a GitHub Actions workflow that runs it on every
   push/PR; gate the PyPI publish workflow on the tests passing first
