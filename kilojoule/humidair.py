@@ -1406,25 +1406,23 @@ def LegacyPropertyPlot(
     unit_system="SI_C",
     **kwargs,
 ):
-    """Deprecated, and currently broken: intended to build a `Properties`
-    instance and its `PropertyPlot` in one call, like the `realfluid`/
-    `idealgas` versions this was copied from -- but `humidair.Properties.__init__`
-    takes `(p=None, unit_system=...)`, not `fluid`, so this always raises
-    `TypeError: Properties.__init__() got an unexpected keyword argument 'fluid'`.
-    Use `Properties(p=...).property_diagram(...)` instead.
+    """Deprecated: builds a `Properties` instance and its `PropertyPlot` in one
+    call, instead of `Properties(p=...).property_diagram(...)`
 
     :param x: property symbol for the x-axis, e.g. 'T' (Default value = None)
     :param y: property symbol for the y-axis, e.g. 'w' (Default value = None)
     :param x_units: units for the x-axis (Default value = None)
     :param y_units: units for the y-axis (Default value = None)
     :param plot_type: currently unused (Default value = None)
-    :param fluid: currently causes this function to raise -- see above (Default value = None)
+    :param fluid: currently unused -- accepted for signature compatibility
+        with the `realfluid`/`idealgas` versions of this function, but humid
+        air has no fluid to select; pass `p=...` (via `**kwargs`) instead (Default value = None)
     :param saturation: plot the saturation dome (Default value = False)
     :param unit_system: unit system for return values and default axis units (Default value = "SI_C")
     :param **kwargs: passed through to both `Properties` and `PropertyPlot`
-    :returns: the `PropertyPlot` (never returns; always raises)
+    :returns: the `PropertyPlot`
     """
-    props = Properties(fluid=fluid, unit_system=unit_system, **kwargs)
+    props = Properties(unit_system=unit_system, **kwargs)
     return PropertyPlot(
         x=x,
         y=y,

@@ -721,10 +721,10 @@ Use the long-form `(keyword = argument)` notation, i.e.
         :param y: property symbol for the y-axis, e.g. 'T' (Default value = None)
         :param x_units: units for the x-axis (Default value = None, inferred from `unit_system`)
         :param y_units: units for the y-axis (Default value = None, inferred from `unit_system`)
-        :param saturation: currently ignored -- always plotted as `False`
-            below, regardless of this argument (an ideal gas has no
-            saturation dome, so this may be intentional, but the parameter
-            is misleading as-is) (Default value = False)
+        :param saturation: plot the saturation dome (Default value = False).
+            An ideal gas has no `T_triple`/`p_triple`, so passing `True`
+            raises `AttributeError` from `PropertyPlot` -- there's nothing
+            meaningful to plot.
         :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
         :param **kwargs: passed through to `PropertyPlot`
         :returns: the `PropertyPlot`
@@ -736,7 +736,7 @@ Use the long-form `(keyword = argument)` notation, i.e.
             x_units=x_units,
             y_units=y_units,
             property_table=self,
-            saturation=False,
+            saturation=saturation,
             unit_system=unit_system,
             **kwargs,
         )
