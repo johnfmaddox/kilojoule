@@ -399,10 +399,6 @@ class PropertyPlot:
         :param gridlineprops: extra kwargs merged into the gridline style (Default value = {})
         :param **kwargs: passed through to `Axes.plot` for the marker
         :returns: the label's `Annotation` object
-
-        .. note:: if `label` is `None`, this currently raises `NameError` on
-           `ha`/`va` (only assigned inside the `label is not None` branch) --
-           always pass a `label` for now.
         """
         pointprops = {**pointprops_default, **pointprops}
         labelprops = {**labelprops_default, **labelprops}
@@ -410,10 +406,10 @@ class PropertyPlot:
         x = x.to(self.x_units).magnitude
         y = y.to(self.y_units).magnitude
         self.ax.plot(x, y, *args, marker=marker, color=color, **kwargs)
+        ha = "center"
+        va = "center"
+        xytext = [0, 0]
         if label is not None:
-            ha = "center"
-            va = "center"
-            xytext = [0, 0]
             if "north" in label_loc:
                 xytext[1] = offset
                 va = "bottom"

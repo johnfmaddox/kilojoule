@@ -2,7 +2,7 @@
     Cengel
     ~~~~~~
     Interpolated or exact lookup for property tables from Cengel &
-    Ghajar, "Heat and Mass Transfer", stored as metadata-annotated CSVs
+    Boles, "Thermodynamics:An Engineering Approach", stored as metadata-annotated CSVs
     in the `Cengel Data` directory. See :class:`Table` for the file
     format and lookup behavior.
 """

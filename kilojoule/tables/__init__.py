@@ -22,7 +22,9 @@ import pint_pandas
 import functools
 import os
 
-_transport_property_data_path = os.path.join(os.path.realpath(__file__), "Data")
+_transport_property_data_path = os.path.join(
+    os.path.realpath(os.path.join(__file__, os.pardir, "Data"))
+)
 
 
 class AmbiguousUnitsError(Exception):
@@ -64,14 +66,10 @@ class Properties:
     def find_file(self, material):
         """Locate the data file for a given material name in the `Data` directory
 
-        .. note:: incomplete -- currently prints the available data files
-           but does not return a path; see the working equivalent in
-           :mod:`kilojoule.tables.Bergman`.
-
         :param material: name of the data file to load, without extension
+        :returns: path to the `{material}.csv` file
         """
-        property_files = os.listdir(_transport_property_data_path)
-        print(property_files)
+        return os.path.join(_transport_property_data_path, f"{material}.csv")
 
     def read_table(self):
         """Read `self.file` into `self.df` and build the symbol/unit lookup dictionaries
