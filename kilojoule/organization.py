@@ -131,22 +131,18 @@ class QuantityTable:
             property symbols (units inferred from `unit_system`), or a dict
             of `{symbol: units}` (Default value = None, no columns; use
             :meth:`add_property` or `table[state, prop] = value` to add them later)
-        :param property_source: intended as the default property source used
-            by :meth:`fix` when not given explicitly, but currently not
-            stored -- `self.property_source` is unconditionally set to
-            `None` below regardless of this argument (Default value = None)
+        :param property_source: default property source used by :meth:`fix`
+            when not given explicitly (Default value = None)
         :param unit_system: unit system used to infer units for `properties`
-            given as a list/tuple -- one of 'SI_C', 'SI_K', 'English_F',
-            'English_R'; only takes effect in that (list/tuple) case, since
-            `self.unit_system` is otherwise left at `None` below (Default value = "kSI_C")
+            given as a list/tuple, and for columns added later without
+            explicit units -- one of 'SI_C', 'SI_K', 'English_F', 'English_R' (Default value = "kSI_C")
         :param add_to_namespace: if given, also bind each column as a
             variable in this namespace (or the caller's namespace if `True`) (Default value = None)
         """
         self.columns = []
         self.dict = {}
-        self.unit_system = None
-        self.property_source = None
-        self.states = self.rows
+        self.unit_system = unit_system
+        self.property_source = property_source
         self.properties = self.columns
         if add_to_namespace is not None:
             self.parent_namespace = get_caller_namespace()
@@ -155,7 +151,6 @@ class QuantityTable:
         if properties is None:
             pass
         elif isinstance(properties, (list, tuple)):
-            self.unit_system = unit_system
             for prop in properties:
                 self.add_property(prop, add_to_namespace=self.parent_namespace)
         elif isinstance(properties, dict):
@@ -333,59 +328,6 @@ class QuantityTable:
         df = df.reindex(a)
         return df
 
-    # def to_pandas(self, *args, dropna=True, **kwargs):
-    #     # pint_pandas.PintType.ureg.default_format = "~P"
-    #     def formatter_func(units):
-    #         try:
-    #             formatter = "{:" + units._REGISTRY.default_format + "}"
-    #             return formatter.format(units)
-    #         except:
-    #             formatter = "{:~L}"
-    #             return formatter.format(units)
-
-    #     def firstQuantity(lst):
-    #         for item in lst:
-    #             if isinstance(item,Quantity):
-    #                 return item
-
-    #     df = pd.DataFrame(self.to_dict())
-
-    #     df_columns = df.columns.to_frame()
-    #     units_col = []
-    #     for col in df.columns:
-    #         try:
-    #             units_col.append(formatter_func(firstQuantity(df[col].values).units))
-    #         except AttributeError:
-    #             units_col.append('')
-    #     df_columns["units"] = units_col
-
-    #     from collections import OrderedDict
-
-    #     data_for_df = OrderedDict()
-    #     for i, col in enumerate(df.columns):
-    #         data_for_df[tuple(df_columns.iloc[i])] = df[col].values.data
-    #     df_new = pd.DataFrame(data_for_df, columns=data_for_df.keys())
-
-    #     df_new.columns.names = df.columns.names + ["unit"]
-    #     df_new.index = df.index
-    #     df = df_new
-
-    #     for prop in df.keys():
-    #         df[prop] = df[prop].apply(lambda x: x.magnitude if isinstance(x,Quantity) else x)
-
-    #     if dropna:
-    #         df.dropna(axis="columns", how="all", inplace=True)
-    #     df.fillna("-", inplace=True)
-    #     df.index = df.index.map(str)
-    #     def atoi(text):
-    #         return int(text) if text.isdigit() else text
-    #     def natural_keys(text):
-    #         return [ atoi(c) for c in re.split('(\d+)',text) ]
-    #     a = df.index.tolist()
-    #     a.sort(key=self._natural_keys)
-    #     df = df.reindex(a)
-    #     return df
-
     def _identify_symbol(self, quant, property_source):
         """Returns the corresponding symbol associated with a quantity for the property data
         If there are multiple columns with the same units, raise an AmbiguousUnitsError
@@ -550,32 +492,25 @@ class QuantityTable:
         sts.sort(key=self._natural_keys)
         return sts
 
+    # `states` was previously a plain attribute snapshotted once in
+    # __init__ (`self.states = self.rows`), which froze it at whatever
+    # `rows` was at construction time -- typically empty. Aliasing the
+    # property here keeps it live, matching `self.properties = self.columns`.
+    states = rows
+
     def __getitem__(self, key, include_all=None):
         """Look up a state, a single property/state cell, or a range of states
 
         - `table[state]`: a dict of every column's value for that state, plus `"ID"`
-        - `table[property, state]`: *intended* to read the single value at
-          that cell (see note below -- currently always raises `KeyError`)
+        - `table[state, property]`: the single value at that cell (matching
+          :meth:`__setitem__`'s `table[state, property] = value`)
         - `table[start:stop]`: a list of state dicts for the states between
           `start` and `stop` (by state ID, or by position if not found/`None`)
 
-        :param key: a state ID, a `(property, state)` pair, or a slice of state IDs
-        :param include_all: for slices, index by position in `self.states`
-            rather than via `slice.indices` (Default value = None)
-        :returns: a state dict or a list of state dicts
-
-        .. note:: the 2-element case does `self.dict[property, state]` --
-           a single lookup with a tuple key -- but `self.dict` is only ever
-           keyed by plain column names (see :meth:`add_property`), never by
-           `(property, state)` tuples, so this always raises `KeyError`.
-           The working way to read one cell is `table[state][property]`.
-           Contrast :meth:`__setitem__`, which correctly does
-           `self.dict[property][state] = value` (and uses `(state,
-           property)` argument order, the reverse of this method's).
-
-        .. note:: for a slice whose `start`/`stop` is a positive value not
-           found in `self.states`, `start`/`stop` is left unset and this
-           raises `NameError` rather than the intended `IndexError`.
+        :param key: a state ID, a `(state, property)` pair, or a slice of state IDs
+        :param include_all: for slices, use `range(start, stop)` (ignoring
+            `key.step`) instead of `range(start, stop, key.step or 1)` (Default value = None)
+        :returns: a state dict, a single value, or a list of state dicts
         """
         if isinstance(key, slice):
             states = self.states
@@ -587,6 +522,8 @@ class QuantityTable:
                     start = 0
                 elif key.start < 0:
                     start = len_states + key.start + 1
+                else:
+                    start = key.start
             try:
                 stop = states.index(str(key.stop))
             except:
@@ -594,11 +531,13 @@ class QuantityTable:
                     stop = len_states
                 elif key.stop < 0:
                     stop = len_states + key.stop + 1
+                else:
+                    stop = key.stop
             if include_all:
                 return [self[states[i]] for i in range(start, stop)]
             else:
-                strt, stp, step = key.indices(len_states)
-                return [self[i] for i in range(start, stop, step)]
+                step = key.step or 1
+                return [self[states[i]] for i in range(start, stop, step)]
 
         if self._list_like(key):
             len_var = len(key)
@@ -614,9 +553,9 @@ class QuantityTable:
                 state_dict["ID"] = key
                 return state_dict
             elif len_var == 2:
-                state = str(key[1])
-                property = str(key[0])
-                return self.dict[property, state]
+                state = str(key[0])
+                property = str(key[1])
+                return self.dict[property][state]
             else:
                 raise IndexError("Received too long index.")
         else:
@@ -661,15 +600,15 @@ class QuantityTable:
             raise IndexError("Recieved index of level 1: Not implemented yet")
 
     def __iter__(self):
-        """Intended to iterate over column names, but returns `self.dict` (a
-        `dict`, not an iterator) directly, so `for x in table:` raises
-        `TypeError: iter() returned non-iterator of type 'dict'`. Iterate
-        `table.columns` instead."""
-        return self.dict
+        """Iterate over column (property) names"""
+        return iter(self.dict)
 
     def __delitem__(self, item):
-        """Intended to delete a state or property, but currently a no-op"""
-        pass
+        """Delete a state, by ID, from every column"""
+        item = str(item)
+        for column in self.columns:
+            if item in self.dict[column].dict:
+                del self.dict[column][item]
 
     def __str__(self, *args, **kwargs):
         """Plain-text table via `to_pandas(plainstr=True).to_string()`"""
