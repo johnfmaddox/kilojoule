@@ -356,11 +356,11 @@ class PropertyPlot:
 
     def plot_states(self, key, *args, **kwargs):
         if isinstance(key, slice):
-            for i in states(key):
+            for i in self.props[key]:
                 self.plot_state(i, *args, **kwargs)
         else:
             for i in key:
-                self.plot_state(key, *args, **kwargs)
+                self.plot_state(i, *args, **kwargs)
 
     def plot_iso_line(
         self,

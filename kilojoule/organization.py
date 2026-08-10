@@ -1,6 +1,6 @@
 from .units import ureg, Quantity
 import pint
-from .common import get_caller_namespace
+from .common import get_caller_namespace, preferred_units_from_symbol, AmbiguousUnitsError
 import pandas as pd
 from IPython.display import display, HTML, Math, Latex, Markdown
 import re
@@ -519,7 +519,7 @@ class QuantityTable:
                 return [self[i] for i in range(start, stop, step)]
 
         if self._list_like(key):
-            len_var = len(index)
+            len_var = len(key)
             if len_var == 0:
                 raise IndexError("Received empty index.")
             elif len_var == 1:
@@ -532,8 +532,8 @@ class QuantityTable:
                 state_dict["ID"] = key
                 return state_dict
             elif len_var == 2:
-                state = str(index[1])
-                property = str(index[0])
+                state = str(key[1])
+                property = str(key[0])
                 return self.dict[property, state]
             else:
                 raise IndexError("Received too long index.")

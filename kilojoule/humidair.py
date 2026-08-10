@@ -1,3 +1,4 @@
+from . import units
 from .units import Quantity, ureg
 from .common import (
     invert_dict,
@@ -30,8 +31,7 @@ CP_HA_units_to_symb = {
         "T_db",
     ],
     "Pa": ["P", "P_w"],
-    "J/kg_dry_air/K": ["C", "cp", "CV", "S", "Sda", "Entropy"],
-    "J/kg_dry_air/K": ["Cw", "cpw", "CV", "S", "Sda", "Entropy"],
+    "J/kg_dry_air/K": ["C", "cp", "Cw", "cpw", "CV", "S", "Sda", "Entropy"],
     "J/kg_humid_air/K": ["Cha", "cp_ha", "CVha", "cv_ha", "Sha"],
     "J/kg_dry_air": ["H", "Hda", "Enthalpy"],
     "J/kg_humid_air": ["Hha"],
@@ -377,7 +377,7 @@ class Properties:
                                                         )
                                                 except:
                                                     print(
-                                                        f"Unable to determine property type for {f} based on units"
+                                                        f"Unable to determine property type for {arg} based on units"
                                                     )
             elif 0 <= arg <= 1:  # quality
                 kwargs = dict(rel_hum=arg, **kwargs)

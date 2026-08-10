@@ -5,6 +5,13 @@ STP = {"T": units.Quantity(0, "degC"), "p": units.Quantity(1, "bar")}
 NTP = {"T": units.Quantity(20, "degC"), "p": units.Quantity(1, "atm")}
 
 
+class AmbiguousUnitsError(Exception):
+    """Raised when a value's units match more than one property symbol,
+    so the intended property cannot be inferred from units alone."""
+
+    pass
+
+
 def invert_dict(original_dict, replace_empty_string=True):
     """Invert a dictionary creating a new key for every item
 

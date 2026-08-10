@@ -4,6 +4,7 @@ from .common import (
     CP_symbUpper_to_units,
     preferred_units_from_type,
     preferred_units_from_symbol,
+    AmbiguousUnitsError,
 )
 from .plotting import PropertyPlot
 import CoolProp
