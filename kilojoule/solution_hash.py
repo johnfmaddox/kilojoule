@@ -9,7 +9,7 @@ accuracy.
 
 from .common import get_caller_namespace
 from .units import Quantity
-from .display import numeric_to_string, to_latex, to_numeric, Latex
+from .display import numeric_to_string, to_latex, Latex
 from IPython.display import display, Markdown
 
 import hashlib
@@ -250,31 +250,6 @@ def check_solutions(sol_list, n_col=3, namespace=None, legend=False, **kwargs):
     if legend:
         display(Latex(sol_legend))
 
-    def add_variable(self, variable, **kwargs):
-        """Add a variable to the display list
-
-        Args:
-          variable:
-          **kwargs:
-
-        Returns:
-
-        """
-        symbol = to_latex(variable)
-        value = to_numeric(variable, self.namespace)
-        boxed_styles = ["box", "boxed", "sol", "solution"]
-        if self.style in boxed_styles:
-            self.latex_string += r"\Aboxed{ "
-        self.latex_string += symbol + r" }&={ " + value
-        if self.style in boxed_styles:
-            self.latex_string += r" }"
-        if self.n < self.n_col:
-            self.latex_string += r" }&{ "
-            self.n += 1
-        else:
-            self.latex_string += r" }\\{ "
-            self.n = 1
-
 
 def check_solution(
     name,
@@ -421,18 +396,18 @@ def store_solutions(
         :func:`str_to_sol_list`), or a list whose items are each either a
         variable name string or a dict of kwargs for :func:`store_solution`
     :param namespace: namespace to evaluate variables in (Default value = None, uses the caller's namespace)
-    :param filename: currently unused -- :func:`store_solution` is always
-        called without it (so it writes to its own default,
-        `.solution_hashes`), and the copy step below always copies
-        `default_hash_filename` rather than this argument (Default value = ".solution_hashes")
+    :param filename: hash database file to write to and distribute (Default value = ".solution_hashes")
     :param copy_to_student: also copy the hash file into `student_dir` (Default value = True)
     :param student_dir: destination directory for the student copy (Default value = "student/")
     :param ext_hash_location: if this directory exists, also copy the hash
         file there, mirroring the path relative to the home directory (Default value = "~/src/solution_hashes/")
     :param **kwargs: passed through to :func:`store_solution` for every item
+        (note: a dict item in `sol_list` that also sets `namespace` or
+        `filename` will collide with these and raise `TypeError`)
     """
     namespace = namespace or get_caller_namespace()
     kwargs["namespace"] = namespace
+    kwargs["filename"] = filename
     sol_list = str_to_sol_list(sol_list)
     for sol in sol_list:
         if isinstance(sol, str):
@@ -441,12 +416,12 @@ def store_solutions(
             store_solution(**sol, **kwargs)
     if copy_to_student:
         os.makedirs(student_dir, exist_ok=True)
-        shutil.copy2(default_hash_filename, student_dir)
+        shutil.copy2(filename, student_dir)
     ext_hash_location = Path(ext_hash_location)
     if ext_hash_location.exists():
-        dest = ext_hash_location / Path(default_hash_filename).absolute().parent.relative_to(Path.home())
+        dest = ext_hash_location / Path(filename).absolute().parent.relative_to(Path.home())
         os.makedirs(dest, exist_ok=True)
-        shutil.copy2(default_hash_filename, dest)
+        shutil.copy2(filename, dest)
 
 
 def store_solution(
@@ -539,13 +514,8 @@ def get_notebook_filename():
     """Get the current notebook's filename from the environment (CoCalc or
     JupyterHub), split into `(directory, filename)`
 
-    :returns: `os.path.split()` of the detected filename
-
-    .. note:: the `JPY_SESSION_NAME` branch has a typo -- it looks up
-       `environ["JPY_SESSION NAME"]` (space instead of underscore), which
-       is never set, so it always raises `KeyError`. And if neither
-       environment variable is present, `filename` is never assigned,
-       raising `UnboundLocalError` on return rather than a clear error.
+    :returns: `os.path.split()` of the detected filename, or `None` if
+        neither environment variable is set
     """
     import os
 
@@ -553,7 +523,9 @@ def get_notebook_filename():
     if "COCALC_JUPYTER_FILENAME" in environ:
         filename = os.path.split(environ["COCALC_JUPYTER_FILENAME"])
     elif "JPY_SESSION_NAME" in environ:
-        filename = os.path.split(environ["JPY_SESSION NAME"])
+        filename = os.path.split(environ["JPY_SESSION_NAME"])
+    else:
+        filename = None
     return filename
 
 
