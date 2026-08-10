@@ -416,10 +416,11 @@ def store_solution(
             if round_machine_zero and value.magnitude < default_machine_zero:
                 round_machine_zero = False
         except TypeError:
-            print(f'Skipping machine zero check for {name} = {value}')
+            pass
     if append:
         hashes.extend(hash_db[key]["hashes"])
         first_sigfig_hashes.extend(hash_db[key]["first_sigfig_hashes"])
+
     #     print(f'{hashes}')
     hash_db[key] = dict(
         hashes=list(unique(hashes)),
@@ -451,5 +452,5 @@ def get_notebook_filename():
 
 def export_html(show_code=False, capture_output=True, **kwargs):
     import warnings
-    warning.warn('export_html has been moved to the export module; it can be imported with \n\n\tfrom kilojoule.export import export_html\n\n')
-    
+    warnings.warn('`export_html` has been moved to the `export` module; it can be imported with \n\n\t`from kilojoule.export import export_html`\n\n')
+

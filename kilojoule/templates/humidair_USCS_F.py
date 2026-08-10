@@ -40,7 +40,7 @@ properties_dict = {
     "mdot_a": "lb_dry_air/s",  # mass flow rate
     "mdot_w": "lb_water/s",  # mass flow rate of water
     "Vol": "ft^3",  # volume
-    "Vdot": "ft^3/s",  # volumetric flow rate
+    "Vdot": "ft^3/min",  # volumetric flow rate
     "Vel": "ft/s",  # velocity
     "X": "Btu",  # exergy
     "Xdot": "hp",  # exergy flow rate

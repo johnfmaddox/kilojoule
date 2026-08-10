@@ -65,9 +65,9 @@ post_sympy_latex_substitutions = {
     r"Nuplchldr": r"Nu",
     r"\\hbar": r"\\bar{h}",
     r"\\bar{": r"\\overline{",
-    r"(infty|infinity)": r"\\infty",
-    r"(?<!\\)inf(,|})": r"\\infty\1",
-    r"^(?<!\\)inf$": r"\\infty",
+    r"(infty|infinity)": r"\infty",
+    r"inf(,|})": r"\infty\1",
+    r"^inf$": r"\infty",
     r"_\{tripprmplchldr\}|,tripprmplchldr": r"'''",
     r"_\{tripprmplchldr,": r"'''_\{",
     r"_\{doubprmplchldr\}|,doubprmplchldr": r"''",
@@ -164,7 +164,7 @@ def to_numeric(code, namespace=None, verbose=False, line_indent="", to_units=Non
 
 
 def numeric_to_string(numeric):
-    if isinstance(numeric, ureg.Quantity) or isinstance(numeric, ureg.Measurement):
+    if isinstance(numeric, Quantity):# or isinstance(numeric, Measurement):
         try:
             numeric = f"{numeric:.5~L}"
         except (ValueError, TypeError):

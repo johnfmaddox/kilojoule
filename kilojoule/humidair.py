@@ -913,7 +913,7 @@ class Properties:
             f"Dry-Bulb Temperature, $T_{{\\mathrm{{db}}}}\\ [\\mathrm{{{x_units_str}}}]$"
         )
         psych.ax.set_ylabel(
-            f"Humidity Ratio, $\\omega\\ \\left[\mathrm{{{y_units_str}}}\\right]$"
+            f"Humidity Ratio, $\\omega\\ \\left[\\mathrm{{{y_units_str}}}\\right]$"
         )
 
         # Set axis style
@@ -927,7 +927,7 @@ class Properties:
             pressure_str = f"{psych.props.p}"
         except:
             pressure_str = f"{psych.props.p:~L}"
-        title = f"Psychrometric Chart\nPressure: $\mathrm{{{pressure_str}}}$"
+        title = f"Psychrometric Chart\nPressure: $\\mathrm{{{pressure_str}}}$"
         psych.text(
             (0.05 * (Tmax - Tmin) + Tmin).magnitude,
             (0.9 * (wmax - wmin) + wmin).magnitude,
@@ -993,7 +993,7 @@ class Properties:
             psych._plot_iso_wrapper(
                 iso_symb="rel_hum",
                 iso_value=i,
-                label=f"$\phi=10\%$",
+                label=f"$\\phi=10\\%$",
                 xcoor=(Tmin + 0.95 * (Tmax - Tmin)).magnitude,
                 **lstyle,
             )
@@ -1088,7 +1088,7 @@ class Properties:
                     iso_value=v,
                     y_range=[ymax, ymin],
                     n_points=10,
-                    label=f"$v={v_string}\ \mathrm{{{v_units_str}}}$",
+                    label=f"$v={v_string}\\ \\mathrm{{{v_units_str}}}$",
                     pos=0.7,
                     **lstyle,
                 )
@@ -1127,7 +1127,7 @@ class Properties:
                         iso_value=Twb,
                         y_range=[ymax, ymin],
                         n_points=10,
-                        label=f"$T_\mathrm{{wb}}={int(T)}\mathrm{{{T_units_str}}}$",
+                        label=f"$T_\\mathrm{{wb}}={int(T)}\\mathrm{{{T_units_str}}}$",
                         **lstyle,
                     )
                 else:
@@ -1136,7 +1136,7 @@ class Properties:
                         iso_value=Twb,
                         y_range=[ymax, ymin],
                         n_points=10,
-                        label=f"${int(T)}\mathrm{{{T_units_str}}}$",
+                        label=f"${int(T)}\\mathrm{{{T_units_str}}}$",
                         **Twb_isoline_style,
                     )
 
