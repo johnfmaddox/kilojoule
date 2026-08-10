@@ -1,6 +1,8 @@
 # kilojoule
 
 ![PyPI - Version](https://img.shields.io/pypi/v/kilojoule)
+![PyPI - License](https://img.shields.io/pypi/l/kilojoule)
+[![Tests](https://github.com/johnfmaddox/kilojoule/actions/workflows/tests.yml/badge.svg)](https://github.com/johnfmaddox/kilojoule/actions/workflows/tests.yml)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/johnfmaddox/kilojoule-binder/HEAD?urlpath=git-pull?repo=https://github.com/johnfmaddox/kilojoule-notebooks)
 
 Convenience functions for solving thermodynamic and heat transfer problems

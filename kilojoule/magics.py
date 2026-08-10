@@ -9,6 +9,7 @@ equation.
 
 from .display import Calculations
 
+from IPython import get_ipython
 from IPython.core.magic import Magics, magics_class, line_cell_magic, needs_local_scope
 from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 
@@ -84,4 +85,5 @@ class ShowCalcMagics(Magics):
 
 
 ip = get_ipython()
-ip.register_magics(ShowCalcMagics)
+if ip is not None:
+    ip.register_magics(ShowCalcMagics)

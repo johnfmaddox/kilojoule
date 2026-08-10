@@ -16,7 +16,7 @@ import logging
 from .organization import QuantityTable
 from .common import get_caller_namespace
 import ast
-from .units import units, Quantity
+from .units import ureg, Quantity
 
 
 def _ast_to_string(ast_node, line_indent=""):
@@ -59,7 +59,7 @@ def to_numeric(code, namespace=None):
 
 
 def numeric_to_string(numeric):
-    if isinstance(numeric, units.Quantity):
+    if isinstance(numeric, ureg.Quantity):
         try:
             numeric = f"{numeric:.5~L}"
         except:
@@ -462,7 +462,7 @@ class Quantities:
         else:
             for k, v in sorted(self.namespace.items()):
                 if not k.startswith("_"):
-                    if isinstance(v, units.Quantity):
+                    if isinstance(v, ureg.Quantity):
                         self.add_variable(k, **kwargs)
         self.latex_string += r" }\end{aligned}"
         self.latex = self.latex_string

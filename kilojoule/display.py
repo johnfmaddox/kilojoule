@@ -10,6 +10,7 @@ external document.
 """
 
 from string import ascii_lowercase
+from IPython import get_ipython
 from IPython.display import display, HTML, Math, Latex, Markdown
 
 from sympy import sympify, latex
