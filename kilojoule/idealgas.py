@@ -1,3 +1,9 @@
+"""
+    idealgas
+    ~~~~~~~~
+    Ideal-gas thermodynamic properties, backed by PYroMat. See
+    :class:`Properties` for the main entry point.
+"""
 from .common import preferred_units_from_type, preferred_units_from_symbol, invert_dict
 from .units import ureg, Quantity
 from .plotting import PropertyPlot
@@ -35,9 +41,15 @@ pm_symb_to_units = invert_dict(pm_units_to_symb)
 
 
 class Properties:
-    """ """
+    """A class to return thermodynamic properties for an ideal gas, backed by PYroMat"""
 
     def __init__(self, fluid, unit_system="kSI_K", verbose=False):
+        """
+        :param fluid: PYroMat ideal-gas species name, e.g. 'N2', 'CO2' (looked
+            up as `ig.{fluid}`; 'air'/'Air' is special-cased to PYroMat's `ig.air`)
+        :param unit_system: unit system for return values -- one of 'SI_C', 'SI_K', 'English_F', 'English_R' (Default value = "kSI_K")
+        :param verbose: show debug information (Default value = False)
+        """
         self.verbose = verbose
         self.unit_system = unit_system
         self.fluid = fluid
@@ -61,6 +73,19 @@ class Properties:
         }
 
     def _update_kwargs(self, args, kwargs, min_length=2):
+        """Merge positional Quantity args into `kwargs`, inferring each one's
+        property keyword from its units (or its `.property_symbol` if set),
+        then drop redundant dependent properties and enforce a minimum count
+
+        Positional arguments whose units match both internal energy and
+        enthalpy (`kJ/kg`, ambiguous between `u`/`h`) raise `ValueError`
+        asking for the explicit keyword form instead.
+
+        :param args: positional Quantity arguments to classify and merge into `kwargs`
+        :param kwargs: explicit `symbol=value` arguments
+        :param min_length: minimum number of independent properties required after merging (Default value = 2)
+        :returns: the merged, unit-coerced kwargs dict
+        """
         enthalpy_check = False
         for arg in args:
             try:
@@ -234,6 +259,7 @@ Use the long-form `(keyword = argument)` notation, i.e.
             from scipy.optimize import fsolve
 
             def f(T_guess):
+                """Residual between target `u` and `u` at `T_guess`, for `fsolve`"""
                 T_guess_K = Quantity(T_guess, "K")
                 h_guess = self.h(T=T_guess_K, verbose=verbose)
                 u_guess = h_guess - self.R * T_guess_K
@@ -687,6 +713,22 @@ Use the long-form `(keyword = argument)` notation, i.e.
         unit_system=None,
         **kwargs,
     ):
+        """Create a :class:`~kilojoule.plotting.PropertyPlot` of this gas for
+        an arbitrary pair of properties; the `x*_diagram`/`*y_diagram` methods
+        below are convenience wrappers around this for common property pairs
+
+        :param x: property symbol for the x-axis, e.g. 's' (Default value = None)
+        :param y: property symbol for the y-axis, e.g. 'T' (Default value = None)
+        :param x_units: units for the x-axis (Default value = None, inferred from `unit_system`)
+        :param y_units: units for the y-axis (Default value = None, inferred from `unit_system`)
+        :param saturation: currently ignored -- always plotted as `False`
+            below, regardless of this argument (an ideal gas has no
+            saturation dome, so this may be intentional, but the parameter
+            is misleading as-is) (Default value = False)
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param **kwargs: passed through to `PropertyPlot`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         return PropertyPlot(
             x=x,
@@ -700,26 +742,62 @@ Use the long-form `(keyword = argument)` notation, i.e.
         )
 
     def Ts_diagram(self, unit_system=None, **kwargs):
+        """Temperature-entropy diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         return self.property_diagram(x="s", y="T", unit_system=unit_system, **kwargs)
 
     def pv_diagram(self, unit_system=None, **kwargs):
+        """Pressure-specific volume diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         return self.property_diagram(x="v", y="p", unit_system=unit_system, **kwargs)
 
     def Tv_diagram(self, unit_system=None, **kwargs):
+        """Temperature-specific volume diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         return self.property_diagram(x="v", y="T", unit_system=unit_system, **kwargs)
 
     def hs_diagram(self, unit_system=None, **kwargs):
+        """Enthalpy-entropy (Mollier) diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         return self.property_diagram(x="s", y="h", unit_system=unit_system, **kwargs)
 
     def ph_diagram(self, unit_system=None, **kwargs):
+        """Pressure-enthalpy diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         return self.property_diagram(x="h", y="p", unit_system=unit_system, **kwargs)
 
     def pT_diagram(self, unit_system=None, **kwargs):
+        """Pressure-temperature diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         return self.property_diagram(x="T", y="p", unit_system=unit_system, **kwargs)
 
@@ -734,6 +812,19 @@ def LegacyPropertyPlot(
     unit_system="SI_C",
     **kwargs,
 ):
+    """Deprecated: builds a `Properties` instance and its `PropertyPlot` in one
+    call, instead of `Properties(fluid, ...).property_diagram(...)`
+
+    :param x: property symbol for the x-axis, e.g. 's' (Default value = None)
+    :param y: property symbol for the y-axis, e.g. 'T' (Default value = None)
+    :param x_units: units for the x-axis (Default value = None)
+    :param y_units: units for the y-axis (Default value = None)
+    :param plot_type: currently unused (Default value = None)
+    :param fluid: PYroMat ideal-gas species name, e.g. 'N2' (Default value = None)
+    :param unit_system: unit system for return values and default axis units (Default value = "SI_C")
+    :param **kwargs: passed through to both `Properties` and `PropertyPlot`
+    :returns: the `PropertyPlot`
+    """
     props = Properties(fluid=fluid, unit_system=unit_system, **kwargs)
     return PropertyPlot(
         x=x,

@@ -1,3 +1,10 @@
+"""
+    humidair
+    ~~~~~~~~
+    Humid-air (psychrometric) thermodynamic properties, backed by
+    CoolProp's HAPropsSI. See :class:`Properties` for the main entry
+    point.
+"""
 from . import units
 from .units import Quantity, ureg
 from .common import (
@@ -223,6 +230,20 @@ def PropertyLookup(
             process_indep_arg(v, CP_HA_trans[k])
 
     def humidity_search(PropsSI_args):
+        """Find dry-bulb temperature by a coarse-to-fine line search, for the
+        `R` (relative humidity) + `W` (humidity ratio) + `P` combination that
+        `HAPropsSI` can't invert for `T` directly
+
+        Searches temperature in decreasing step sizes (5, 1, 0.1, 0.01 K,
+        each tried in both directions) until the relative humidity at the
+        current guess matches `R_target` at that resolution, then evaluates
+        `desired` at the resulting `(P, W, T)` state.
+
+        :param PropsSI_args: the CoolProp `HAPropsSI` argument list being
+            built by the enclosing :func:`PropertyLookup` call (read for `P`/`R`/`W`)
+        :returns: the resolved dry-bulb temperature in K (if `desired` is
+            `"Tdb"`), else `desired` evaluated at the resolved state
+        """
         desired = PropsSI_args[0]
         for i, v in enumerate(PropsSI_args):
             if v == "P":
@@ -292,15 +313,20 @@ def PropertyLookup(
 
 
 class Properties:
-    """
-    A class to return thermodynamic properties for a real fluid
+    """A class to return psychrometric (humid air) properties, backed by
+    CoolProp's HAPropsSI
 
     :param p: pressure (Default value = 1 atm)
     :param unit_system: units for return values - one of 'SI_C','SI_K','English_F','English_R' (Default = 'SI_C')
-    :returns: an object with methods to evaluate real fluid properties
+    :returns: an object with methods to evaluate humid air properties
     """
 
     def __init__(self, p=None, unit_system="kSI_C"):
+        """
+        :param p: pressure the air is at, used as a default for `p` in
+            property lookups that don't specify it (Default value = None, 1 atm)
+        :param unit_system: unit system for return values -- one of 'SI_C', 'SI_K', 'English_F', 'English_R' (Default value = "kSI_C")
+        """
         self.fluid = "humidair"
         if p is None:
             self.__p = Quantity(1.0, "atm")
@@ -402,6 +428,7 @@ class Properties:
 
     @p.setter
     def p(self, pressure):
+        """Set the default pressure used by property lookups that don't specify `p`"""
         self.__p = pressure
 
     def T(self, *args, **kwargs):
@@ -713,6 +740,23 @@ class Properties:
         unit_system=None,
         **kwargs,
     ):
+        """Create a :class:`~kilojoule.plotting.PropertyPlot` of humid air for
+        an arbitrary pair of properties
+
+        .. note:: for the standard T-vs-omega chart, prefer
+           :meth:`psychrometric_chart`, which draws full ASHRAE-style
+           constant-rel_hum/constant-h/wet-bulb lines rather than just the
+           saturation dome.
+
+        :param x: property symbol for the x-axis, e.g. 'T' (Default value = None)
+        :param y: property symbol for the y-axis, e.g. 'w' (Default value = None)
+        :param x_units: units for the x-axis (Default value = None, inferred from `unit_system`)
+        :param y_units: units for the y-axis (Default value = None, inferred from `unit_system`)
+        :param saturation: plot the saturation dome (Default value = False)
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param **kwargs: passed through to `PropertyPlot`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         return PropertyPlot(
             x=x,
@@ -726,6 +770,16 @@ class Properties:
         )
 
     def format_units(self, units, displaystyle=True):
+        """Render a units string as LaTeX for psychrometric-chart axis labels
+
+        Abbreviates `_water`/`_dry_air` suffixes to `_w`/`_a`, renders `deg`
+        as a degree symbol, and (if `displaystyle`) renders a `a/b` unit
+        string as a `\\frac{a}{b}`.
+
+        :param units: units string to format, e.g. "kg_water/kg_dry_air"
+        :param displaystyle: render as a LaTeX fraction rather than `a/b` (Default value = True)
+        :returns: the formatted LaTeX string
+        """
         units = re.sub("_water", "_w", units)
         units = re.sub("_dry_air", "_a", units)
         units = re.sub("deg", r"^\\circ{}\!", units)
@@ -735,6 +789,20 @@ class Properties:
         return units
 
     def rounded_array(self, val1, val2, n=20, spacing=None):
+        """Build a "nice"-spaced array of tick values spanning `val1` to `val2`,
+        for psychrometric chart gridlines
+
+        If `spacing` isn't given, tries spacings of 1, 2, 2.5, 5, and 10
+        times a power of ten and picks whichever produces a tick count
+        closest to `n`, mirroring how plotting libraries auto-pick
+        human-friendly tick intervals.
+
+        :param val1: one end of the range
+        :param val2: the other end of the range
+        :param n: target number of ticks (Default value = 20)
+        :param spacing: force this tick spacing instead of choosing one automatically (Default value = None)
+        :returns: a numpy array of tick values spanning `[val1, val2]`
+        """
         if spacing is not None:
             spacing_mag = floor(log10(spacing))
             start = (
@@ -795,6 +863,35 @@ class Properties:
         cache=True,
         **kwargs,
     ):
+        """Build (or reuse a cached) full ASHRAE-style psychrometric chart:
+        a T-omega diagram with major/minor gridlines and constant-enthalpy,
+        constant-specific-volume, constant-relative-humidity, and
+        constant-wet-bulb-temperature lines
+
+        Thin wrapper around :meth:`cached_psychrometric_chart` (which does
+        the actual drawing and is memoized via `functools.lru_cache`) that
+        handles re-`show()`-ing an already-built chart when needed, since a
+        cache hit returns the same `PropertyPlot` without redrawing it.
+
+        :param Tmin: lower temperature axis limit (Default value = None)
+        :param Tmax: upper temperature axis limit (Default value = None)
+        :param wmin: lower humidity ratio axis limit (Default value = None)
+        :param wmax: upper humidity ratio axis limit (Default value = None)
+        :param main_labels_color: color for axis/isoline labels (Default value = None, "black")
+        :param major_grid_style: line style dict for major gridlines (Default value = None)
+        :param minor_grid_style: line style dict for minor gridlines (Default value = None)
+        :param n_h: number of constant-enthalpy isolines (Default value = 15)
+        :param n_v: number of constant-specific-volume isolines (Default value = 20)
+        :param h_isoline_style: line/label style dict for constant-enthalpy isolines (Default value = None)
+        :param v_isoline_style: line/label style dict for constant-specific-volume isolines (Default value = None)
+        :param rel_hum_isoline_style: line/label style dict for constant-relative-humidity isolines (Default value = None)
+        :param Twb_isoline_style: line/label style dict for constant-wet-bulb isolines (Default value = None)
+        :param unit_system: unit system for axis units (Default value = None, uses `self.unit_system`)
+        :param redraw: force a fresh chart, clearing any cached one first (Default value = False)
+        :param cache: keep the built chart cached for reuse (Default value = True, cleared immediately after building if `False`)
+        :param **kwargs: passed through to :meth:`cached_psychrometric_chart`
+        :returns: the `PropertyPlot`
+        """
         if self.cached_psychrometric_chart.cache_info().currsize > 0:
             show_psych = True
         else:
@@ -844,6 +941,31 @@ class Properties:
         unit_system=None,
         **kwargs,
     ):
+        """Draw the full ASHRAE-style psychrometric chart; does the actual work
+        for :meth:`psychrometric_chart`, which callers should use instead
+
+        Memoized with `functools.lru_cache` -- repeat calls with identical
+        arguments return the same `PropertyPlot` instead of redrawing it, so
+        `main_labels_color`/`*_grid_style`/`*_isoline_style` arguments must
+        be hashable (e.g. tuples of items, not plain dicts, if overridden).
+
+        :param Tmin: lower temperature axis limit (Default value = None)
+        :param Tmax: upper temperature axis limit (Default value = None)
+        :param wmin: lower humidity ratio axis limit (Default value = None)
+        :param wmax: upper humidity ratio axis limit (Default value = None)
+        :param main_labels_color: color for axis/isoline labels (Default value = None, "black")
+        :param major_grid_style: line style dict for major gridlines (Default value = None)
+        :param minor_grid_style: line style dict for minor gridlines (Default value = None)
+        :param n_h: number of constant-enthalpy isolines (Default value = 15)
+        :param n_v: number of constant-specific-volume isolines (Default value = 20)
+        :param h_isoline_style: line/label style dict for constant-enthalpy isolines (Default value = None)
+        :param v_isoline_style: line/label style dict for constant-specific-volume isolines (Default value = None)
+        :param rel_hum_isoline_style: line/label style dict for constant-relative-humidity isolines (Default value = None)
+        :param Twb_isoline_style: line/label style dict for constant-wet-bulb isolines (Default value = None)
+        :param unit_system: unit system for axis units (Default value = None, uses `self.unit_system`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         psych = self.property_diagram(
             x="T",
@@ -1143,6 +1265,13 @@ class Properties:
         return psych
 
     def Ts_diagram(self, unit_system=None, saturation=False, **kwargs):
+        """Temperature-entropy diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = False)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         return self.property_diagram(
             x="s", y="T", unit_system=unit_system, saturation=saturation, **kwargs
@@ -1151,6 +1280,21 @@ class Properties:
     def pv_diagram(
         self, unit_system=None, saturation=None, log_x=None, log_y=None, **kwargs
     ):
+        """Pressure-specific volume diagram; see :meth:`property_diagram`
+
+        .. note:: the `self.fluid == "Air"` branch below is dead code left
+           over from copying this from realfluid.py/idealgas.py --
+           `Properties.fluid` is always the literal string `"humidair"`
+           here (set in `__init__`), never `"Air"`, so `saturation`/`log_x`/
+           `log_y` always take the `else` values.
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, always resolves to `True`)
+        :param log_x: log-scale x-axis (Default value = None, always resolves to `True`)
+        :param log_y: log-scale y-axis (Default value = None, always resolves to `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
             log_x = log_x or False
@@ -1171,6 +1315,16 @@ class Properties:
         )
 
     def Tv_diagram(self, unit_system=None, saturation=None, **kwargs):
+        """Temperature-specific volume diagram; see :meth:`property_diagram`
+
+        .. note:: see the note on :meth:`pv_diagram` -- the `fluid == "Air"`
+           check below is dead code; `saturation` always resolves to `True`.
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, always resolves to `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
         else:
@@ -1181,6 +1335,16 @@ class Properties:
         )
 
     def hs_diagram(self, unit_system=None, saturation=None, **kwargs):
+        """Enthalpy-entropy diagram; see :meth:`property_diagram`
+
+        .. note:: see the note on :meth:`pv_diagram` -- the `fluid == "Air"`
+           check below is dead code; `saturation` always resolves to `True`.
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, always resolves to `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
         else:
@@ -1191,6 +1355,16 @@ class Properties:
         )
 
     def ph_diagram(self, unit_system=None, saturation=None, **kwargs):
+        """Pressure-enthalpy diagram; see :meth:`property_diagram`
+
+        .. note:: see the note on :meth:`pv_diagram` -- the `fluid == "Air"`
+           check below is dead code; `saturation` always resolves to `True`.
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, always resolves to `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
         else:
@@ -1201,6 +1375,16 @@ class Properties:
         )
 
     def pT_diagram(self, unit_system=None, saturation=None, **kwargs):
+        """Pressure-temperature diagram; see :meth:`property_diagram`
+
+        .. note:: see the note on :meth:`pv_diagram` -- the `fluid == "Air"`
+           check below is dead code; `saturation` always resolves to `True`.
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, always resolves to `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
         else:
@@ -1222,6 +1406,24 @@ def LegacyPropertyPlot(
     unit_system="SI_C",
     **kwargs,
 ):
+    """Deprecated, and currently broken: intended to build a `Properties`
+    instance and its `PropertyPlot` in one call, like the `realfluid`/
+    `idealgas` versions this was copied from -- but `humidair.Properties.__init__`
+    takes `(p=None, unit_system=...)`, not `fluid`, so this always raises
+    `TypeError: Properties.__init__() got an unexpected keyword argument 'fluid'`.
+    Use `Properties(p=...).property_diagram(...)` instead.
+
+    :param x: property symbol for the x-axis, e.g. 'T' (Default value = None)
+    :param y: property symbol for the y-axis, e.g. 'w' (Default value = None)
+    :param x_units: units for the x-axis (Default value = None)
+    :param y_units: units for the y-axis (Default value = None)
+    :param plot_type: currently unused (Default value = None)
+    :param fluid: currently causes this function to raise -- see above (Default value = None)
+    :param saturation: plot the saturation dome (Default value = False)
+    :param unit_system: unit system for return values and default axis units (Default value = "SI_C")
+    :param **kwargs: passed through to both `Properties` and `PropertyPlot`
+    :returns: the `PropertyPlot` (never returns; always raises)
+    """
     props = Properties(fluid=fluid, unit_system=unit_system, **kwargs)
     return PropertyPlot(
         x=x,
