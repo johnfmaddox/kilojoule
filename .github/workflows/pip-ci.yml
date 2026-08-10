@@ -17,9 +17,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install package with test dependencies
-        run: uv pip install --system ".[test]"
+        run: uv sync --extra test
       - name: Run tests
-        run: pytest tests/ -v
+        run: uv run pytest tests/ -v
 
   deploy-staging:
     needs: test
