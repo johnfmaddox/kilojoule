@@ -1,3 +1,10 @@
+"""
+    humidair_default
+    ~~~~~~~~~~~~~~~~~
+    Notebook environment template for a psychrometrics course, SI
+    units (degC, kPa, kJ): humid air and water property sources, plus
+    a states table.
+"""
 import kilojoule.humidair
 import kilojoule.realfluid
 import kilojoule.idealgas as idealgas
@@ -30,9 +37,9 @@ properties_dict = {
     "p": "kPa",  # pressure
     "v": "m^3/kg_dry_air",  # specific volume
     "h": "kJ/kg_dry_air",  # specific enthalpy
-    "h_w": "Btu/lb_water",  # specific enthalpy
+    "h_w": "kJ/kg_water",  # specific enthalpy
     "s": "kJ/kg_dry_air/K",  # specific entropy
-    "s_w": "But/lb_water",  # entropy of water
+    "s_w": "kJ/kg_water/K",  # entropy of water
     "x": "",  # vapor quality
     "m_a": "kg_dry_air",  # mass
     "m_w": "kg_water",  # mass
@@ -44,7 +51,7 @@ properties_dict = {
     "X": "kJ",  # exergy
     "Xdot": "kW",  # exergy flow rate
     "phi": "kJ/kg_dry_air",  # specific exergy
-    "psi": "kj/kg_dry_ari",  # specific flow exergy
+    "psi": "kJ/kg_dry_air",  # specific flow exergy
     "y": "",  # water mole fraction
     "c_v": "kJ/kg_dry_air/K",  # constant volume specific heat
     "c_p": "kJ/kg_dry_air/K",  # constant pressure specific heat

@@ -1,3 +1,10 @@
+"""
+    ht
+    ~~
+    Notebook environment template for a heat transfer course: Bergman
+    material property tables, Bessel functions, and the Moody friction
+    factor.
+"""
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
 from kilojoule.organization import QuantityTable
@@ -76,10 +83,10 @@ def moody_friction_factor(
 ):
     """Return the friction factor for fully-developed flow in a circular duct.
 
-    Calculate the friction factor for fully-developed internal flow in a circular duct
-    assuming a smooth surface is no roughness element size or relative_roughness are
-    given, the surface is assumed to be smooth.  If a roughness element size, e, is provided
-    then the diameter, D, must also be provided.
+    Calculate the friction factor for fully-developed internal flow in a circular duct.
+    If no roughness element size or relative_roughness are given, the surface is assumed
+    to be smooth.  If a roughness element size, e, is provided then the diameter, D, must
+    also be provided.
 
     Parameters
     ----------
@@ -111,7 +118,7 @@ def moody_friction_factor(
     0.064
 
     >>> moody_friction_factor(Re=Quantity(25000,''))
-    0.0.024520720233341377
+    0.024520720233341377
 
     >>> moody_friction_factor(Re=Quantity(25000,''),relative_roughness=Quantity(0.02,''))
     0.05015684051068188
@@ -125,6 +132,7 @@ def moody_friction_factor(
             rel_rough = relative_roughness
 
         def RHS(f):
+            """Colebrook equation residual, zeroed by `bisect` to solve for `f`"""
             return 1 / f ** (0.5) + 2 * log10(rel_rough / 3.7 + 2.51 / (Re * sqrt(f)))
 
         f = Quantity(bisect(RHS, 1e-15, 1), "")

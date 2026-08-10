@@ -1,3 +1,9 @@
+"""
+    USCS_R
+    ~~~~~~
+    :mod:`kilojoule.templates.SI`, re-scaled to US Customary units
+    (degR, psi, ft^3/lb, Btu, ...).
+"""
 from kilojoule.templates.SI import *
 
 T.set_units("degR")

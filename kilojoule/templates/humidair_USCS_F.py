@@ -1,3 +1,10 @@
+"""
+    humidair_USCS_F
+    ~~~~~~~~~~~~~~~
+    Notebook environment template for a psychrometrics course, US
+    Customary units (degF, psi, Btu): humid air and water property
+    sources, plus a states table.
+"""
 import kilojoule.humidair
 import kilojoule.realfluid
 import kilojoule.idealgas as idealgas
@@ -33,7 +40,7 @@ properties_dict = {
     "h": "Btu/lb_dry_air",  # specific enthalpy
     "h_w": "Btu/lb_water",  # specific enthalpy
     "s": "Btu/lb_dry_air/degR",  # specific entropy
-    "s_w": "But/lb_water",  # entropy of water
+    "s_w": "Btu/lb_water",  # entropy of water
     "x": "",  # vapor quality
     "m_a": "lb_dry_air",  # mass
     "m_w": "lb_water",  # mass

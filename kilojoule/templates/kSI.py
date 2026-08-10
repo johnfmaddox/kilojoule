@@ -1,3 +1,9 @@
+"""
+    kSI
+    ~~~
+    :mod:`kilojoule.templates.SI`, re-scaled to kilo-prefixed SI units
+    (kPa, kJ, kJ/K, ...).
+"""
 from kilojoule.templates.SI import *
 
 p.set_units("kPa")
