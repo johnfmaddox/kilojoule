@@ -4,6 +4,18 @@ Changelog
 
 Unreleased
 ==========
+- ``kilojoule.export.export_html()`` (and every notebook's boilerplate
+  Canvas-export cell) previously raised a bare ``KeyError:
+  'COCALC_JUPYTER_FILENAME'`` outside of CoCalc. Added
+  ``get_notebook_path()``, which detects CoCalc via that environment
+  variable, falls back to ``ipynbname`` (now a core dependency) to find the
+  notebook path in a local Jupyter Notebook/JupyterLab session, and raises
+  a clear ``RuntimeError`` -- with an explicit ``filename=`` override
+  suggested -- if neither applies (e.g. running under a headless executor
+  like ``nbconvert --execute`` or ``papermill``, which has no live Jupyter
+  server to query). ``export_html()`` also now accepts ``filename=`` directly,
+  and its ``preview=`` option (which links to a CoCalc-specific URL) raises
+  a clear error rather than an unrelated ``KeyError`` if used outside CoCalc.
 - Migrate packaging to ``pyproject.toml`` (PEP 621) with ``setuptools-scm``
   for git-tag-based versioning; remove ``setup.py`` and the vendored
   ``versioneer.py``

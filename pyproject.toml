@@ -48,6 +48,7 @@ dependencies = [
     "icecream",
     "seaborn",
     "ipython",
+    "ipynbname",   # used by kilojoule.export to find the notebook path outside CoCalc
 ]
 
 [project.urls]
@@ -56,7 +57,7 @@ Notebooks = "https://github.com/johnfmaddox/kilojoule-notebooks"
 Changelog = "https://github.com/johnfmaddox/kilojoule/blob/main/CHANGELOG.rst"
 
 [project.optional-dependencies]
-jupyter = ["jupyter-resource-usage", "ipynbname"]
+jupyter = ["jupyter-resource-usage"]
 test = ["pytest"]
 docs = ["sphinx", "sphinx-rtd-theme"]
 
