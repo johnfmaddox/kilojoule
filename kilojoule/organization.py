@@ -439,11 +439,8 @@ class QuantityTable:
                 print(f"property_source: {property_source}")
                 print(f"known_props: {known_props}")
                 print(f"unknown_props: {unknown_props}")
-            exit_loop = False
             for up in unknown_props:
-                if exit_loop:
-                    result += f'{", ".join([f"${key}_{{{state}}}={numeric_to_string(val)}$" for key,val in indep_dict.items()])}'
-                    break
+                exit_loop = False
                 if verbose:
                     print(f"trying to fix {up}")
                 for ipc in indep_props_comb:
