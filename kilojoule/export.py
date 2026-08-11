@@ -1,9 +1,20 @@
-
+"""
+    export
+    ~~~~~~
+    Export the current CoCalc Jupyter notebook to HTML via
+    `jupyter nbconvert`, with an optional collapsible in-notebook
+    preview. See :func:`export_html` for the main entry point.
+"""
 import subprocess
 import os
 from pathlib import Path
 
 def find_kj_dir(name='kilojoule'):
+    """Walk up this file's parent directories to find the one named `name`
+
+    :param name: directory name to look for (Default value = 'kilojoule')
+    :returns: the matching parent `Path`, or `None` if not found
+    """
     file_path = Path(__file__)
     for parent in file_path.parents:
         if parent.name == name:
@@ -11,6 +22,13 @@ def find_kj_dir(name='kilojoule'):
     return None
 
 def preview_in_iframe(url, collapsed=True, **kwargs):
+    """Display a collapsible, click-to-expand iframe preview of `url` in the
+    notebook output
+
+    :param url: URL to embed in the iframe
+    :param collapsed: start collapsed rather than expanded (Default value = True)
+    :param **kwargs: currently unused
+    """
     from IPython.display import display, HTML
     import uuid
     uid = "iframe_" + uuid.uuid4().hex
@@ -82,6 +100,19 @@ def preview_in_iframe(url, collapsed=True, **kwargs):
     display(HTML(html))
 
 def export_html(show_code = False, capture_output=True, preview=False, **kwargs):
+    """Export the current CoCalc Jupyter notebook to HTML via `jupyter nbconvert`
+
+    Requires the `COCALC_JUPYTER_FILENAME` environment variable (and, if
+    `preview` is set, `COCALC_PROJECT_ID`), both set by CoCalc.
+
+    :param show_code: include cell source code in the export (Default value = False, code hidden)
+    :param capture_output: capture `nbconvert`'s subprocess output rather
+        than letting it print directly (Default value = True)
+    :param preview: display a collapsible iframe preview of the exported
+        HTML, via :func:`preview_in_iframe`; pass a string containing
+        "expand"/"collapse" to control its initial state (Default value = False)
+    :param **kwargs: passed through to `subprocess.run` (and, if `preview`, to :func:`preview_in_iframe`)
+    """
     import subprocess
     import os
     import html

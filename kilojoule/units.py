@@ -1,3 +1,11 @@
+"""
+    units
+    ~~~~~
+    The package-wide pint `UnitRegistry` (`ureg`), `Quantity`, and
+    `Measurement` classes, plus custom unit definitions needed for
+    humid-air properties (dry-air/humid-air/water mass and mole units)
+    and a few conveniences (`cfm`, `USD`).
+"""
 from pint import UnitRegistry
 
 ureg = UnitRegistry()

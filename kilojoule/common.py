@@ -1,3 +1,10 @@
+"""
+    common
+    ~~~~~~
+    Shared utilities used across the package: standard/normal
+    temperature-pressure constants, symbol/unit-type/unit-system
+    lookup tables, `AmbiguousUnitsError`, and `get_caller_namespace`.
+"""
 from . import units
 import inspect
 

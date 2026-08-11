@@ -16,6 +16,14 @@ from IPython.core.magic_arguments import argument, magic_arguments, parse_argstr
 
 @magics_class
 class ShowCalcMagics(Magics):
+    """IPython magics class registering the `%showcalc`/`%%showcalc` magic
+    (see :meth:`showcalc`), which formats a line or cell's assignments as
+    LaTeX equation progressions via :class:`kilojoule.display.Calculations`.
+
+    Registered automatically on import if running inside an IPython/Jupyter
+    kernel (see the bottom of this module).
+    """
+
     @magic_arguments()
     @argument(
         "-c",
@@ -77,6 +85,19 @@ class ShowCalcMagics(Magics):
     @needs_local_scope
     @line_cell_magic
     def showcalc(self, line=None, cell=None, local_ns=None):
+        """`%showcalc`/`%%showcalc`: display the current line's (or cell's)
+        assignment statements as LaTeX equation progressions
+
+        As a line magic (`%showcalc <code>`), formats `<code>` directly. As
+        a cell magic (`%%showcalc [flags]`), parses `line` for the
+        `-c`/-C`, `-p`/`-P`, `-v`/`-V`, `-r`, `-n` flags registered above
+        and formats the cell body accordingly.
+
+        :param line: for a line magic, the code to format; for a cell
+            magic, the flag string (Default value = None)
+        :param cell: cell body to format; `None` for a line magic (Default value = None)
+        :param local_ns: calling cell's local namespace, injected by `@needs_local_scope` (Default value = None)
+        """
         if cell is None:
             Calculations(execute=True, namespace=local_ns, input_string=line)
         else:
