@@ -648,7 +648,7 @@ class Pipe(Element):
         """Add dots at intersections with the marked elements"""
         for intersect in self._userparams["intersects"]:
             other = intersect["other"]
-            xy1 = Point(self._cparams.get("at", self.dwgxy))
+            xy1 = Point(self.params.get("at", self.dwgxy))
             xy2 = Point(other.__getattr__("xy"))
             radius = intersect["radius"]
             for oseg in other.segments:
@@ -671,7 +671,7 @@ class Pipe(Element):
         """Add crossover symbols at intersections with the marked elements"""
         for crossover in self._userparams["crossovers"]:
             other = crossover["other"]
-            xy1 = Point(self._cparams.get("at", self.dwgxy))
+            xy1 = Point(self.params.get("at", self.dwgxy))
             xy2 = Point(other.__getattr__("xy"))
             radius = crossover["radius"]
             for oseg in other.segments:
@@ -721,18 +721,16 @@ class Pipe(Element):
         else:
             ic.disable()
         self._dwgparams = dwgparams
-        if not self._cparams:
-            self._buildparams()
 
         self.params["theta"] = 0
-        xy = self.dwgxy = self._cparams.get("at", dwgxy)
-        to = self._cparams.get("to", (None, None))
-        tox = self._cparams.get("tox", None)
-        toy = self._cparams.get("toy", None)
-        delta = self._cparams.get("delta", None)
-        arrow = self._cparams.get("arrow", None)
-        shape = self._cparams.get("shape", "E")
-        k = self._cparams.get("k", 1)
+        xy = self.dwgxy = self.params.get("at", dwgxy)
+        to = self.params.get("to", (None, None))
+        tox = self.params.get("tox", None)
+        toy = self.params.get("toy", None)
+        delta = self.params.get("delta", None)
+        arrow = self.params.get("arrow", None)
+        shape = self.params.get("shape", "E")
+        k = self.params.get("k", 1)
         dx = None
         dy = None
 
@@ -920,13 +918,13 @@ class Pipe(Element):
         if self._userparams["intersects"]:
             self._place_intersects()
 
-        if self._cparams.get("dot", False):
-            fill: Union[bool, str] = "bg" if self._cparams["dot"] == "open" else True
+        if self.params.get("dot", False):
+            fill: Union[bool, str] = "bg" if self.params["dot"] == "open" else True
             self.segments.append(
                 SegmentCircle((dx, dy), radius=0.075, fill=fill, zorder=3)
             )
-        if self._cparams.get("idot", False):
-            fill = "bg" if self._cparams["idot"] == "open" else True
+        if self.params.get("idot", False):
+            fill = "bg" if self.params["idot"] == "open" else True
             self.segments.append(
                 SegmentCircle((0, 0), radius=0.075, fill=fill, zorder=3)
             )
