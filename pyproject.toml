@@ -66,3 +66,19 @@ include = ["kilojoule*"]
 [tool.setuptools_scm]
 write_to = "kilojoule/_version.py"
 fallback_version = "0.0.0"
+# Default local_scheme appends "+g<hash>.d<date>" for untagged commits
+# (e.g. 0.3.5.dev14+ge1af1a8f1.d20260810). PyPI/TestPyPI both reject
+# uploads with a PEP 440 local version segment, so builds from anything
+# but a clean tag would fail to publish. Dropping it means dev builds are
+# just "0.3.5.dev14" -- publishable, at the cost of the commit hash no
+# longer being embedded in the version string.
+local_scheme = "no-local-version"
+
+# TestPyPI as an explicit (opt-in only) index -- `explicit = true` keeps it
+# out of normal dependency resolution; publishing to it is `uv publish
+# --index testpypi`.
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true

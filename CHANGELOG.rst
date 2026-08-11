@@ -29,6 +29,15 @@ Unreleased
 - Add the missing ``ipython`` runtime dependency; drop the unused
   ``ipynbname`` dependency; move ``jupyter-resource-usage`` to an optional
   ``jupyter`` extra
+- Rework the PyPI publish workflow to use Trusted Publishing (OIDC) instead
+  of a stored API token, with separate ``pypi``/``testpypi`` GitHub
+  environments and a manually-triggerable TestPyPI publish job; the
+  previous workflow published (if triggered) to real PyPI regardless of
+  its "staging"/"(test)" naming, since nothing in it actually pointed at
+  TestPyPI. Also set ``setuptools_scm``'s ``local_scheme`` to
+  ``no-local-version`` -- the default scheme's ``+g<hash>`` suffix on
+  untagged commits is a PEP 440 local version identifier, which PyPI and
+  TestPyPI both reject outright
 
 Version 0.2.9
 ==============

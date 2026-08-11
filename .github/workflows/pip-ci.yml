@@ -1,8 +1,17 @@
-name: Publish Python Package (test)
+name: Publish Python Package
+
+# Trusted Publishing (OIDC) -- no stored PyPI/TestPyPI tokens. Each publish
+# job's `environment:` must match a trusted publisher registered on the
+# corresponding index (test.pypi.org / pypi.org -> project -> Settings ->
+# Publishing), pointing at this repo, this workflow filename, and that
+# same environment name.
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    # Manually publish the currently-selected branch/tag to TestPyPI --
+    # e.g. to try out `devel` before it's tagged for a real release.
 
 jobs:
   test:
@@ -21,11 +30,14 @@ jobs:
       - name: Run tests
         run: uv run pytest tests/ -v
 
-  deploy-staging:
+  publish-testpypi:
     needs: test
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment:
-      name: staging
+      name: testpypi
+    permissions:
+      id-token: write  # required for Trusted Publishing
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,7 +51,27 @@ jobs:
           python-version: '3.12'
       - name: Build package
         run: uv build
+      - name: Publish package to TestPyPI
+        run: uv publish --index testpypi --trusted-publishing always
+
+  publish-pypi:
+    needs: test
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    permissions:
+      id-token: write  # required for Trusted Publishing
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+      - name: Build package
+        run: uv build
       - name: Publish package to PyPI
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        run: uv publish
+        run: uv publish --trusted-publishing always
