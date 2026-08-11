@@ -18,13 +18,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           python-version: '3.12'
+          # No uv.lock/requirements*.txt is committed, so setup-uv's default
+          # caching has nothing to hash a key from ("no file matched" warning,
+          # cache never invalidates); disable it rather than cache uselessly.
+          enable-cache: false
       - name: Install package with test dependencies
         run: uv sync --extra test
       - name: Run tests
@@ -40,15 +44,19 @@ jobs:
       id-token: write  # required for Trusted Publishing
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # setuptools-scm needs the full history (and tags) to compute
           # the package version; a shallow clone breaks it.
           fetch-depth: 0
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           python-version: '3.12'
+          # No uv.lock/requirements*.txt is committed, so setup-uv's default
+          # caching has nothing to hash a key from ("no file matched" warning,
+          # cache never invalidates); disable it rather than cache uselessly.
+          enable-cache: false
       - name: Build package
         run: uv build
       - name: Publish package to TestPyPI
@@ -64,13 +72,17 @@ jobs:
       id-token: write  # required for Trusted Publishing
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           python-version: '3.12'
+          # No uv.lock/requirements*.txt is committed, so setup-uv's default
+          # caching has nothing to hash a key from ("no file matched" warning,
+          # cache never invalidates); disable it rather than cache uselessly.
+          enable-cache: false
       - name: Build package
         run: uv build
       - name: Publish package to PyPI
