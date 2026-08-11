@@ -11,9 +11,30 @@ from schemdraw.elements.twoterm import gap
 
 
 class Shaft(Element):
+    """Rotating work shaft, drawn as a double line with an optional break
+    ("cut") mark. Anchors: `N`, `S`, `E`, `W`,
+    `NE`, `SE`, `SW`, `NW`,
+    `NNE`, `ENE`, `ESE`, `SSE`,
+    `SSW`, `WSW`, `WNW`, `NNW`,
+    `center`
+
+    .. note:: `center` is set to `[0, length / 2]`, unlike every other
+       anchor here (and every other element in this package), which puts
+       the midpoint at `x = length / 2, y = 0`. Looks like a swapped
+       `[x, y]` -- left as-is since it's unclear whether anything already
+       depends on the current value.
+    """
+
     def __init__(
         self, *d, cut: bool = True, width: float = 0.5, length: float = 0.5, **kwargs
     ):
+        """
+        :param *d: passed through to `schemdraw.elements.Element`
+        :param cut: draw a break mark partway along the shaft (Default value = True)
+        :param width: shaft width (Default value = 0.5)
+        :param length: shaft length (Default value = 0.5)
+        :param **kwargs: passed through to `schemdraw.elements.Element`
+        """
         super().__init__(*d, **kwargs)
         self.segments.append(
             Segment(

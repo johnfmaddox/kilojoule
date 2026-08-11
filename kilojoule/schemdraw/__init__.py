@@ -1,3 +1,9 @@
+"""
+    schemdraw
+    ~~~~~~~~~
+    Re-exports the `schemdraw` package alongside :mod:`kilojoule.schemdraw.thermo`,
+    kiloJoule's thermodynamic-cycle schematic elements.
+"""
 import schemdraw
 import schemdraw.elements as elm
 from schemdraw import flow

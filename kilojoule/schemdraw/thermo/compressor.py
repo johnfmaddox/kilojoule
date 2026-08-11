@@ -24,6 +24,13 @@ class Compressor(Element):
     """
 
     def __init__(self, *args, **kwargs):
+        """
+        :param *args: passed through to `schemdraw.elements.Element`
+        :param shaft: intended to draw a work shaft, per the class
+            docstring, but currently unimplemented (accepted and checked,
+            but the branch is a no-op) (Default value = True)
+        :param **kwargs: passed through to `schemdraw.elements.Element`
+        """
         super().__init__(*args, **kwargs)
         self.segments.append(
             Segment(

@@ -1,4 +1,4 @@
-""" Compressor """
+""" Valve """
 
 import numpy as np
 
@@ -17,9 +17,18 @@ class Valve(Element):
     ----------
     Handle : bool
         Draw valve handle
+
+    .. note:: `S` is set to `self.anchors["center"]` (i.e. `y=0`), unlike
+       every other bowtie-perimeter anchor here -- looks like it should be
+       the bottom point, `(valve_length / 2, ybot)`, mirroring `N`.
     """
 
     def __init__(self, *args, handle=True, **kwargs):
+        """
+        :param *args: passed through to `schemdraw.elements.Element`
+        :param handle: draw the valve handle (Default value = True)
+        :param **kwargs: passed through to `schemdraw.elements.Element`
+        """
         super().__init__(*args, **kwargs)
 
         ytop = valve_height / 2
@@ -76,7 +85,8 @@ class Valve(Element):
 
 
 class Throttle(Valve):
-    """Valve. Anchors: `inlet`, `outlet`,
+    """A :class:`Valve` with no handle by default (a fixed restriction,
+    e.g. an expansion valve/throttle). Anchors: `inlet`, `outlet`,
     `N`, `S`, `E`, `W`, etc.
 
     Parameters
@@ -86,4 +96,9 @@ class Throttle(Valve):
     """
 
     def __init__(self, *args, handle=False, **kwargs):
+        """
+        :param *args: passed through to :class:`Valve`
+        :param handle: draw the valve handle (Default value = False, unlike `Valve`)
+        :param **kwargs: passed through to :class:`Valve`
+        """
         super().__init__(*args, handle=handle, **kwargs)

@@ -19,6 +19,10 @@ class Pump(Element):
     """
 
     def __init__(self, *args, **kwargs):
+        """
+        :param *args: passed through to `schemdraw.elements.Element`
+        :param **kwargs: passed through to `schemdraw.elements.Element`
+        """
         super().__init__(*args, **kwargs)
         self.segments.append(
             SegmentArc(

@@ -1,3 +1,9 @@
+"""
+    common
+    ~~~~~~
+    Shared geometry constants and the default drawing style dict used
+    across the `schemdraw.thermo` shape elements.
+"""
 import numpy as np
 
 # Shaft Settings
