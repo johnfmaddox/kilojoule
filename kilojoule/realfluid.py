@@ -254,7 +254,26 @@ def PropertyLookup(
         result = PhaseSI(*PropsSI_args)
         return result
     else:
-        result = PropsSI(*PropsSI_args)
+        try:
+            result = PropsSI(*PropsSI_args)
+        except ValueError as e:
+            # CoolProp's quality-based (QT_flash) lookups reject a
+            # temperature that is even a few ULPs above its own internal
+            # critical point -- a false rejection that shows up whenever a
+            # value like T_critical has round-tripped through a unit
+            # conversion and back (e.g. K -> degC -> K, going through
+            # PropertyLookup twice), since an additive/offset conversion
+            # like that isn't perfectly precision-preserving. Retry once
+            # with the offending temperature nudged down by a relative
+            # epsilon far larger than that floating-point noise (~1e-14
+            # relative here) but far smaller than anything physically
+            # meaningful.
+            if "numerical critical point" in str(e) and "T" in PropsSI_args:
+                t_idx = PropsSI_args.index("T") + 1
+                PropsSI_args[t_idx] *= 1 - 1e-9
+                result = PropsSI(*PropsSI_args)
+            else:
+                raise
     # Determine the units of the value as returned from CoolProp
     CP_return_units = CP_symbUpper_to_units[CP_desired]
     CP_return_type = CP_symb_to_type[desired]
