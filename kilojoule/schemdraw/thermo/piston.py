@@ -11,19 +11,17 @@ piston_height = 0.5
 piston_offset = 0.025
 
 
-class Pisotn(Element):
+class Piston(Element):
     """Piston. Anchors: `N`, `S`, `E`, `W`,
     `NE`, `SE`, `SW`, `NW`,
     `NNE`, `ENE`, `ESE`, `SSE`,
     `SSW`, `WSW`, `WNW`, `NNW`,
     `center`
 
-    .. note:: the class name is a typo for "Piston" (kept as-is to avoid
-       an API break for anyone already using it). Also, unlike the other
-       `schemdraw.thermo` elements, this module isn't imported by
-       `kilojoule.schemdraw.thermo`, so `Piston`/`Cylinder` aren't
-       reachable via `kilojoule.schemdraw.thermo.Piston` -- only via
-       `from kilojoule.schemdraw.thermo.piston import Pisotn, Cylinder`.
+    .. note:: unlike the other `schemdraw.thermo` elements, this module
+       isn't imported by `kilojoule.schemdraw.thermo`, so `Piston`/
+       `Cylinder` aren't reachable via `kilojoule.schemdraw.thermo.Piston`
+       -- only via `from kilojoule.schemdraw.thermo.piston import Piston, Cylinder`.
     """
 
     def __init__(self, *args, **kwargs):
@@ -61,6 +59,10 @@ class Pisotn(Element):
         self.anchors["NNW"] = [-x / 2, y]
 
         self.params["drop"] = (0, y)
+
+
+Pisotn = Piston
+"""Backward-compat alias for the pre-fix misspelling of :class:`Piston`."""
 
 
 class Cylinder(Element):
