@@ -1070,9 +1070,9 @@ class Calculations:
         globals()["__inside_kj_display_Calculations__"] = True
 
         if repeat_for:
-            gen_split = repeat_for.split(" in ")
-            gen_var = gen_split[0][1:].strip()
-            gen_range = eval(gen_split[1][:-1], self.namespace)
+            gen_var, gen_expr = repeat_for.split(" in ", 1)
+            gen_var = gen_var.strip()
+            gen_range = eval(gen_expr.strip(), self.namespace)
             if verbose:
                 print(f"{gen_range}")
             for gen_val in gen_range:
