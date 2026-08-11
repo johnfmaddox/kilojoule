@@ -12,6 +12,15 @@ on:
   workflow_dispatch:
     # Manually publish the currently-selected branch/tag to TestPyPI --
     # e.g. to try out `devel` before it's tagged for a real release.
+  push:
+    branches: [devel]
+    # TEMPORARY: workflow_dispatch only shows up for manual triggering
+    # once GitHub has indexed this workflow file, which (for a
+    # non-default branch) requires it to have run at least once via some
+    # other trigger. This push trigger only ever runs the `test` job
+    # (publish-testpypi/publish-pypi are gated by `if:` on event_name),
+    # so it's a safe one-time bootstrap. Remove once `gh workflow run
+    # pip-ci.yml --ref devel` (or the Actions UI) works.
 
 jobs:
   test:
