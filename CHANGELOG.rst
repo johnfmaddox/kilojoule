@@ -2,8 +2,38 @@
 Changelog
 =========
 
-Unreleased
-==========
+Version 0.5.10
+==============
+- Rename ``kilojoule.schemdraw.thermo.Pisotn`` to ``Piston`` (fixing the
+  typo); ``Pisotn`` is kept as a deprecated alias for backward compatibility
+- Fix ``QuantityTable.fix()`` abandoning every remaining unknown property
+  after successfully resolving the first one, instead of continuing through
+  the rest (a loop-exit flag was set but never reset between properties)
+- Fix real-fluid property lookups at a substance's critical point
+  spuriously raising CoolProp's "numerical critical point" error -- a
+  ``T_critical`` value that round-trips through ``degC`` and back to ``K``
+  can drift by ~1e-14 K, just enough to push an exactly-at-the-critical-
+  point query into CoolProp's strict rejection zone; retry once with the
+  temperature nudged fractionally below the critical point before giving up
+- Fix ``%%showcalc --repeat-for "var in expr"`` raising ``SyntaxError`` for
+  any expression not already padded with extra whitespace (it isolated
+  ``var``/``expr`` with blind character-index slicing instead of
+  ``str.split(" in ", 1)`` + ``.strip()``)
+- Fix ``kilojoule.schemdraw.thermo.Pipe`` raising ``AttributeError:
+  _cparams not defined in Element`` -- ported to the current schemdraw
+  ``self.params`` API, replacing the removed internal ``_cparams``/
+  ``_buildparams()`` mechanism it was written against
+- Restore ``kilojoule.templates.default`` and ``kilojoule.templates.kSI_K``,
+  removed earlier in this cycle as apparently-unused; over a thousand
+  course notebooks outside this repo import them directly
+- Raise a clear ``MissingDataFileError`` (a ``FileNotFoundError`` subclass)
+  from ``kilojoule.tables.Cengel``/``kilojoule.tables.Bergman`` when a
+  requested property-table CSV isn't present locally, instead of a bare
+  ``FileNotFoundError`` from inside pandas followed by a confusing cascade
+  of ``NameError``\\ s downstream. These Cengel & Boles / Bergman & Incropera
+  data tables are copyrighted textbook content and are intentionally not
+  distributed with the package -- each user must obtain and place them
+  locally themselves
 - ``kilojoule.export.export_html()`` (and every notebook's boilerplate
   Canvas-export cell) previously raised a bare ``KeyError:
   'COCALC_JUPYTER_FILENAME'`` outside of CoCalc. Added
