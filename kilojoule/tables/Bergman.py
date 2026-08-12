@@ -10,6 +10,7 @@ from kilojoule.common import (
     preferred_units_from_type,
     preferred_units_from_symbol,
     invert_dict,
+    MissingDataFileError,
 )
 import numpy as np
 from scipy.interpolate import interp1d
@@ -70,10 +71,22 @@ class Properties:
 
         :param material: name of the data file to load, without extension
         :returns: path to the `{material}.csv` file
+        :raises MissingDataFileError: if the `Bergman Data` directory or the
+            requested file is not present locally -- these tables are not
+            bundled with kilojoule for copyright reasons
         """
         # property_files = os.listdir(_transport_property_data_path)
         # print(property_files)
-        return os.path.join(_transport_property_data_path, f"{material}.csv")
+        file = os.path.join(_transport_property_data_path, f"{material}.csv")
+        if not os.path.isfile(file):
+            raise MissingDataFileError(
+                f"Bergman & Incropera property table '{material}.csv' was not found at:\n"
+                f"    {file}\n"
+                "These data tables are not distributed with kilojoule for copyright "
+                "reasons. Obtain the data from your course materials and place it in "
+                f"the 'Bergman Data' directory above (creating it if necessary)."
+            )
+        return file
 
     def read_table(self):
         """Read `self.file` into `self.df` and build the symbol/unit lookup dictionaries

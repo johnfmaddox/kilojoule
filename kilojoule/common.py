@@ -19,6 +19,19 @@ class AmbiguousUnitsError(Exception):
     pass
 
 
+class MissingDataFileError(FileNotFoundError):
+    """Raised when a textbook property-table CSV (e.g. under `Cengel Data/`
+    or `Bergman Data/`) is not present locally.
+
+    These data files are not distributed with kilojoule for copyright
+    reasons -- they must be obtained separately (e.g. from your course
+    materials) and placed in the corresponding directory alongside the
+    installed `kilojoule` package.
+    """
+
+    pass
+
+
 def invert_dict(original_dict, replace_empty_string=True):
     """Invert a dictionary creating a new key for every item
 
