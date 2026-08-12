@@ -1,3 +1,11 @@
+"""
+    constants
+    ~~~~~~~~~
+    Common physical constants as dimensional Quantities (gravity,
+    Stefan-Boltzmann, universal gas constant, density of water/air/
+    mercury at standard conditions), each with a `.latex` attribute
+    for display.
+"""
 from . import units
 
 Quantity = units.Quantity

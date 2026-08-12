@@ -1,8 +1,16 @@
+"""
+    Bergman
+    ~~~~~~~
+    Interpolated lookup for material property tables from Bergman &
+    Incropera, "Fundamentals of Heat and Mass Transfer", stored as
+    two-row-header CSVs in the `Bergman Data` directory.
+"""
 from kilojoule.units import Quantity
 from kilojoule.common import (
     preferred_units_from_type,
     preferred_units_from_symbol,
     invert_dict,
+    MissingDataFileError,
 )
 import numpy as np
 from scipy.interpolate import interp1d
@@ -19,11 +27,30 @@ _transport_property_data_path = os.path.join(
 
 
 class AmbiguousUnitsError(Exception):
+    """Raised when a value's units match more than one property column in
+    a table, so the intended property cannot be inferred from units alone."""
+
     pass
 
 
 class Properties:
+    """Interpolated lookup for a material property table from Bergman &
+    Incropera, "Fundamentals of Heat and Mass Transfer".
+
+    Reads a two-row-header CSV (property symbols on the first row, units
+    on the second) for `material` from the `Bergman Data` directory and
+    exposes each column as a bound lookup method, e.g.
+    `Properties(material="...").k(T=...)`, interpolated linearly against
+    another column.
+    """
+
     def __init__(self, material=None, file=None, unit_system="kSI_K", verbose=False):
+        """
+        :param material: name of the data file to load, without extension, from the `Bergman Data` directory (Default value = None)
+        :param file: explicit path to a data file, used instead of looking `material` up (Default value = None)
+        :param unit_system: unit system used for return values -- one of 'SI_C', 'SI_K', 'English_F', 'English_R' (Default value = "kSI_K")
+        :param verbose: show debug information (Default value = False)
+        """
         self.verbose = verbose
         if file is None:
             self.file = self.find_file(material)
@@ -40,11 +67,33 @@ class Properties:
             setattr(self, f"{p}", prop_func)
 
     def find_file(self, material):
+        """Build the path to the data file for a given material name in the `Bergman Data` directory
+
+        :param material: name of the data file to load, without extension
+        :returns: path to the `{material}.csv` file
+        :raises MissingDataFileError: if the `Bergman Data` directory or the
+            requested file is not present locally -- these tables are not
+            bundled with kilojoule for copyright reasons
+        """
         # property_files = os.listdir(_transport_property_data_path)
         # print(property_files)
-        return os.path.join(_transport_property_data_path, f"{material}.csv")
+        file = os.path.join(_transport_property_data_path, f"{material}.csv")
+        if not os.path.isfile(file):
+            raise MissingDataFileError(
+                f"Bergman & Incropera property table '{material}.csv' was not found at:\n"
+                f"    {file}\n"
+                "These data tables are not distributed with kilojoule for copyright "
+                "reasons. Obtain the data from your course materials and place it in "
+                f"the 'Bergman Data' directory above (creating it if necessary)."
+            )
+        return file
 
     def read_table(self):
+        """Read `self.file` into `self.df` and build the symbol/unit lookup dictionaries
+
+        Populates `self.symbol_to_units`, `self.units_to_symbol`, and
+        `self.properties` from the table's two-row header.
+        """
         # Read data file with the first two rows as the header
         self.df = pd.read_csv(self.file, header=[0, 1])
         # Treat the second header row as units
@@ -63,6 +112,14 @@ class Properties:
     def _interp(
         self, dependent_property, independent_property, independent_value, verbose=False
     ):
+        """Linearly interpolate one table column against another
+
+        :param dependent_property: symbol of the column to look up
+        :param independent_property: symbol of the column to interpolate against
+        :param independent_value: value of the independent property (Quantity)
+        :param verbose: print the resolved symbols/units before interpolating (Default value = False)
+        :returns: interpolated value of `dependent_property` as a Quantity
+        """
         # Independent Variable Data
         ind_series = self.df[independent_property].values.quantity.magnitude
         # Dependent Variable Data
@@ -102,6 +159,16 @@ class Properties:
             raise ValueError
 
     def _property_lookup(self, dep_sym, *args, verbose=False, **kwargs):
+        """Bound method installed for each property column; interpolates `dep_sym`
+        against a single independent property passed positionally (units identify
+        the column) or by keyword (`symbol=value`)
+
+        :param dep_sym: symbol of the property being looked up
+        :param *args: independent value as a Quantity, matched to a column by units
+        :param verbose: print the resolved symbols/units before interpolating (Default value = False)
+        :param **kwargs: independent value passed as `symbol=value` instead of by units
+        :returns: interpolated value of `dep_sym` as a Quantity
+        """
         for arg in args:
             indep_sym = self._identify_symbol(arg)
             indep_val = arg

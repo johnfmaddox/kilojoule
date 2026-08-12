@@ -1,3 +1,12 @@
+"""
+    water
+    ~~~~~
+    Thermophysical properties of saturated water, as a function of
+    temperature. Data is Cengel & Ghajar, "Heat and Mass Transfer",
+    Table A-9. `_f` denotes saturated liquid, `_g` denotes saturated
+    vapor. Each property function linearly interpolates the tabulated
+    values (273.15 K - 640 K) using scipy.interpolate.interp1d.
+"""
 from kilojoule.units import Quantity
 import numpy as np
 from scipy.interpolate import interp1d
@@ -848,84 +857,151 @@ sigma_f_interp = interp1d(T_table, sigma_f_table)
 
 
 def p_sat(T):
+    """Saturation pressure of water
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: saturation pressure as a Quantity in bar
+    """
     T = T.to("K")
     ret_value = Quantity(p_sat_interp(T.magnitude), "bar")
     return ret_value
 
 
 def v_f(T):
+    """Specific volume of saturated liquid water
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: specific volume as a Quantity in m^3/kg
+    """
     T = T.to("K")
     ret_value = Quantity(v_f_interp(T.magnitude), "m^3/kg")
     return ret_value
 
 
 def v_g(T):
+    """Specific volume of saturated water vapor
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: specific volume as a Quantity in m^3/kg
+    """
     T = T.to("K")
     ret_value = Quantity(v_g_interp(T.magnitude), "m^3/kg")
     return ret_value
 
 
 def h_fg(T):
+    """Enthalpy of vaporization of water
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: enthalpy of vaporization as a Quantity in kJ/kg
+    """
     T = T.to("K")
     ret_value = Quantity(h_fg_interp(T.magnitude), "kJ/kg")
     return ret_value
 
 
 def cp_f(T):
+    """Constant-pressure specific heat of saturated liquid water
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: specific heat as a Quantity in kJ/kg/K
+    """
     T = T.to("K")
     ret_value = Quantity(c_p_f_interp(T.magnitude), "kJ/kg/K")
     return ret_value
 
 
 c_p_f = cp_f
+"""Alias of :func:`cp_f`"""
 
 
 def cp_g(T):
+    """Constant-pressure specific heat of saturated water vapor
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: specific heat as a Quantity in kJ/kg/K
+    """
     T = T.to("K")
     ret_value = Quantity(c_p_g_interp(T.magnitude), "kJ/kg/K")
     return ret_value
 
 
 c_p_g = cp_g
+"""Alias of :func:`cp_g`"""
 
 
 def mu_f(T):
+    """Dynamic (absolute) viscosity of saturated liquid water
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: dynamic viscosity as a Quantity in N*s/m^2
+    """
     T = T.to("K")
     ret_value = Quantity(mu_f_interp(T.magnitude), "N*s/m^2")
     return ret_value
 
 
 def mu_g(T):
+    """Dynamic (absolute) viscosity of saturated water vapor
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: dynamic viscosity as a Quantity in N*s/m^2
+    """
     T = T.to("K")
     ret_value = Quantity(mu_g_interp(T.magnitude), "N*s/m^2")
     return ret_value
 
 
 def k_f(T):
+    """Thermal conductivity of saturated liquid water
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: thermal conductivity as a Quantity in W/m/K
+    """
     T = T.to("K")
     ret_value = Quantity(k_f_interp(T.magnitude), "W/m/K")
     return ret_value
 
 
 def k_g(T):
+    """Thermal conductivity of saturated water vapor
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: thermal conductivity as a Quantity in W/m/K
+    """
     T = T.to("K")
     ret_value = Quantity(k_g_interp(T.magnitude), "W/m/K")
     return ret_value
 
 
 def Pr_f(T):
+    """Prandtl number of saturated liquid water
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: Prandtl number as a dimensionless Quantity
+    """
     T = T.to("K")
     ret_value = Quantity(Pr_f_interp(T.magnitude), "")
     return ret_value
 
 
 def Pr_g(T):
+    """Prandtl number of saturated water vapor
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: Prandtl number as a dimensionless Quantity
+    """
     T = T.to("K")
     ret_value = Quantity(Pr_g_interp(T.magnitude), "")
     return ret_value
 
 
 def sigma_f(T):
+    """Surface tension of saturated liquid water
+
+    :param T: temperature (Quantity, converted to K)
+    :returns: surface tension as a Quantity in N/m
+    """
     T = T.to("K")
     ret_value = Quantity(sigma_f_interp(T.magnitude), "N/m")
     return ret_value

@@ -11,15 +11,27 @@ piston_height = 0.5
 piston_offset = 0.025
 
 
-class Pisotn(Element):
+class Piston(Element):
     """Piston. Anchors: `N`, `S`, `E`, `W`,
     `NE`, `SE`, `SW`, `NW`,
     `NNE`, `ENE`, `ESE`, `SSE`,
     `SSW`, `WSW`, `WNW`, `NNW`,
     `center`
+
+    .. note:: unlike the other `schemdraw.thermo` elements, this module
+       isn't imported by `kilojoule.schemdraw.thermo`, so `Piston`/
+       `Cylinder` aren't reachable via `kilojoule.schemdraw.thermo.Piston`
+       -- only via `from kilojoule.schemdraw.thermo.piston import Piston, Cylinder`.
     """
 
     def __init__(self, *args, **kwargs):
+        """
+        :param *args: passed through to `schemdraw.elements.Element`
+        :param width: piston width (Default value = 3, via `**kwargs`)
+        :param height: piston height (Default value = 0.5, via `**kwargs`)
+        :param ofst: inset of the drawn rectangle from the nominal width/height, on each side (Default value = 0.025, via `**kwargs`)
+        :param **kwargs: passed through to `schemdraw.elements.Element`
+        """
         super().__init__(*args, **kwargs)
         width = kwargs.get("width", piston_width)
         height = kwargs.get("height", piston_height)
@@ -49,6 +61,10 @@ class Pisotn(Element):
         self.params["drop"] = (0, y)
 
 
+Pisotn = Piston
+"""Backward-compat alias for the pre-fix misspelling of :class:`Piston`."""
+
+
 class Cylinder(Element):
     """Cylinder. Anchors: `N`, `S`, `E`, `W`,
     `NE`, `SE`, `SW`, `NW`,
@@ -58,14 +74,24 @@ class Cylinder(Element):
     """
 
     def __init__(self, *args, stops=False, **kwargs):
+        """
+        :param *args: passed through to `schemdraw.elements.Element`
+        :param stops: intended to draw end stops on the cylinder, but
+            unimplemented -- previously crashed with `TypeError: 'list'
+            object is not callable` (called `self.segments()`, the segment
+            *list*, instead of adding a `Segment`); now a documented no-op,
+            like `Compressor`'s `shaft` flag (Default value = False)
+        :param width: cylinder width (Default value = 3, via `**kwargs`)
+        :param height: cylinder half-height (Default value = 2.5, via `**kwargs`)
+        :param ofst: currently unused (Default value = 0.025, via `**kwargs`)
+        :param **kwargs: passed through to `schemdraw.elements.Element`
+        """
         super().__init__(*args, **kwargs)
         width = kwargs.get("width", piston_width)
         height = kwargs.get("height", 5 * piston_height)
         ofst = kwargs.get("ofst", piston_offset)
         x = width
         y = height
-        if stops:
-            self.segments()
         self.segments.append(Segment([(0, 0), (0, y), (x, y)]))
         self.segments.append(Segment([(0, 0), (0, -y), (x, -y)]))
 

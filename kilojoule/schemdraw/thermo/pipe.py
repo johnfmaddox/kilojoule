@@ -1,3 +1,11 @@
+"""
+    pipe
+    ~~~~
+    Multi-segment connector lines for `schemdraw.thermo` diagrams
+    (:class:`Pipe`), plus supporting elements for inline state labels
+    (:class:`StateLabelInline`), line crossovers (:class:`Crossover`),
+    and mid-line direction arrows (:class:`EnergyArrow`).
+"""
 from __future__ import annotations
 
 from typing import Sequence, Union
@@ -43,11 +51,27 @@ dir_angle.update(car_dir_angle)
 
 
 def angle_between(start, end):
+    """Angle of the line from `start` to `end`, in degrees, measured
+    counterclockwise from the positive x-axis
+
+    :param start: `(x, y)` starting point
+    :param end: `(x, y)` ending point
+    :returns: angle in degrees
+    """
     angle = math.degrees(math.atan2(end[1] - start[1], end[0] - start[0]))
     return angle
 
 
 def mid_between(start, end):
+    """Half of the displacement from `start` to `end`
+
+    .. note:: despite the name, this is not the absolute midpoint -- add
+       `start` to the result to get that (as every caller here does).
+
+    :param start: `(x, y)` starting point
+    :param end: `(x, y)` ending point
+    :returns: `((end.x - start.x) / 2, (end.y - start.y) / 2)`
+    """
     return ((end[0] - start[0]) / 2, (end[1] - start[1]) / 2)
 
 
@@ -83,6 +107,13 @@ class Pipe(Element):
         verbose: bool = False,
         **kwargs,
     ):
+        """
+        :param shape: shape descriptor string; see the class docstring (Default value = "-")
+        :param k: minimum segment length used when a segment's length isn't otherwise fixed (Default value = 1)
+        :param arrow: arrowhead specifier, e.g. '->', '<-', '<->', '-o' (Default value = None)
+        :param verbose: print debug information while parsing/placing the shape (Default value = False)
+        :param **kwargs: passed through to `schemdraw.elements.Element`
+        """
         super().__init__(**kwargs)
         self._userparams["shape"] = shape
         self._userparams["k"] = k
@@ -462,6 +493,14 @@ class Pipe(Element):
                     raise ValueError(f"invalid shape descriptor: {label_shape}")
 
     def _place_flow_arrows(self):
+        """Draw each flow-direction arrow queued via :meth:`flow_arrow`
+
+        Each arrow is drawn as a near-zero-length two-segment arrowhead
+        centered on its anchor, so it reads as a direction marker rather
+        than a visible line; oriented along its line segment's angle, and
+        flipped if `reverse` is set (per-arrow, falling back to the pipe's
+        overall `reverse`).
+        """
         for flow_arrow in self._userparams.get("flow arrows", None):
             loc = flow_arrow.get("loc", None)
             line_idx = flow_arrow.get("line", None)
@@ -609,7 +648,7 @@ class Pipe(Element):
         """Add dots at intersections with the marked elements"""
         for intersect in self._userparams["intersects"]:
             other = intersect["other"]
-            xy1 = Point(self._cparams.get("at", self.dwgxy))
+            xy1 = Point(self.params.get("at", self.dwgxy))
             xy2 = Point(other.__getattr__("xy"))
             radius = intersect["radius"]
             for oseg in other.segments:
@@ -632,7 +671,7 @@ class Pipe(Element):
         """Add crossover symbols at intersections with the marked elements"""
         for crossover in self._userparams["crossovers"]:
             other = crossover["other"]
-            xy1 = Point(self._cparams.get("at", self.dwgxy))
+            xy1 = Point(self.params.get("at", self.dwgxy))
             xy2 = Point(other.__getattr__("xy"))
             radius = crossover["radius"]
             for oseg in other.segments:
@@ -682,18 +721,16 @@ class Pipe(Element):
         else:
             ic.disable()
         self._dwgparams = dwgparams
-        if not self._cparams:
-            self._buildparams()
 
         self.params["theta"] = 0
-        xy = self.dwgxy = self._cparams.get("at", dwgxy)
-        to = self._cparams.get("to", (None, None))
-        tox = self._cparams.get("tox", None)
-        toy = self._cparams.get("toy", None)
-        delta = self._cparams.get("delta", None)
-        arrow = self._cparams.get("arrow", None)
-        shape = self._cparams.get("shape", "E")
-        k = self._cparams.get("k", 1)
+        xy = self.dwgxy = self.params.get("at", dwgxy)
+        to = self.params.get("to", (None, None))
+        tox = self.params.get("tox", None)
+        toy = self.params.get("toy", None)
+        delta = self.params.get("delta", None)
+        arrow = self.params.get("arrow", None)
+        shape = self.params.get("shape", "E")
+        k = self.params.get("k", 1)
         dx = None
         dy = None
 
@@ -881,13 +918,13 @@ class Pipe(Element):
         if self._userparams["intersects"]:
             self._place_intersects()
 
-        if self._cparams.get("dot", False):
-            fill: Union[bool, str] = "bg" if self._cparams["dot"] == "open" else True
+        if self.params.get("dot", False):
+            fill: Union[bool, str] = "bg" if self.params["dot"] == "open" else True
             self.segments.append(
                 SegmentCircle((dx, dy), radius=0.075, fill=fill, zorder=3)
             )
-        if self._cparams.get("idot", False):
-            fill = "bg" if self._cparams["idot"] == "open" else True
+        if self.params.get("idot", False):
+            fill = "bg" if self.params["idot"] == "open" else True
             self.segments.append(
                 SegmentCircle((0, 0), radius=0.075, fill=fill, zorder=3)
             )
@@ -899,6 +936,11 @@ class StateLabelInline(Element2Term):
     """Flow direction arrow with state label"""
 
     def __init__(self, *d, label: str = None, **kwargs):
+        """
+        :param *d: passed through to `schemdraw.elements.Element2Term`
+        :param label: text to label the arrow with, placed above it (Default value = None)
+        :param **kwargs: passed through to `schemdraw.elements.Element2Term`
+        """
         super().__init__(*d, **kwargs)
         arrowwidth = kwargs.get("arrowwidth", default_style["arrowwidth"])
         arrowlength = kwargs.get("arrowlength", default_style["arrowlength"])
@@ -932,6 +974,11 @@ class Crossover(Element):
     """Crossover element showing that intersecting lines are not joined"""
 
     def __init__(self, *d, radius: float = 0.25, **kwargs):
+        """
+        :param *d: passed through to `schemdraw.elements.Element`
+        :param radius: radius of the drawn hop/arc (Default value = 0.25)
+        :param **kwargs: passed through to `schemdraw.elements.Element`
+        """
         super().__init__(*d, **kwargs)
         self.segments.append(
             SegmentArc(
@@ -967,6 +1014,14 @@ class EnergyArrow(Element):
         headwidth: float = 0.3,
         **kwargs,
     ):
+        """
+        :param direction: arrow direction, 'in' or 'out' of the element it's placed on (Default value = "in")
+        :param ofst: offset along the lead length (Default value = 0.8)
+        :param start: place the arrow at the element's start rather than its end (Default value = True)
+        :param headlength: length of the arrowhead (Default value = 0.3)
+        :param headwidth: width of the arrowhead (Default value = 0.3)
+        :param **kwargs: passed through to `schemdraw.elements.Element`
+        """
         super().__init__(**kwargs)
         self.params["lblofst"] = 0
         self.params["drop"] = None

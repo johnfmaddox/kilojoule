@@ -1,0 +1,33 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, devel]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          # setuptools-scm needs the full history (and tags) to compute
+          # the package version; a shallow clone breaks it.
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          # No uv.lock/requirements*.txt is committed, so setup-uv's default
+          # caching has nothing to hash a key from ("no file matched" warning,
+          # cache never invalidates); disable it rather than cache uselessly.
+          enable-cache: false
+      - name: Install package with test dependencies
+        run: uv sync --extra test
+      - name: Run tests
+        run: uv run pytest tests/ -v

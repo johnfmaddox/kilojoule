@@ -18,15 +18,23 @@ class HX(Element):
     Args:
         w: Width of heat exchanger
         h: Height of heat exhanger
-        p: Number of fluid passes
+        passes: Number of fluid passes
 
     Anchors:
         * 16 compass points (N, S, E, W, NE, NNE, etc.)
+        * `W{n}`/`E{n}` (and `inlet{n}`/`outlet{n}`/`exit{n}`) for each fluid pass `n`
     """
 
     def __init__(
         self, w: float = 0, h: float = 0, passes: int = 1, coils: bool = True, **kwargs
     ):
+        """
+        :param w: box width (Default value = 0, resolves to 3)
+        :param h: box height (Default value = 0, resolves to `passes`)
+        :param passes: number of fluid passes drawn, each getting its own `W{n}`/`E{n}` anchor pair (Default value = 1)
+        :param coils: draw a zigzag coil line across each pass instead of a plain straight line (Default value = True)
+        :param **kwargs: passed through to `schemdraw.elements.Element`
+        """
         super().__init__(**kwargs)
         if w == 0:
             w = 3

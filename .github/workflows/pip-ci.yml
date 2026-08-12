@@ -1,0 +1,89 @@
+name: Publish Python Package
+
+# Trusted Publishing (OIDC) -- no stored PyPI/TestPyPI tokens. Each publish
+# job's `environment:` must match a trusted publisher registered on the
+# corresponding index (test.pypi.org / pypi.org -> project -> Settings ->
+# Publishing), pointing at this repo, this workflow filename, and that
+# same environment name.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    # Manually publish the currently-selected branch/tag to TestPyPI --
+    # e.g. to try out `devel` before it's tagged for a real release.
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          python-version: '3.12'
+          # No uv.lock/requirements*.txt is committed, so setup-uv's default
+          # caching has nothing to hash a key from ("no file matched" warning,
+          # cache never invalidates); disable it rather than cache uselessly.
+          enable-cache: false
+      - name: Install package with test dependencies
+        run: uv sync --extra test
+      - name: Run tests
+        run: uv run pytest tests/ -v
+
+  publish-testpypi:
+    needs: test
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+    permissions:
+      id-token: write  # required for Trusted Publishing
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          # setuptools-scm needs the full history (and tags) to compute
+          # the package version; a shallow clone breaks it.
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          python-version: '3.12'
+          # No uv.lock/requirements*.txt is committed, so setup-uv's default
+          # caching has nothing to hash a key from ("no file matched" warning,
+          # cache never invalidates); disable it rather than cache uselessly.
+          enable-cache: false
+      - name: Build package
+        run: uv build
+      - name: Publish package to TestPyPI
+        run: uv publish --index testpypi --trusted-publishing always
+
+  publish-pypi:
+    needs: test
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    permissions:
+      id-token: write  # required for Trusted Publishing
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          python-version: '3.12'
+          # No uv.lock/requirements*.txt is committed, so setup-uv's default
+          # caching has nothing to hash a key from ("no file matched" warning,
+          # cache never invalidates); disable it rather than cache uselessly.
+          enable-cache: false
+      - name: Build package
+        run: uv build
+      - name: Publish package to PyPI
+        run: uv publish --trusted-publishing always

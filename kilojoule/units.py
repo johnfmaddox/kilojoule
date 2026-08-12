@@ -1,8 +1,16 @@
+"""
+    units
+    ~~~~~
+    The package-wide pint `UnitRegistry` (`ureg`), `Quantity`, and
+    `Measurement` classes, plus custom unit definitions needed for
+    humid-air properties (dry-air/humid-air/water mass and mole units)
+    and a few conveniences (`cfm`, `USD`).
+"""
 from pint import UnitRegistry
 
 ureg = UnitRegistry()
-ureg.default_format = ".5~P"
-ureg.default_LaTeX_format = ":~L"
+ureg.default_format = r".5~P"
+ureg.default_LaTeX_format = r":~L"
 Quantity = ureg.Quantity
 Measurement = ureg.Measurement
 

@@ -9,7 +9,7 @@ accuracy.
 
 from .common import get_caller_namespace
 from .units import Quantity
-from .display import numeric_to_string, to_latex, to_numeric, Latex
+from .display import numeric_to_string, to_latex, Latex
 from IPython.display import display, Markdown
 
 import hashlib
@@ -64,6 +64,11 @@ sol_legend += r"\end{align*}"
 
 
 def name_and_date(Name):
+    """Display a name and the current date/time (US Central), for a
+    notebook's signature block
+
+    :param Name: name to display; raises if left at the "Jane Doe" placeholder
+    """
     if Name == "Jane Doe":
         raise ValueError("Update the Name variable above")
     # from IPython.display import display, Markdown
@@ -88,6 +93,14 @@ class IncorrectValueError(QuietError):
 
 
 def quiet_hook(kind, message, traceback):
+    """`sys.excepthook` replacement (installed below) that prints
+    `QuietError` subclasses as a plain one-line message instead of a full
+    traceback, so a failed solution check doesn't bury a notebook in noise
+
+    :param kind: exception class
+    :param message: exception instance/message
+    :param traceback: the traceback object
+    """
     if QuietError in kind.__bases__:
         print(
             "{0}: {1}".format(kind.__name__, message)
@@ -104,6 +117,25 @@ sys.excepthook = quiet_hook
 def hashq(
     obj, units=None, sigfigs=None, round_machine_zero=True, verbose=True, **kwargs
 ):
+    """Hash a value's magnitude (in base units, rounded to `sigfigs`) so it
+    can be compared for equality without exposing the actual value
+
+    Used by both :func:`store_solution` (to record the expected hash) and
+    :func:`check_solution` (to compare a student's value against it).
+    Rounds to `sigfigs` significant figures, snaps near-zero magnitudes to
+    exactly `0` (so `-0.0`/`0.0`/tiny floating-point residue all hash the
+    same), then strips insignificant leading/trailing zeros before hashing
+    the string representation with MD5.
+
+    :param obj: value to hash -- a Quantity, or a plain number paired with `units`
+    :param units: units to report alongside the hash if `obj` is not itself a Quantity (Default value = None)
+    :param sigfigs: number of significant figures to round to before hashing (Default value = None, no rounding)
+    :param round_machine_zero: snap magnitudes below `default_machine_zero` to exactly `0` (Default value = True)
+    :param verbose: print the value/magnitude/rounding/hash at each step (Default value = True)
+    :param **kwargs: currently unused
+    :returns: `(hash_hex, rounded_str_rep, hash_dict)` where `hash_dict` is
+        `{"hash": ..., "units": ..., "sigfigs": ...}`
+    """
     if isinstance(obj, Quantity):
         base = obj.to_base_units()
         base_mag = base.magnitude
@@ -164,6 +196,14 @@ def hashq(
 
 
 def str_to_sol_list(sol_list):
+    """Split a delimited string of variable names into a list, if given one
+
+    Tries comma, then semicolon, then space as the delimiter (first one
+    found in the string wins). Passes non-string input through unchanged.
+
+    :param sol_list: a delimited string of names, or an already-built list/dict
+    :returns: a list of name strings (or `sol_list` unchanged if not a string)
+    """
     # if the first argument is a string rather than a list, convert it to a list of variable names by splitting
     # on delimeters in the order: comma (","), semicolon (";"), or space (" ")
     if isinstance(sol_list, str):
@@ -177,9 +217,15 @@ def str_to_sol_list(sol_list):
 
 
 def check_solutions(sol_list, n_col=3, namespace=None, legend=False, **kwargs):
-    """Accepts a list of solution check specifications and call `check_solution()` for each.
+    """Check and display a batch of solutions in a grid, via :func:`check_solution`
 
-    Accepts a list of strings or a list of dictionaries.
+    :param sol_list: a delimited string of variable names (see
+        :func:`str_to_sol_list`), or a list whose items are each either a
+        variable name string or a dict of kwargs for :func:`check_solution`
+    :param n_col: number of checks per row (Default value = 3)
+    :param namespace: namespace to evaluate variables in (Default value = None, uses the caller's namespace)
+    :param legend: also display the correct/partial/incorrect symbol legend (Default value = False)
+    :param **kwargs: passed through to :func:`check_solution` for every item
     """
     namespace = namespace or get_caller_namespace()
     kwargs["namespace"] = namespace
@@ -204,31 +250,6 @@ def check_solutions(sol_list, n_col=3, namespace=None, legend=False, **kwargs):
     if legend:
         display(Latex(sol_legend))
 
-    def add_variable(self, variable, **kwargs):
-        """Add a variable to the display list
-
-        Args:
-          variable:
-          **kwargs:
-
-        Returns:
-
-        """
-        symbol = to_latex(variable)
-        value = to_numeric(variable, self.namespace)
-        boxed_styles = ["box", "boxed", "sol", "solution"]
-        if self.style in boxed_styles:
-            self.latex_string += r"\Aboxed{ "
-        self.latex_string += symbol + r" }&={ " + value
-        if self.style in boxed_styles:
-            self.latex_string += r" }"
-        if self.n < self.n_col:
-            self.latex_string += r" }&{ "
-            self.n += 1
-        else:
-            self.latex_string += r" }\\{ "
-            self.n = 1
-
 
 def check_solution(
     name,
@@ -244,6 +265,32 @@ def check_solution(
     legend=False,
     **kwargs,
 ):
+    """Check one value's hash against the stored solution hash and display
+    (or return) a correct/partial/incorrect indicator
+
+    Looks up `name` (or uses `value` directly, if given) in the hash
+    database saved by :func:`store_solution`, comparing at the stored
+    significant-figure precision first (`sol_symbols["correct"]`), falling
+    back to a 1-significant-figure comparison (`sol_symbols["partial"]`),
+    or otherwise reporting `sol_symbols["incorrect"]`.
+
+    :param name: variable name to look up (also used, with `prefix`, as the hash database key)
+    :param value: value to check (Default value = None, evaluates `name` in `namespace`)
+    :param units: units to check `value` at, overriding the stored units (Default value = None)
+    :param sigfigs: significant figures to check at, overriding the stored value (Default value = None)
+    :param namespace: namespace to evaluate `name` in (Default value = None, uses the caller's namespace)
+    :param prefix: prefix added to `name` to form the hash database key (Default value = "")
+    :param filename: hash database file to read (Default value = ".solution_hashes")
+    :param verbose: print debug information, including on a missing/mismatched hash (Default value = False)
+    :param raise_error: raise `IncorrectValueError` on mismatch, or re-raise
+        `KeyError` if `name` isn't in the database, instead of just
+        displaying the indicator (Default value = False)
+    :param single_check: display the result immediately as its own equation;
+        if `False`, return the formatted string instead (for :func:`check_solutions` to batch) (Default value = True)
+    :param legend: currently unused here (see :func:`check_solutions`) (Default value = False)
+    :param **kwargs: passed through to :func:`hashq`
+    :returns: the formatted result string if `single_check` is `False`, else `None`
+    """
     namespace = namespace or get_caller_namespace()
     key = prefix + name
 
@@ -318,6 +365,11 @@ def check_solution(
 
 
 def read_solution_hashes(filename=default_hash_filename):
+    """Load the stored hash database from disk
+
+    :param filename: path to the hash database file (Default value = ".solution_hashes")
+    :returns: the parsed JSON dict, keyed by `prefix + name` (or `{}` if the file doesn't exist)
+    """
     if exists(filename):
         # Load existing hashes if the file exits
         with open(filename, "r") as f:
@@ -337,12 +389,25 @@ def store_solutions(
     ext_hash_location=default_ext_hash_location,
     **kwargs,
 ):
-    """Accepts a list of solution storage specifications and calls `store_solution()` for each.
+    """Store a batch of solution hashes, via :func:`store_solution`, then
+    distribute the resulting hash file to the student-facing locations
 
-    Accepts a list of strings or a list of dictionaries.
+    :param sol_list: a delimited string of variable names (see
+        :func:`str_to_sol_list`), or a list whose items are each either a
+        variable name string or a dict of kwargs for :func:`store_solution`
+    :param namespace: namespace to evaluate variables in (Default value = None, uses the caller's namespace)
+    :param filename: hash database file to write to and distribute (Default value = ".solution_hashes")
+    :param copy_to_student: also copy the hash file into `student_dir` (Default value = True)
+    :param student_dir: destination directory for the student copy (Default value = "student/")
+    :param ext_hash_location: if this directory exists, also copy the hash
+        file there, mirroring the path relative to the home directory (Default value = "~/src/solution_hashes/")
+    :param **kwargs: passed through to :func:`store_solution` for every item
+        (note: a dict item in `sol_list` that also sets `namespace` or
+        `filename` will collide with these and raise `TypeError`)
     """
     namespace = namespace or get_caller_namespace()
     kwargs["namespace"] = namespace
+    kwargs["filename"] = filename
     sol_list = str_to_sol_list(sol_list)
     for sol in sol_list:
         if isinstance(sol, str):
@@ -351,12 +416,12 @@ def store_solutions(
             store_solution(**sol, **kwargs)
     if copy_to_student:
         os.makedirs(student_dir, exist_ok=True)
-        shutil.copy2(default_hash_filename, student_dir)
+        shutil.copy2(filename, student_dir)
     ext_hash_location = Path(ext_hash_location)
     if ext_hash_location.exists():
-        dest = ext_hash_location / Path(default_hash_filename).absolute().parent.relative_to(Path.home())
+        dest = ext_hash_location / Path(filename).absolute().parent.relative_to(Path.home())
         os.makedirs(dest, exist_ok=True)
-        shutil.copy2(default_hash_filename, dest)
+        shutil.copy2(filename, dest)
 
 
 def store_solution(
@@ -416,10 +481,11 @@ def store_solution(
             if round_machine_zero and value.magnitude < default_machine_zero:
                 round_machine_zero = False
         except TypeError:
-            print(f'Skipping machine zero check for {name} = {value}')
+            pass
     if append:
         hashes.extend(hash_db[key]["hashes"])
         first_sigfig_hashes.extend(hash_db[key]["first_sigfig_hashes"])
+
     #     print(f'{hashes}')
     hash_db[key] = dict(
         hashes=list(unique(hashes)),
@@ -434,22 +500,42 @@ def store_solution(
 
 
 def read_solution_hash(key, filename=default_hash_filename):
+    """Look up one entry from the stored hash database
+
+    :param key: database key to look up, i.e. `prefix + name`
+    :param filename: path to the hash database file (Default value = ".solution_hashes")
+    :returns: that entry's dict, e.g. `{"hashes": [...], "first_sigfig_hashes": [...], "units": ..., "sigfigs": ...}`
+    """
     hashes = read_solution_hashes(filename)
     return hashes[key]
 
 
 def get_notebook_filename():
+    """Get the current notebook's filename from the environment (CoCalc or
+    JupyterHub), split into `(directory, filename)`
+
+    :returns: `os.path.split()` of the detected filename, or `None` if
+        neither environment variable is set
+    """
     import os
 
     environ = os.environ
     if "COCALC_JUPYTER_FILENAME" in environ:
         filename = os.path.split(environ["COCALC_JUPYTER_FILENAME"])
     elif "JPY_SESSION_NAME" in environ:
-        filename = os.path.split(environ["JPY_SESSION NAME"])
+        filename = os.path.split(environ["JPY_SESSION_NAME"])
+    else:
+        filename = None
     return filename
 
 
 def export_html(show_code=False, capture_output=True, **kwargs):
+    """Deprecated: warns that this has moved to :func:`kilojoule.export.export_html`
+
+    :param show_code: unused, kept for signature compatibility (Default value = False)
+    :param capture_output: unused, kept for signature compatibility (Default value = True)
+    :param **kwargs: unused, kept for signature compatibility
+    """
     import warnings
-    warning.warn('export_html has been moved to the export module; it can be imported with \n\n\tfrom kilojoule.export import export_html\n\n')
-    
+    warnings.warn('`export_html` has been moved to the `export` module; it can be imported with \n\n\t`from kilojoule.export import export_html`\n\n')
+

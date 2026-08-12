@@ -2,6 +2,8 @@
 scratch.ipynb
 kilojoule-imports
 **/Cengel*Data/
+**/Bergman*Data/
+kilojoule/_version.py
 
 
 # Temporary and binary files
@@ -60,3 +62,7 @@ MANIFEST
 
 # Per-project virtualenvs
 .venv*/
+
+# uv-generated lockfile -- deliberately not committed for a library;
+# `uv sync` in CI/dev regenerates it transiently each run.
+uv.lock

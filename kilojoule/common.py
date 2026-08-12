@@ -1,8 +1,35 @@
+"""
+    common
+    ~~~~~~
+    Shared utilities used across the package: standard/normal
+    temperature-pressure constants, symbol/unit-type/unit-system
+    lookup tables, `AmbiguousUnitsError`, and `get_caller_namespace`.
+"""
 from . import units
 import inspect
 
 STP = {"T": units.Quantity(0, "degC"), "p": units.Quantity(1, "bar")}
 NTP = {"T": units.Quantity(20, "degC"), "p": units.Quantity(1, "atm")}
+
+
+class AmbiguousUnitsError(Exception):
+    """Raised when a value's units match more than one property symbol,
+    so the intended property cannot be inferred from units alone."""
+
+    pass
+
+
+class MissingDataFileError(FileNotFoundError):
+    """Raised when a textbook property-table CSV (e.g. under `Cengel Data/`
+    or `Bergman Data/`) is not present locally.
+
+    These data files are not distributed with kilojoule for copyright
+    reasons -- they must be obtained separately (e.g. from your course
+    materials) and placed in the corresponding directory alongside the
+    installed `kilojoule` package.
+    """
+
+    pass
 
 
 def invert_dict(original_dict, replace_empty_string=True):

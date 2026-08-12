@@ -1,3 +1,11 @@
+"""
+    fluids
+    ~~~~~~
+    Notebook environment template for a fluids/fluid-mechanics course:
+    real/ideal-gas properties, a states table, angle-aware trig
+    functions, modified Bessel functions, and the Moody friction
+    factor.
+"""
 from itertools import combinations_with_replacement
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
@@ -23,39 +31,69 @@ from math import e
 
 
 def sine(angle):
+    """Sine, accepting a dimensional angle Quantity or a plain value in radians
+
+    :param angle: angle (Quantity, converted to radians; or a plain number, in radians)
+    :returns: sin(angle)
+    """
     if isinstance(angle, Quantity):
         angle = angle.to("rad").magnitude
     return np.sin(angle)
 
 
 def cosine(angle):
+    """Cosine, accepting a dimensional angle Quantity or a plain value in radians
+
+    :param angle: angle (Quantity, converted to radians; or a plain number, in radians)
+    :returns: cos(angle)
+    """
     if isinstance(angle, Quantity):
         angle = angle.to("rad").magnitude
-    return np.sin(angle)
+    return np.cos(angle)
 
 
 def tangent(angle):
+    """Tangent, accepting a dimensional angle Quantity or a plain value in radians
+
+    :param angle: angle (Quantity, converted to radians; or a plain number, in radians)
+    :returns: tan(angle)
+    """
     if isinstance(angle, Quantity):
         angle = angle.to("rad").magnitude
-    return np.sin(angle)
+    return np.tan(angle)
 
 
 def secant(angle):
+    """Secant, accepting a dimensional angle Quantity or a plain value in radians
+
+    :param angle: angle (Quantity, converted to radians; or a plain number, in radians)
+    :returns: sec(angle) = 1/cos(angle)
+    """
     if isinstance(angle, Quantity):
         angle = angle.to("rad").magnitude
     return 1 / np.cos(angle)
 
 
 def cosecant(angle):
+    """Cosecant, accepting a dimensional angle Quantity or a plain value in radians
+
+    :param angle: angle (Quantity, converted to radians; or a plain number, in radians)
+    :returns: csc(angle) = 1/sin(angle)
+    """
     if isinstance(angle, Quantity):
         angle = angle.to("rad").magnitude
     return 1 / np.sin(angle)
 
 
 def cotangent(angle):
+    """Cotangent, accepting a dimensional angle Quantity or a plain value in radians
+
+    :param angle: angle (Quantity, converted to radians; or a plain number, in radians)
+    :returns: cot(angle) = 1/tan(angle)
+    """
     if isinstance(angle, Quantity):
         angle = angle.to("rad").magnitude
-    return 1 / np.sin(angle)
+    return 1 / np.tan(angle)
 
 
 sin = sine
@@ -150,6 +188,7 @@ def moody_friction_factor(
             rel_rough = relative_roughness
 
         def RHS(f):
+            """Colebrook equation residual, zeroed by `bisect` to solve for `f`"""
             return 1 / f ** (0.5) + 2 * log10(rel_rough / 3.7 + 2.51 / (Re * sqrt(f)))
 
         f = Quantity(bisect(RHS, 1e-15, 1), "")

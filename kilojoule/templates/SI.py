@@ -1,3 +1,11 @@
+"""
+    SI
+    ~~
+    Base SI-unit ("Pa"/"J"/"J/K") notebook environment template: a
+    states table, common imports, and math/plotting setup. Other unit
+    systems (kSI, USCS_R, ...) build on this by re-scaling the same
+    columns via `.set_units(...)`.
+"""
 import kilojoule.realfluid as realfluid
 import kilojoule.idealgas as idealgas
 from kilojoule.organization import QuantityTable

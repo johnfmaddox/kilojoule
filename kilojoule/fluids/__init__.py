@@ -11,8 +11,8 @@
 """
 
 from kilojoule import constants
-import kilojoule.properties.realfluid as realfluid
-import kilojoule.properties.idealgas as idealgas
+import kilojoule.realfluid as realfluid
+import kilojoule.idealgas as idealgas
 from kilojoule.organization import QuantityTable
 from kilojoule.display import Summary, set_latex
 from kilojoule.units import ureg, Quantity

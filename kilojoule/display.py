@@ -10,6 +10,7 @@ external document.
 """
 
 from string import ascii_lowercase
+from IPython import get_ipython
 from IPython.display import display, HTML, Math, Latex, Markdown
 
 from sympy import sympify, latex
@@ -27,6 +28,8 @@ IN_COLAB = "google.colab" in str(get_ipython())
 
 
 def enable_mathjax_colab():
+    """Load the MathJax script directly, needed for LaTeX rendering in Google
+    Colab (which doesn't preconfigure MathJax the way classic Jupyter does)"""
     display(
         HTML(
             "<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/"
@@ -65,9 +68,9 @@ post_sympy_latex_substitutions = {
     r"Nuplchldr": r"Nu",
     r"\\hbar": r"\\bar{h}",
     r"\\bar{": r"\\overline{",
-    r"(infty|infinity)": r"\\infty",
-    r"inf(,|})": r"\\infty\1",
-    r"^inf$": r"\\infty",
+    r"(infty|infinity)": r"\infty",
+    r"inf(,|})": r"\infty\1",
+    r"^inf$": r"\infty",
     r"_\{tripprmplchldr\}|,tripprmplchldr": r"'''",
     r"_\{tripprmplchldr,": r"'''_\{",
     r"_\{doubprmplchldr\}|,doubprmplchldr": r"''",
@@ -90,6 +93,19 @@ variable_name_latex_subs = {
 
 
 def set_latex(sub_dict, pre=False, post=False):
+    """Register additional LaTeX substitution rules, merged into one of the
+    three module-level substitution dictionaries
+
+    :param sub_dict: mapping of pattern -> replacement to add
+    :param pre: add to `pre_sympy_latex_substitutions` (regex, applied to the
+        code string before it's passed to `sympy.sympify`) (Default value = False)
+    :param post: add to `post_sympy_latex_substitutions` (regex, applied to
+        the LaTeX string sympy produces) (Default value = False)
+
+    If neither `pre` nor `post` is set, adds to `variable_name_latex_subs`
+    (exact variable-name -> LaTeX string substitutions, checked before
+    falling back to sympy).
+    """
     if pre:
         dest_dict = pre_sympy_latex_substitutions
     elif post:
@@ -105,6 +121,13 @@ def set_latex(sub_dict, pre=False, post=False):
 
 
 def _ast_to_string(ast_node, line_indent=""):
+    """Pretty-print an AST node (recursively) for debugging, e.g. when
+    `verbose=True`
+
+    :param ast_node: an `ast.AST` node, list of nodes, or leaf value
+    :param line_indent: current indentation prefix, extended for nested nodes (Default value = "")
+    :returns: an indented, multi-line string representation of the node
+    """
     next_line_indent = line_indent + "  "
     if isinstance(ast_node, ast.AST):
         return (
@@ -134,6 +157,18 @@ def _ast_to_string(ast_node, line_indent=""):
 
 
 def to_numeric(code, namespace=None, verbose=False, line_indent="", to_units=None):
+    """Evaluate a code string (or pass through a value) and format the result
+    as a numeric string, for the "numeric" stage of a calculation progression
+
+    :param code: source code to `eval`, or an already-evaluated value (e.g. a Quantity)
+    :param namespace: namespace to evaluate `code` in (Default value = None, uses the caller's namespace)
+    :param verbose: print debug information, including on handled exceptions (Default value = False)
+    :param line_indent: indentation prefix used in verbose debug output (Default value = "")
+    :param to_units: convert the evaluated Quantity to these units before formatting (Default value = None)
+    :returns: formatted numeric string (via :func:`numeric_to_string`), or the
+        original `code` unchanged if evaluation raises `NameError`/`SyntaxError`,
+        or `"??"` on any other evaluation error (unless `verbose`, which re-raises)
+    """
     namespace = namespace or get_caller_namespace()
     if isinstance(code, str):
         if verbose:
@@ -164,7 +199,13 @@ def to_numeric(code, namespace=None, verbose=False, line_indent="", to_units=Non
 
 
 def numeric_to_string(numeric):
-    if isinstance(numeric, ureg.Quantity) or isinstance(numeric, ureg.Measurement):
+    """Format a value for display: 5 significant figures with LaTeX units if
+    it's a Quantity, else 5 significant figures (or `str()` as a fallback)
+
+    :param numeric: value to format (a Quantity, or anything supporting the `.5` format spec)
+    :returns: the formatted string
+    """
+    if isinstance(numeric, Quantity):# or isinstance(numeric, Measurement):
         try:
             numeric = f"{numeric:.5~L}"
         except (ValueError, TypeError):
@@ -179,6 +220,23 @@ def numeric_to_string(numeric):
 
 
 def to_latex(code, namespace=None, verbose=False, check_italics=False):
+    """Render a variable name (or arbitrary expression string) as LaTeX
+
+    Resolution order: if `code` evaluates to an object with a `.latex`
+    attribute, use that directly; else check `variable_name_latex_subs` for
+    an exact match; else dispatch to :func:`index_to_latex`/
+    :func:`over_to_latex` for indexed (`x[...]`) or fraction-named
+    (`x_over_y`) variables; otherwise apply `pre_sympy_latex_substitutions`,
+    run the result through `sympy.latex(sympy.sympify(...))`, then
+    repeatedly apply `post_sympy_latex_substitutions` until the string
+    stops changing (or `iter_max` iterations are reached).
+
+    :param code: variable name or expression to render
+    :param namespace: namespace to evaluate `code` in, to check for a `.latex` attribute (Default value = None, uses the caller's namespace)
+    :param verbose: print debug information (Default value = False)
+    :param check_italics: run the result through :func:`adjust_italics` (Default value = False)
+    :returns: the LaTeX string
+    """
     iter_max = 5
     namespace = namespace or get_caller_namespace()
     try:
@@ -249,7 +307,15 @@ def index_to_latex(code, check_italics=False):
 
 
 def adjust_italics(code):
-    # temporarily disable this feature
+    """Wrap multi-character variable/subscript names in `\\mathrm{}` so they
+    render upright instead of italicized, e.g. `T_in` -> `\\mathrm{T}_\\mathrm{in}`
+
+    .. note:: currently disabled -- returns `code` unchanged; the rest of
+       the function is unreachable.
+
+    :param code: a LaTeX variable name, optionally with a `_subscript`
+    :returns: `code` unchanged
+    """
     return code
     split_code = code.split("_", 1)
     var = split_code[0]
@@ -357,6 +423,12 @@ def source_after_node(node: ast.AST, input_lines: list) -> str:
 
 
 def strip_leading_hash(code: str) -> str:
+    """Strip a leading `#` (and surrounding whitespace) from each line, so
+    comment text can be re-displayed as Markdown
+
+    :param code: source text, possibly containing `#`-prefixed comment lines
+    :returns: the text with each line's leading `#` removed
+    """
     stripped_lines = []
     for line in code.split("\n"):
         line = line.strip()
@@ -367,7 +439,15 @@ def strip_leading_hash(code: str) -> str:
 
 
 class FormatCalculation:
-    """Format an assignment statement as an equation progression"""
+    """Format a single assignment statement (one AST node) as a multi-line
+    LaTeX equation progression: symbolic form, then (optionally) the
+    substituted-numbers form, then the final numeric result.
+
+    Does the actual work for a single statement within a
+    :class:`Calculations` cell -- walking the assignment's AST and building
+    up LaTeX for each side via the recursive, node-type-dispatched
+    :meth:`_process_node`.
+    """
 
     def __init__(
         self,
@@ -380,6 +460,18 @@ class FormatCalculation:
         input_lines=None,
         **kwargs,
     ):
+        """
+        :param input_node: the `ast.Assign` node to format (Default value = None)
+        :param namespace: namespace used to evaluate/look up variables (Default value = None, uses the caller's namespace)
+        :param progression: show the full symbolic -> substituted -> numeric
+            progression rather than just the final numeric result (Default value = None)
+        :param verbose: print debug information while walking the AST (Default value = False)
+        :param execute: currently unused (the assignment is always executed via `_execute_code`) (Default value = False)
+        :param source_code: original source text of the statement, used to recover
+            exact spans via :func:`get_node_source` (Default value = None)
+        :param input_lines: the full cell's source, split into lines, for the same purpose (Default value = None)
+        :param **kwargs:
+        """
         self.namespace = namespace or get_caller_namespace()
         self.input_node = input_node
         self.progression = progression
@@ -391,11 +483,19 @@ class FormatCalculation:
         self._process_assignment_node()
 
     def display(self):
+        """Render `self.output_string` as LaTeX in the notebook output"""
         if IN_COLAB:
             enable_mathjax_colab()
         display(Latex(self.output_string))
 
     def _execute_code(self, code, namespace=None):
+        """Execute a code string in `namespace`, capturing (rather than
+        raising) any exception
+
+        :param code: source code to `exec`
+        :param namespace: namespace to execute in (Default value = None, uses `self.namespace`)
+        :returns: the raised exception, or `None` if execution succeeded
+        """
         namespace = namespace or self.namespace
         try:
             exec(code, namespace)
@@ -404,6 +504,18 @@ class FormatCalculation:
             return e
 
     def _process_assignment_node(self):
+        """Build `self.output_string`, the full LaTeX equation progression for
+        `self.input_node`
+
+        Executes the statement (so the LHS has a value to format
+        numerically), formats both sides via :meth:`_process_node`, and
+        assembles a `math_latex_environment` block showing as much of the
+        symbolic -> substituted -> numeric progression as differs at each
+        stage (or just the final numeric result if `self.progression` is
+        false). If executing the statement raised, displays what was
+        formatted so far, prints the statement's source with line numbers,
+        and re-raises.
+        """
         node = self.input_node
         RHS_Symbolic = ""
         if self.verbose:
@@ -466,6 +578,26 @@ class FormatCalculation:
         to_units=None,
         **kwargs,
     ):
+        """Recursively render one AST node's symbolic and numeric LaTeX forms
+
+        Dispatches on `node`'s type (constant, name, subscript, binary/unary
+        op, function call, attribute, list, list comprehension, ...),
+        recursing into child nodes as needed and combining their `symbolic`/
+        `numeric` results (e.g. wrapping a `BinOp` in `\\frac{}{}`,
+        `\\left(...\\right)`, etc. as appropriate for its operator and
+        operand precedence). Node types without specific handling fall
+        through to evaluating their source text directly.
+
+        :param node: the `ast.AST` node to render
+        :param namespace: namespace for evaluating sub-expressions (Default value = None, uses `self.namespace`)
+        :param symbolic: compute the symbolic form; if falsy, `output["symbolic"]` is left as `" "` (Default value = True)
+        :param numeric: compute the numeric form; if falsy, `output["numeric"]` is left as `" "` (Default value = True)
+        :param verbose: print debug information (Default value = None, uses `self.verbose`)
+        :param level: recursion depth, used only to indent verbose debug output (Default value = 1)
+        :param to_units: convert a Quantity result to these units before formatting numerically (Default value = None)
+        :param **kwargs: internal flags used in recursive calls (`nested_attr`, `in_fn_call`, `join_symb`, `list_delim`)
+        :returns: `{"symbolic": ..., "numeric": ..., "code": ..., "list": ..., "dict": ...}`
+        """
         namespace = namespace or self.namespace
         verbose = verbose or self.verbose
         if symbolic:
@@ -883,7 +1015,15 @@ class FormatCalculation:
 
 
 class Calculations:
-    """Display the calculations in the current cell"""
+    """Display every assignment statement in a cell (or arbitrary code
+    string) as a LaTeX equation progression.
+
+    The main entry point for the `%%showcalc` Jupyter cell magic (see
+    :mod:`kilojoule.magics`): parses the cell's source into statements,
+    formats each assignment via :class:`FormatCalculation`, re-displays
+    non-code lines (comments) as Markdown, and executes everything else
+    (expressions, non-assignment statements) directly.
+    """
 
     def __init__(
         self,
@@ -900,6 +1040,21 @@ class Calculations:
         repeat_n=False,
         **kwargs,
     ):
+        """
+        :param namespace: namespace to execute/evaluate statements in (Default value = None, uses the caller's namespace)
+        :param input_string: source to process (Default value = None, uses the current cell's input history)
+        :param comments: re-display `#`-prefixed lines as Markdown instead of code (Default value = True)
+        :param progression: show the full symbolic -> substituted -> numeric progression rather than just the final result (Default value = True)
+        :param return_latex: currently unused (Default value = False)
+        :param verbose: print debug information while processing (Default value = False)
+        :param execute: currently unused (statements are always executed) (Default value = False)
+        :param symbolic: compute the symbolic form of each statement (Default value = True)
+        :param numeric: compute the numeric form of each statement (Default value = True)
+        :param repeat_for: a `"for <var> in <iterable>"` string; re-run the
+            cell body once per value, setting `<var>` in the namespace each time (Default value = False)
+        :param repeat_n: re-run the cell body this many times (Default value = False)
+        :param **kwargs: passed through to :class:`FormatCalculation` for each statement
+        """
         self.namespace = namespace or get_caller_namespace()
         self.cell_string = input_string or self.namespace["_ih"][-1]
         self.input_lines = self.cell_string.split("\n")
@@ -915,9 +1070,9 @@ class Calculations:
         globals()["__inside_kj_display_Calculations__"] = True
 
         if repeat_for:
-            gen_split = repeat_for.split(" in ")
-            gen_var = gen_split[0][1:].strip()
-            gen_range = eval(gen_split[1][:-1], self.namespace)
+            gen_var, gen_expr = repeat_for.split(" in ", 1)
+            gen_var = gen_var.strip()
+            gen_range = eval(gen_expr.strip(), self.namespace)
             if verbose:
                 print(f"{gen_range}")
             for gen_val in gen_range:
@@ -933,6 +1088,15 @@ class Calculations:
         globals()["__inside_kj_display_Calculations__"] = False
 
     def process_body(self):
+        """Process `self.cell_string` top to bottom and display the accumulated
+        result as a single Markdown block
+
+        Parses the source into an AST, and for each top-level statement
+        interleaves any preceding comment text (via
+        :func:`source_before_node`/:func:`source_between_nodes`, re-shown as
+        Markdown if `self.comments`) with that statement's formatted output
+        from :meth:`process_node`.
+        """
         self.cell_output = ""
         self.tree = ast.parse(self.cell_string)
         for i, node in enumerate(self.tree.body):
@@ -956,6 +1120,18 @@ class Calculations:
         display(Markdown(self.cell_output))
 
     def process_node(self, node):
+        """Process a single top-level statement, appending to `self.cell_output`
+
+        Assignments are formatted as an equation progression via
+        :class:`FormatCalculation`; bare expressions are evaluated and their
+        `str()` appended; anything else (imports, function defs, control
+        flow, ...) is executed directly. If executing a non-assignment,
+        non-expression statement raises, displays what's been accumulated
+        so far, prints the statement's source with line numbers, and
+        re-raises.
+
+        :param node: the `ast.stmt` node to process
+        """
         source_code, trailing_comment = get_node_source(node, self.input_lines)
         if isinstance(node, ast.Assign):
             formatted_calc = FormatCalculation(
@@ -989,9 +1165,14 @@ class Calculations:
 
 
 class QuantityTables:
-    """Display all QuantityTables in namespace"""
+    """Display every `QuantityTable` found in a namespace"""
 
     def __init__(self, namespace=None, show=False, **kwargs):
+        """
+        :param namespace: namespace to scan for `QuantityTable` instances (Default value = None, uses the caller's namespace)
+        :param show: display each table immediately, rather than only building `self.output_string` (Default value = False)
+        :param **kwargs:
+        """
         self.namespace = namespace or get_caller_namespace()
 
         self.output_string = ""
@@ -1001,6 +1182,7 @@ class QuantityTables:
                     self.output_string += v.display(show=show)
 
     def __str__(self):
+        """Concatenated display output of every table found"""
         return self.output_string
 
 
@@ -1021,6 +1203,15 @@ class Quantities:
         verbose=False,
         **kwargs,
     ):
+        """
+        :param variables: names of the variables to display (Default value = None, displays every `Quantity`/`Measurement` found in `namespace`)
+        :param n_col: number of `symbol = value` entries per row (Default value = 3)
+        :param style: one of "box"/"boxed"/"sol"/"solution" to box each value, or `None` for no boxing (Default value = None)
+        :param namespace: namespace to look variables up in (Default value = None, uses the caller's namespace)
+        :param show: display the assembled LaTeX immediately (Default value = False)
+        :param verbose: print debug information (Default value = False)
+        :param **kwargs: passed through to :meth:`add_variable` for each variable
+        """
         self.namespace = namespace or get_caller_namespace()
         self.verbose = verbose
         self.style = style
@@ -1052,14 +1243,11 @@ class Quantities:
             display(self.latex)
 
     def add_variable(self, variable, **kwargs):
-        """Add a variable to the display list
+        """Append one `symbol = value` entry to `self.latex_string`, wrapping
+        to a new row every `self.n_col` entries
 
-        Args:
-          variable:
-          **kwargs:
-
-        Returns:
-
+        :param variable: name of the variable to look up and render
+        :param **kwargs: currently unused
         """
         symbol = to_latex(
             variable, namespace=self.namespace, verbose=self.verbose, check_italics=True
@@ -1079,6 +1267,7 @@ class Quantities:
             self.n = 1
 
     def __str__(self):
+        """The assembled LaTeX `align` block source"""
         return self.latex_string
 
 
@@ -1099,6 +1288,15 @@ class Summary:
         verbose=False,
         **kwargs,
     ):
+        """
+        :param variables: names of the variables to display (Default value = None, displays every `Quantity` plus every `QuantityTable` found in `namespace`)
+        :param n_col: number of `symbol = value` entries per row, passed to :class:`Quantities` (Default value = None, 1 if `variables` given else 3)
+        :param namespace: namespace to look variables/tables up in (Default value = None, uses the caller's namespace)
+        :param style: one of "box"/"boxed"/"sol"/"solution" to box each value, or `None` for no boxing (Default value = None)
+        :param show: display immediately (Default value = None, defaults to `False` if called from inside a :class:`Calculations` cell, else `True`)
+        :param verbose: print debug information (Default value = False)
+        :param **kwargs: passed through to :class:`Quantities`/:class:`QuantityTables` (only when `variables` is not given)
+        """
         if show is None:
             if "__inside_kj_display_Calculations__" in globals():
                 if globals()["__inside_kj_display_Calculations__"]:
@@ -1127,6 +1325,7 @@ class Summary:
             )
 
     def __str__(self):
+        """Concatenated LaTeX/display output of the quantities and (if any) state tables"""
         output_string = ""
         if self.quantities:
             output_string += "\n" + str(self.quantities)

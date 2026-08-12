@@ -1,9 +1,16 @@
+"""
+    realfluid
+    ~~~~~~~~~
+    Real-fluid thermodynamic properties, backed by CoolProp. See
+    :class:`Properties` for the main entry point.
+"""
 from .units import Quantity, ureg
 from .common import (
     invert_dict,
     CP_symbUpper_to_units,
     preferred_units_from_type,
     preferred_units_from_symbol,
+    AmbiguousUnitsError,
 )
 from .plotting import PropertyPlot
 import CoolProp
@@ -113,6 +120,10 @@ CP_kw_to_AS_desired = {
 
 
 def fluids():
+    """List every fluid name CoolProp supports
+
+    :returns: CoolProp's `FluidsList()`
+    """
     return FluidsList()
 
 
@@ -243,7 +254,26 @@ def PropertyLookup(
         result = PhaseSI(*PropsSI_args)
         return result
     else:
-        result = PropsSI(*PropsSI_args)
+        try:
+            result = PropsSI(*PropsSI_args)
+        except ValueError as e:
+            # CoolProp's quality-based (QT_flash) lookups reject a
+            # temperature that is even a few ULPs above its own internal
+            # critical point -- a false rejection that shows up whenever a
+            # value like T_critical has round-tripped through a unit
+            # conversion and back (e.g. K -> degC -> K, going through
+            # PropertyLookup twice), since an additive/offset conversion
+            # like that isn't perfectly precision-preserving. Retry once
+            # with the offending temperature nudged down by a relative
+            # epsilon far larger than that floating-point noise (~1e-14
+            # relative here) but far smaller than anything physically
+            # meaningful.
+            if "numerical critical point" in str(e) and "T" in PropsSI_args:
+                t_idx = PropsSI_args.index("T") + 1
+                PropsSI_args[t_idx] *= 1 - 1e-9
+                result = PropsSI(*PropsSI_args)
+            else:
+                raise
     # Determine the units of the value as returned from CoolProp
     CP_return_units = CP_symbUpper_to_units[CP_desired]
     CP_return_type = CP_symb_to_type[desired]
@@ -272,6 +302,10 @@ class Properties:
     """
 
     def __init__(self, fluid, unit_system="kSI_C"):
+        """
+        :param fluid: CoolProp fluid name, e.g. 'Water', 'R134a', 'Air' (see :func:`fluids`)
+        :param unit_system: unit system for return values -- one of 'SI_C', 'SI_K', 'English_F', 'English_R' (Default value = "kSI_C")
+        """
         self.fluid = fluid
         self.HEOS = CoolProp.AbstractState("HEOS", self.fluid)
         self.HEOS.update(CoolProp.PT_INPUTS, 101325, 300)
@@ -314,6 +348,14 @@ class Properties:
         )
 
     def _lookup_trivial(self, desired, **kwargs):
+        """Like :meth:`_lookup`, for CoolProp "trivial" properties that depend
+        only on the fluid (e.g. `T_critical`, `M`), not on two independent
+        properties -- and tags the result with `property_source = self`
+
+        :param desired: desired trivial property
+        :param **kwargs: currently unused (trivial properties take no independent properties)
+        :returns: the property value as a Quantity
+        """
         result = PropertyLookup(
             desired, fluid=self.fluid, unit_system=self.unit_system, **kwargs
         )
@@ -828,6 +870,19 @@ class Properties:
         unit_system=None,
         **kwargs,
     ):
+        """Create a :class:`~kilojoule.plotting.PropertyPlot` of this fluid for
+        an arbitrary pair of properties; the `x*_diagram`/`*y_diagram` methods
+        below are convenience wrappers around this for common property pairs
+
+        :param x: property symbol for the x-axis, e.g. 's' (Default value = None)
+        :param y: property symbol for the y-axis, e.g. 'T' (Default value = None)
+        :param x_units: units for the x-axis (Default value = None, inferred from `unit_system`)
+        :param y_units: units for the y-axis (Default value = None, inferred from `unit_system`)
+        :param saturation: plot the saturation dome (Default value = True)
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param **kwargs: passed through to `PropertyPlot`
+        :returns: the `PropertyPlot`
+        """
         unit_system = unit_system or self.unit_system
         return PropertyPlot(
             x=x,
@@ -841,6 +896,13 @@ class Properties:
         )
 
     def Ts_diagram(self, unit_system=None, saturation=None, **kwargs):
+        """Temperature-entropy diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, `False` for 'Air', else `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
         else:
@@ -853,6 +915,15 @@ class Properties:
     def pv_diagram(
         self, unit_system=None, saturation=None, log_x=None, log_y=None, **kwargs
     ):
+        """Pressure-specific volume diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, `False` for 'Air', else `True`)
+        :param log_x: log-scale x-axis (Default value = None, `False` for 'Air', else `True`)
+        :param log_y: log-scale y-axis (Default value = None, `False` for 'Air', else `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
             log_x = log_x or False
@@ -873,6 +944,13 @@ class Properties:
         )
 
     def Tv_diagram(self, unit_system=None, saturation=None, **kwargs):
+        """Temperature-specific volume diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, `False` for 'Air', else `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
         else:
@@ -883,6 +961,13 @@ class Properties:
         )
 
     def hs_diagram(self, unit_system=None, saturation=None, **kwargs):
+        """Enthalpy-entropy (Mollier) diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, `False` for 'Air', else `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
         else:
@@ -893,6 +978,13 @@ class Properties:
         )
 
     def ph_diagram(self, unit_system=None, saturation=None, **kwargs):
+        """Pressure-enthalpy diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, `False` for 'Air', else `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
         else:
@@ -903,6 +995,13 @@ class Properties:
         )
 
     def pT_diagram(self, unit_system=None, saturation=None, **kwargs):
+        """Pressure-temperature (phase) diagram; see :meth:`property_diagram`
+
+        :param unit_system: unit system for default axis units (Default value = None, uses `self.unit_system`)
+        :param saturation: plot the saturation dome (Default value = None, `False` for 'Air', else `True`)
+        :param **kwargs: passed through to :meth:`property_diagram`
+        :returns: the `PropertyPlot`
+        """
         if self.fluid == "Air":
             saturation = saturation or False
         else:
@@ -924,6 +1023,20 @@ def LegacyPropertyPlot(
     unit_system="kSI_C",
     **kwargs,
 ):
+    """Deprecated: builds a `Properties` instance and its `PropertyPlot` in one
+    call, instead of `Properties(fluid, ...).property_diagram(...)`
+
+    :param x: property symbol for the x-axis, e.g. 's' (Default value = None)
+    :param y: property symbol for the y-axis, e.g. 'T' (Default value = None)
+    :param x_units: units for the x-axis (Default value = None)
+    :param y_units: units for the y-axis (Default value = None)
+    :param plot_type: currently unused (Default value = None)
+    :param fluid: CoolProp fluid name (Default value = None)
+    :param saturation: plot the saturation dome (Default value = False)
+    :param unit_system: unit system for return values and default axis units (Default value = "kSI_C")
+    :param **kwargs: passed through to both `Properties` and `PropertyPlot`
+    :returns: the `PropertyPlot`
+    """
     props = Properties(fluid=fluid, unit_system=unit_system, **kwargs)
     return PropertyPlot(
         x=x,
