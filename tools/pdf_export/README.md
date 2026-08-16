@@ -4,6 +4,13 @@
 properly-typeset PDF, working around two problems in plain
 `jupyter nbconvert --to pdf`:
 
+> **Exporting a single notebook from inside itself?** Use
+> `kilojoule.export.export_pdf()` instead — same fix, same calling
+> convention as `export_html()` (`from kilojoule.export import export_pdf;
+> export_pdf()`), no separate script/kernel needed. This script is for
+> headless, from-scratch batch conversion (CI, a whole directory of
+> notebooks, or a specific `--kernel`/`--python`).
+
 1. **`\cancel{}` fails to compile.** kilojoule's energy/entropy-balance
    derivations use `\cancel{}` to strike through eliminated terms.
    nbconvert's default LaTeX template doesn't load the `cancel` package, so

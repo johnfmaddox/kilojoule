@@ -4,6 +4,22 @@ Changelog
 
 Unreleased
 ==========
+- Add ``kilojoule.export.export_pdf()``, an in-notebook counterpart to
+  ``export_html()`` (same calling convention: auto-detects the notebook via
+  ``get_notebook_path()``, takes ``show_code``/``capture_output``/``preview``/
+  ``filename``, and supports the CoCalc-only iframe ``preview``). It exports
+  via ``nbconvert --to latex`` + ``xelatex`` rather than ``--to pdf``
+  directly, working around two problems that break kilojoule notebooks
+  under plain ``nbconvert --to pdf``: ``\cancel{}`` terms failing to
+  compile (nbconvert's LaTeX template doesn't load the ``cancel`` package)
+  and ``Summary()`` state tables flattening into a list of numbers instead
+  of a table (pandoc drops the raw HTML ``<table>`` markup ``Summary()``
+  emits under the ``text/markdown`` mimetype). The fix logic is shared
+  with (but duplicated from, for dependency-isolation reasons -- see
+  ``kilojoule/_pdf_export.py``) the standalone
+  ``tools/pdf_export/export_notebook_to_pdf.py`` script, which remains the
+  right tool for headless/from-scratch batch conversion. Requires
+  ``xelatex`` (MiKTeX or TeX Live) on ``PATH``.
 - ``kilojoule.export.export_html()`` (and every notebook's boilerplate
   Canvas-export cell) previously raised a bare ``KeyError:
   'COCALC_JUPYTER_FILENAME'`` outside of CoCalc. Added
