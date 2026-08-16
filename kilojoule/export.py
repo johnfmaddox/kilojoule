@@ -211,17 +211,17 @@ def export_html(show_code = False, capture_output=True, preview=False, filename=
 
 
 def export_pdf(show_code=False, capture_output=True, preview=False, filename=None,
-                title=None, passes=2, keep_intermediate=False, **kwargs):
+                title=None, engine=None, passes=2, keep_intermediate=False, **kwargs):
     """Export the current Jupyter notebook to a PDF via `jupyter nbconvert
-    --to latex` + `xelatex`.
+    --to latex` + a LaTeX engine.
 
     Works the same way as :func:`export_html` -- in CoCalc, a local
     Jupyter Notebook/JupyterLab session, or anywhere the notebook's
     filename is given explicitly (see :func:`get_notebook_path`) -- but
-    additionally requires `xelatex` on `PATH` (MiKTeX or TeX Live, with
-    the `cancel`, `booktabs`, `longtable`, `array`, and `graphicx`
-    packages). It works around two problems in plain `jupyter nbconvert
-    --to pdf`:
+    additionally requires one of `xelatex`, `lualatex`, or `pdflatex` on
+    `PATH` (MiKTeX or TeX Live, with the `cancel`, `booktabs`,
+    `longtable`, `array`, and `graphicx` packages); see `engine` below.
+    It works around two problems in plain `jupyter nbconvert --to pdf`:
 
     1. kilojoule's ``\\cancel{}`` terms (used in energy/entropy-balance
        derivations) fail to compile -- nbconvert's default LaTeX template
@@ -252,7 +252,13 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
         auto-detection (Default value = None)
     :param title: override the PDF's title (default: whatever nbconvert
         derives, usually the notebook's filename)
-    :param passes: number of `xelatex` passes (Default value = 2, needed
+    :param engine: LaTeX engine to compile with -- `"xelatex"`,
+        `"lualatex"`, or `"pdflatex"`. Default value = None, which
+        auto-detects the first of those found on `PATH`, in that order
+        (`xelatex`/`lualatex` support Unicode/system fonts natively via
+        `fontspec`; `pdflatex` is the most limited of the three but often
+        the one preinstalled)
+    :param passes: number of LaTeX passes (Default value = 2, needed
         to resolve cross-references)
     :param keep_intermediate: keep the table-fixed intermediate `.ipynb`
         and the `.tex`/`.aux`/`.log`/`.out`/`.toc` build files alongside
@@ -260,10 +266,10 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
         for debugging a failed/broken compile)
     :param **kwargs: passed through to the `nbconvert` `subprocess.run` call
         (and, if `preview`, to :func:`preview_in_iframe`)
-    :raises RuntimeError: if `xelatex` isn't on `PATH`, or reports a
-        compile error (message includes the offending LaTeX error and a
-        pointer to the full `.log` -- rerun with `keep_intermediate=True`
-        to inspect it)
+    :raises RuntimeError: if no usable LaTeX engine is on `PATH` (or the
+        explicit `engine` given isn't), or if it reports a compile error
+        (message includes the offending LaTeX error and a pointer to the
+        full `.log` -- rerun with `keep_intermediate=True` to inspect it)
     """
     import os
     import html
@@ -274,6 +280,8 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
     stem = nb_file_relative.stem
     fixed_ipynb = f"{stem}.pdf-export-fixed.ipynb"
 
+    engine = _pdf.pick_latex_engine(engine)
+
     _pdf.fix_notebook_tables(nb_file, fixed_ipynb)
     tex_path = _pdf.convert_to_latex(
         ["jupyter"], fixed_ipynb, stem,
@@ -282,7 +290,7 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
     _pdf.patch_cancel_package(tex_path)
     if title:
         _pdf.patch_title(tex_path, title)
-    pdf_path = _pdf.compile_xelatex(tex_path, passes=passes)
+    pdf_path = _pdf.compile_latex(tex_path, engine=engine, passes=passes)
 
     if not keep_intermediate:
         _pdf.cleanup_files(tex_path, fixed_ipynb)

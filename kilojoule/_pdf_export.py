@@ -29,9 +29,18 @@
 """
 import json
 import re
+import shutil
 import subprocess
 import warnings
 from pathlib import Path
+
+# Preference order when no engine is requested explicitly: xelatex and
+# lualatex both support Unicode/system fonts natively (via `fontspec`),
+# which matters for things like a bare "°" in a unit label; pdflatex is
+# the most limited of the three (no `fontspec`) but is also the most
+# commonly preinstalled, so it's kept as a last-resort fallback rather
+# than left unsupported.
+LATEX_ENGINES = ("xelatex", "lualatex", "pdflatex")
 
 # ---------------------------------------------------------------------------
 # Rewrite embedded HTML <table> blocks (in text/markdown outputs) as native
@@ -225,24 +234,53 @@ def patch_title(tex_path, title):
 # ---------------------------------------------------------------------------
 # Compile
 # ---------------------------------------------------------------------------
-def compile_xelatex(tex_path, passes=2):
-    """Compile `tex_path` with `xelatex`, run `passes` times (needed to
-    resolve cross-references).
+def pick_latex_engine(engine=None):
+    """Resolve which LaTeX engine executable :func:`compile_latex` should
+    use.
 
-    :raises RuntimeError: if `xelatex` isn't on `PATH`, or if any pass
+    :param engine: force a specific engine (e.g. ``"pdflatex"``); verified
+        to be on `PATH`. If None, the first of :data:`LATEX_ENGINES` found
+        on `PATH` is used.
+    :returns: the engine name (also its executable name), e.g. `"lualatex"`
+    :raises RuntimeError: if `engine` is given and not found on `PATH`, or
+        if none of :data:`LATEX_ENGINES` is found on `PATH`
+    """
+    if engine is not None:
+        if shutil.which(engine) is None:
+            raise RuntimeError(
+                f"export_pdf(engine={engine!r}) requires `{engine}` on "
+                "PATH (MiKTeX or TeX Live)."
+            )
+        return engine
+    for candidate in LATEX_ENGINES:
+        if shutil.which(candidate) is not None:
+            return candidate
+    raise RuntimeError(
+        "export_pdf() requires one of " + ", ".join(LATEX_ENGINES) +
+        " on PATH (MiKTeX or TeX Live) -- none found. Install a TeX "
+        "distribution, or pass engine=... to name one explicitly."
+    )
+
+
+def compile_latex(tex_path, engine="xelatex", passes=2):
+    """Compile `tex_path` with `engine` (`xelatex`, `lualatex`, or
+    `pdflatex` -- see :func:`pick_latex_engine` to auto-detect which is
+    available), run `passes` times (needed to resolve cross-references).
+
+    :raises RuntimeError: if `engine` isn't on `PATH`, or if any pass
         reports a LaTeX error (message includes the offending ``! ...``
         line(s) and a pointer to the full `.log`)
     """
     for i in range(passes):
         try:
             result = subprocess.run(
-                ["xelatex", "-interaction=nonstopmode", tex_path.name],
+                [engine, "-interaction=nonstopmode", tex_path.name],
                 cwd=tex_path.parent,
                 capture_output=True, text=True,
             )
         except FileNotFoundError as e:
             raise RuntimeError(
-                "export_pdf() requires `xelatex` on PATH (MiKTeX or TeX "
+                f"export_pdf() requires `{engine}` on PATH (MiKTeX or TeX "
                 "Live, with the cancel/booktabs/longtable/array/graphicx "
                 "packages) -- see tools/pdf_export/README.md for setup."
             ) from e
@@ -250,7 +288,7 @@ def compile_xelatex(tex_path, passes=2):
         if re.search(r"^! ", log, re.MULTILINE):
             errors = "\n".join(l for l in log.splitlines() if l.startswith("!"))
             raise RuntimeError(
-                f"xelatex pass {i + 1} reported errors:\n{errors}\n\n"
+                f"{engine} pass {i + 1} reported errors:\n{errors}\n\n"
                 f"Full log: {tex_path.with_suffix('.log')}"
             )
     return tex_path.with_suffix(".pdf")

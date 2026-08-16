@@ -29,7 +29,7 @@ tables as native LaTeX `tabular` blocks (pandoc passes unrecognized
 `\begin{...}\end{...}` blocks straight through to LaTeX — the same mechanism
 that already lets `\begin{align}` derivations come through untouched),
 running `nbconvert --to latex`, patching in `\usepackage{cancel}`, and
-compiling with `xelatex`.
+compiling with a LaTeX engine (`xelatex` by default -- see `--engine` below).
 
 ## Installation
 
@@ -48,14 +48,19 @@ You need three things:
    different name, use that name instead — list kernels with
    `jupyter kernelspec list`.
 
-2. **A TeX distribution with `xelatex`** on your `PATH` (MiKTeX or TeX Live).
-   The `cancel`, `booktabs`, `longtable`, `array`, and `graphicx` packages
-   are required — all are part of a standard MiKTeX/TeX Live install and
-   will auto-install on first use if MiKTeX's "install packages on the fly"
-   setting is on.
+2. **A TeX distribution** (MiKTeX or TeX Live) with `xelatex`, `lualatex`,
+   or `pdflatex` on your `PATH`. The script auto-detects whichever of the
+   three is available, in that order (`xelatex`/`lualatex` support
+   Unicode/system fonts natively via `fontspec`, which matters for things
+   like a bare "°" in a unit label; `pdflatex` is the most limited of the
+   three but is also the most commonly preinstalled) — or pass `--engine`
+   to name one explicitly. The `cancel`, `booktabs`, `longtable`, `array`,
+   and `graphicx` packages are required — all are part of a standard
+   MiKTeX/TeX Live install and will auto-install on first use if MiKTeX's
+   "install packages on the fly" setting is on.
 
 3. **This script has no extra Python dependencies of its own** beyond the
-   standard library — it shells out to `nbconvert` and `xelatex`.
+   standard library — it shells out to `nbconvert` and the LaTeX engine.
 
 ## Usage
 
@@ -82,10 +87,14 @@ python export_notebook_to_pdf.py notebook.ipynb \
 # Keep the intermediate .tex/.aux/.log files and the executed/table-fixed
 # .ipynb copies for debugging a failed compile
 python export_notebook_to_pdf.py notebook.ipynb --keep-intermediate
+
+# Force a specific LaTeX engine (default: auto-detect xelatex, then
+# lualatex, then pdflatex -- whichever is found first on PATH)
+python export_notebook_to_pdf.py notebook.ipynb --engine lualatex
 ```
 
 Run `python export_notebook_to_pdf.py --help` for the full option list
-(`--passes` to control the number of xelatex passes, `--no-strip-cocalc` to
+(`--passes` to control the number of LaTeX passes, `--no-strip-cocalc` to
 disable stripping of CoCalc-only cells).
 
 ### What "stripping CoCalc-only cells" means
@@ -109,7 +118,12 @@ script to match additional patterns.
 - **`jupyter_client.kernelspec.NoSuchKernel`** — the `--kernel` name doesn't
   match a registered kernel. Run `jupyter kernelspec list` to see what's
   available, or register one per the Installation section above.
-- **xelatex errors on something other than `\cancel` or a table** — rerun
+- **`requires one of xelatex, lualatex, pdflatex on PATH`** — none of the
+  three is installed/on `PATH`. Install a TeX distribution (see
+  Installation above), or if one is installed but not detected, check that
+  its `bin/` directory is actually on `PATH` in the environment running
+  this script (not just in an interactive shell's `PATH`).
+- **LaTeX errors on something other than `\cancel` or a table** — rerun
   with `--keep-intermediate` and inspect the generated `.tex`/`.log` files
   directly; the script leaves them in `--outdir` for exactly this reason.
 - **A table still overflows the page** — `html_table_to_latex()` wraps every

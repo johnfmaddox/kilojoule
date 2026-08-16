@@ -28,7 +28,7 @@ nbconvert manage a hidden temp file) so failures are inspectable:
         -> rewrite embedded HTML <table> outputs as LaTeX `tabular` blocks
         -> nbconvert --to latex
         -> patch in \usepackage{cancel}
-        -> xelatex (x2)
+        -> xelatex/lualatex/pdflatex (x2)
         -> notebook.pdf
 
 See README.md in this directory for installation/setup instructions.
@@ -48,6 +48,29 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+# Preference order when --engine isn't given: xelatex and lualatex both
+# support Unicode/system fonts natively (via `fontspec`), which matters
+# for things like a bare "°" in a unit label; pdflatex is the most
+# limited of the three (no `fontspec`) but is also the most commonly
+# preinstalled, so it's kept as a last-resort fallback rather than left
+# unsupported.
+LATEX_ENGINES = ("xelatex", "lualatex", "pdflatex")
+
+
+def pick_latex_engine(engine=None):
+    if engine is not None:
+        if shutil.which(engine) is None:
+            raise SystemExit(f"error: --engine {engine!r} requires `{engine}` on PATH.")
+        return engine
+    for candidate in LATEX_ENGINES:
+        if shutil.which(candidate) is not None:
+            return candidate
+    raise SystemExit(
+        "error: requires one of " + ", ".join(LATEX_ENGINES) + " on PATH "
+        "(MiKTeX or TeX Live) -- none found. Install a TeX distribution, "
+        "or pass --engine to name one explicitly."
+    )
 
 # ---------------------------------------------------------------------------
 # Step 1: strip CoCalc-only cells
@@ -260,10 +283,10 @@ def patch_title(tex_path, title):
 # ---------------------------------------------------------------------------
 # Step 5: compile
 # ---------------------------------------------------------------------------
-def compile_xelatex(tex_path, passes=2):
+def compile_latex(tex_path, engine="xelatex", passes=2):
     for i in range(passes):
         result = subprocess.run(
-            ["xelatex", "-interaction=nonstopmode", tex_path.name],
+            [engine, "-interaction=nonstopmode", tex_path.name],
             cwd=tex_path.parent,
             capture_output=True, text=True,
         )
@@ -271,7 +294,7 @@ def compile_xelatex(tex_path, passes=2):
         if re.search(r"^! ", log, re.MULTILINE):
             errors = "\n".join(l for l in log.splitlines() if l.startswith("!"))
             raise RuntimeError(
-                f"xelatex pass {i + 1} reported errors:\n{errors}\n\n"
+                f"{engine} pass {i + 1} reported errors:\n{errors}\n\n"
                 f"Full log: {tex_path.with_suffix('.log')}"
             )
     return tex_path.with_suffix(".pdf")
@@ -295,10 +318,13 @@ def main():
     parser.add_argument("--python", default=sys.executable, help="Python executable used to run nbconvert (default: the interpreter running this script)")
     parser.add_argument("--outdir", type=Path, default=None, help="Output directory (default: alongside the source notebook)")
     parser.add_argument("--outname", default=None, help="Base filename for the output .tex/.pdf (default: the notebook's stem)")
-    parser.add_argument("--passes", type=int, default=2, help="Number of xelatex passes (default: 2, needed to resolve cross-references)")
+    parser.add_argument("--engine", default=None, choices=LATEX_ENGINES, help="LaTeX engine to compile with (default: auto-detect the first of xelatex/lualatex/pdflatex found on PATH, in that order)")
+    parser.add_argument("--passes", type=int, default=2, help="Number of LaTeX passes (default: 2, needed to resolve cross-references)")
     parser.add_argument("--keep-intermediate", action="store_true", help="Keep the executed/table-fixed .ipynb copies and .aux/.log/.out/.toc build files")
     parser.add_argument("--no-strip-cocalc", action="store_true", help="Do not strip cells that reference CoCalc-only APIs (COCALC_JUPYTER_FILENAME, kilojoule.export)")
     args = parser.parse_args()
+
+    engine = pick_latex_engine(args.engine)
 
     notebook = args.notebook.resolve()
     if not notebook.exists():
@@ -335,8 +361,8 @@ def main():
     if args.title:
         patch_title(tex_path, args.title)
 
-    print(f"[5/5] Compiling with xelatex ({args.passes} pass(es))...")
-    pdf_path = compile_xelatex(tex_path, passes=args.passes)
+    print(f"[5/5] Compiling with {engine} ({args.passes} pass(es))...")
+    pdf_path = compile_latex(tex_path, engine=engine, passes=args.passes)
 
     if not args.keep_intermediate:
         for p in (working_ipynb, executed_ipynb, fixed_ipynb):
