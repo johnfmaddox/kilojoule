@@ -4,14 +4,77 @@
     Export the current Jupyter notebook to HTML or PDF, in CoCalc or a
     local/other Jupyter session, with an optional collapsible in-notebook
     preview (CoCalc only). See :func:`export_html` and :func:`export_pdf`
-    for the main entry points.
+    for the main entry points. Both transparently repair a notebook whose
+    saved outputs are invalid per the nbformat schema (see
+    :func:`sanitize_notebook_outputs`) before handing it to nbconvert.
 """
 import subprocess
 import os
+import json
 from pathlib import Path
 
 IN_COCALC = "COCALC_JUPYTER_FILENAME" in os.environ
 """Whether this process is running inside a CoCalc-hosted Jupyter kernel."""
+
+# nbformat v4 output keys allowed at the top level of a cell output, keyed
+# by that output's `output_type`. Anything else found there is invalid
+# per the schema -- e.g. a duplicated top-level `image/png` sitting
+# alongside the correctly-nested `data.image/png`, which has been observed
+# to come out of some notebook front-ends/extensions on a save -- and will
+# make `nbconvert` refuse the whole notebook with an error like:
+#
+#     Notebook JSON is invalid: Additional properties are not allowed
+#     ('image/png' was unexpected)
+_ALLOWED_OUTPUT_KEYS = {
+    "execute_result": {"output_type", "execution_count", "data", "metadata"},
+    "display_data": {"output_type", "data", "metadata"},
+    "stream": {"output_type", "name", "text"},
+    "error": {"output_type", "ename", "evalue", "traceback"},
+}
+
+
+def sanitize_notebook_outputs(nb):
+    """Strip stray top-level keys from cell outputs that aren't allowed by
+    the nbformat v4 schema for that output's `output_type` (mutates `nb`
+    in place).
+
+    This repairs the specific corruption pattern of a mimetype (e.g.
+    `image/png`) appearing twice in one output -- once correctly nested
+    under `data`, and once again as a stray top-level key -- which fails
+    nbconvert's schema validation and blocks export entirely, even though
+    every other cell in the notebook is fine.
+
+    :param nb: parsed notebook dict, as from `json.load()` on an `.ipynb` file
+    :returns: number of output dicts that had stray key(s) removed
+    """
+    n_fixed = 0
+    for cell in nb.get("cells", []):
+        for output in cell.get("outputs", []) or []:
+            allowed = _ALLOWED_OUTPUT_KEYS.get(output.get("output_type"))
+            if allowed is None:
+                continue
+            extra_keys = [k for k in output if k not in allowed]
+            if extra_keys:
+                for key in extra_keys:
+                    del output[key]
+                n_fixed += 1
+    return n_fixed
+
+
+def sanitize_notebook(in_path, out_path):
+    """Read the notebook at `in_path`, repair it via
+    :func:`sanitize_notebook_outputs`, and write the result to `out_path`.
+
+    :param in_path: source `.ipynb` path
+    :param out_path: destination `.ipynb` path for the repaired copy
+    :returns: number of output(s) fixed (0 if the notebook needed no repair)
+    """
+    with open(in_path, encoding="utf-8") as f:
+        nb = json.load(f)
+    n_fixed = sanitize_notebook_outputs(nb)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(nb, f)
+    return n_fixed
 
 
 def get_notebook_path(filename=None):
@@ -164,31 +227,60 @@ def export_html(show_code = False, capture_output=True, preview=False, filename=
     import subprocess
     import os
     import html
+    import warnings
 
     nb_file_relative = get_notebook_path(filename)
     nb_file = nb_file_relative.name
+    stem = nb_file_relative.stem
     html_file = nb_file_relative.with_suffix('.html')
     jupyter_path = "jupyter"
-    
-    if show_code:
-        result = subprocess.run(
-            [jupyter_path, 'nbconvert',
-             '--no-input',
-             '--to', 'html',
-             '--ClearMetadataPreprocessor.enabled=True',
-             nb_file],
-            capture_output=capture_output, **kwargs
+
+    # Repair invalid output JSON (see sanitize_notebook_outputs) before
+    # nbconvert gets a chance to reject the whole notebook over it. Only
+    # written out (as a temporary copy) if repair was actually needed --
+    # the saved .ipynb is left as-is either way.
+    with open(nb_file, encoding="utf-8") as f:
+        nb = json.load(f)
+    n_fixed = sanitize_notebook_outputs(nb)
+    sanitized_ipynb = f"{stem}.export-sanitized.ipynb"
+    if n_fixed:
+        with open(sanitized_ipynb, "w", encoding="utf-8") as f:
+            json.dump(nb, f)
+        warnings.warn(
+            f"export_html(): {nb_file!r} has {n_fixed} corrupted cell "
+            "output(s) (a mimetype, e.g. `image/png`, duplicated as a "
+            "stray top-level key alongside `data`) that would otherwise "
+            "fail nbconvert's notebook schema validation. Exporting from "
+            "a repaired copy -- re-running and re-saving the affected "
+            "cell(s) will fix this at the source."
         )
-    else:
-        result = subprocess.run(
-            [jupyter_path, 'nbconvert',
-             '--no-input',
-             '--no-prompt',
-             '--to', 'html',
-             '--ClearMetadataPreprocessor.enabled=True',
-             nb_file],
-            capture_output=capture_output, **kwargs
-        )
+    nbconvert_input = sanitized_ipynb if n_fixed else nb_file
+
+    try:
+        if show_code:
+            result = subprocess.run(
+                [jupyter_path, 'nbconvert',
+                 '--no-input',
+                 '--to', 'html',
+                 '--ClearMetadataPreprocessor.enabled=True',
+                 '--output', stem,
+                 nbconvert_input],
+                capture_output=capture_output, **kwargs
+            )
+        else:
+            result = subprocess.run(
+                [jupyter_path, 'nbconvert',
+                 '--no-input',
+                 '--no-prompt',
+                 '--to', 'html',
+                 '--ClearMetadataPreprocessor.enabled=True',
+                 '--output', stem,
+                 nbconvert_input],
+                capture_output=capture_output, **kwargs
+            )
+    finally:
+        if n_fixed:
+            Path(sanitized_ipynb).unlink(missing_ok=True)
     if preview:
         if not IN_COCALC:
             raise RuntimeError(
@@ -273,6 +365,7 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
     """
     import os
     import html
+    import warnings
     from . import _pdf_export as _pdf
 
     nb_file_relative = get_notebook_path(filename)
@@ -282,7 +375,16 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
 
     engine = _pdf.pick_latex_engine(engine)
 
-    _pdf.fix_notebook_tables(nb_file, fixed_ipynb)
+    n_tables_fixed, n_sanitized = _pdf.fix_notebook_tables(nb_file, fixed_ipynb)
+    if n_sanitized:
+        warnings.warn(
+            f"export_pdf(): {nb_file!r} has {n_sanitized} corrupted cell "
+            "output(s) (a mimetype, e.g. `image/png`, duplicated as a "
+            "stray top-level key alongside `data`) that would otherwise "
+            "fail nbconvert's notebook schema validation. Exporting from "
+            "a repaired copy -- re-running and re-saving the affected "
+            "cell(s) will fix this at the source."
+        )
     tex_path = _pdf.convert_to_latex(
         ["jupyter"], fixed_ipynb, stem,
         show_code=show_code, capture_output=capture_output, **kwargs

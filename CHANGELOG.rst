@@ -4,6 +4,15 @@ Changelog
 
 Unreleased
 ==========
+- ``export_html()``/``export_pdf()`` now repair a notebook whose saved cell
+  outputs are invalid per the nbformat schema before handing it to
+  ``nbconvert`` -- specifically a mimetype (e.g. ``image/png``) duplicated
+  as a stray top-level key alongside the correctly-nested ``data`` entry,
+  which some notebook front-ends/extensions have been observed to write on
+  save. Previously this made ``nbconvert`` log ``Notebook JSON is invalid:
+  Additional properties are not allowed`` for the whole notebook. The fix
+  operates on a temporary copy -- written only when repair is actually
+  needed -- via the new ``kilojoule.export.sanitize_notebook_outputs()``.
 - Add ``kilojoule.export.export_pdf()``, an in-notebook counterpart to
   ``export_html()`` (same calling convention: auto-detects the notebook via
   ``get_notebook_path()``, takes ``show_code``/``capture_output``/``preview``/

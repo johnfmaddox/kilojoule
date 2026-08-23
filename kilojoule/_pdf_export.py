@@ -34,6 +34,8 @@ import subprocess
 import warnings
 from pathlib import Path
 
+from .export import sanitize_notebook_outputs
+
 # Preference order when no engine is requested explicitly: xelatex and
 # lualatex both support Unicode/system fonts natively (via `fontspec`),
 # which matters for things like a bare "°" in a unit label; pdflatex is
@@ -142,9 +144,11 @@ def fix_markdown_tables(text):
 def fix_notebook_tables(in_path, out_path):
     """Read the notebook at `in_path`, rewrite every ``text/markdown``
     cell output containing an HTML ``<table>`` into a LaTeX `tabular`
-    block, and write the result to `out_path`.
+    block, repair any output with invalid nbformat JSON (see
+    :func:`~kilojoule.export.sanitize_notebook_outputs`), and write the
+    result to `out_path`.
 
-    :returns: number of table(s) rewritten
+    :returns: `(n_tables_fixed, n_outputs_sanitized)`
     """
     with open(in_path, encoding="utf-8") as f:
         nb = json.load(f)
@@ -166,10 +170,12 @@ def fix_notebook_tables(in_path, out_path):
             n_fixed += 1
             data["text/markdown"] = fixed.splitlines(keepends=True) if was_list else fixed
 
+    n_sanitized = sanitize_notebook_outputs(nb)
+
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(nb, f)
 
-    return n_fixed
+    return n_fixed, n_sanitized
 
 
 # ---------------------------------------------------------------------------
