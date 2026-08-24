@@ -11,6 +11,13 @@ from .common import get_caller_namespace, preferred_units_from_symbol, Ambiguous
 import pandas as pd
 from IPython.display import display, HTML, Math, Latex, Markdown
 import re
+import html
+
+default_table_caption = "State Properties"
+"""Caption shown above a :meth:`QuantityTable.display` table, in both the
+notebook's own HTML output and (via
+:func:`kilojoule._pdf_export.html_table_to_latex`, which reads it back out
+of the ``<caption>`` tag added here) the PDF export."""
 
 default_property_dict = {
     "T": "degC",  # Temperature: unit options ('K','degC','degF','degR')
@@ -230,6 +237,7 @@ class QuantityTable:
         dropna=True,
         show=True,
         transpose=False,
+        caption=None,
         **kwargs,
     ):
         """Render the table (or one state's row) as HTML
@@ -240,6 +248,12 @@ class QuantityTable:
         :param dropna: drop columns that are entirely empty (Default value = True)
         :param show: display the HTML immediately (Default value = True)
         :param transpose: transpose the table before rendering (Default value = False)
+        :param caption: caption shown above the table, via a native HTML
+            ``<caption>`` element -- also what
+            :func:`kilojoule._pdf_export.html_table_to_latex` reads back
+            out to caption the same table in the PDF export, so the two
+            stay in sync automatically (Default value = None, uses
+            `default_table_caption`; pass `False`/`""` for no caption)
         :param **kwargs: passed through to :meth:`to_pandas`, `DataFrame.transpose`, and `DataFrame.to_html`
         :returns: the rendered HTML string
         """
@@ -252,6 +266,15 @@ class QuantityTable:
             df = df.transpose(**kwargs)
 
         result = df.to_html(**kwargs).replace("NaN", "-")
+        if caption is None:
+            caption = default_table_caption
+        if caption:
+            result = re.sub(
+                r"(<table\b[^>]*>)",
+                r"\1\n  <caption>%s</caption>" % html.escape(caption),
+                result,
+                count=1,
+            )
         if show:
             display(HTML(result))
         return result

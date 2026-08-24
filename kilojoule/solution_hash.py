@@ -32,35 +32,43 @@ default_ext_hash_location = Path.home() / "src/solution_hashes/"
 default_sigfigs = 3
 default_machine_zero = 1e-12
 
-try:
-    import emoji
+# Native LaTeX macros (amsmath/amssymb -- both already loaded by nbconvert's
+# default LaTeX template, so no preamble patching is needed). Rendered by
+# MathJax in the live notebook and in HTML export, and compiled directly by
+# pdflatex in PDF export -- the same symbols work in both, unlike the emoji
+# this replaced (✅/🚧/❌), which pdflatex's default fonts have no glyphs for.
+sol_symbols = {"correct": r"\checkmark", "partial": r"\approx", "incorrect": r"\times"}
 
-    sol_symbols = {"correct": "✅", "partial": "🚧", "incorrect": "❌"}
-except:
-    sol_symbols = {
-        "correct": "\mathrm{Correct}",
-        "partial": "\mathrm{Partial}",
-        "incorrect": "\mathrm{incorrect}",
-    }
-sol_legend = r"\begin{align*}" + "\n"
-sol_legend += (
-    f"{sol_symbols['correct']}&: "
-    + r"\mathrm{All\, significant\, figures\, are\, correct}"
-    + r"\\"
-    + "\n"
-)
-sol_legend += (
-    f"{sol_symbols['partial']}&: "
-    + r"\mathrm{The\, first\, significant\, figure\, is\, correct}"
-    + r"\\"
-    + "\n"
-)
-sol_legend += (
-    f"{sol_symbols['incorrect']}&: "
-    + r"\mathrm{No\, significant\, figures\, are\, correct}"
-    + "\n"
-)
-sol_legend += r"\end{align*}"
+# Fixed display order for the legend, regardless of the order kinds are
+# first encountered in a batch of checks.
+_sol_kind_order = ("correct", "partial", "incorrect")
+_sol_kind_descriptions = {
+    "correct": r"\mathrm{All\, significant\, figures\, are\, correct}",
+    "partial": r"\mathrm{The\, first\, significant\, figure\, is\, correct}",
+    "incorrect": r"\mathrm{No\, significant\, figures\, are\, correct}",
+}
+
+
+def build_legend(kinds=None):
+    """Build the LaTeX ``align*`` legend mapping each check symbol to its
+    meaning, restricted to `kinds`.
+
+    :param kinds: iterable of kinds to include, from
+        ``{"correct", "partial", "incorrect"}`` (Default value = None, all three)
+    :returns: LaTeX source for the legend (an ``align*`` environment), or
+        `""` if `kinds` is empty
+    """
+    ordered = [k for k in _sol_kind_order if kinds is None or k in kinds]
+    if not ordered:
+        return ""
+    rows = [f"{sol_symbols[k]}&: {_sol_kind_descriptions[k]}" for k in ordered]
+    return r"\begin{align*}" + "\n" + (r"\\" + "\n").join(rows) + "\n" + r"\end{align*}"
+
+
+# Full legend (all three kinds), kept for backwards compatibility with any
+# code importing `sol_legend` directly. :func:`check_solutions` builds its
+# own filtered legend instead, showing only the kinds actually encountered.
+sol_legend = build_legend()
 
 
 def name_and_date(Name):
@@ -232,11 +240,15 @@ def check_solutions(sol_list, n_col=3, namespace=None, legend=False, **kwargs):
     n = 1
     result_str = r"\begin{align} "
     sol_list = str_to_sol_list(sol_list)
+    used_kinds = set()
     for sol in sol_list:
         if isinstance(sol, str):
-            result_str += check_solution(sol, single_check=False, **kwargs)
+            body, kind = check_solution(sol, single_check=False, **kwargs)
         elif isinstance(sol, dict):
-            result_str += check_solution(**sol, single_check=False, **kwargs)
+            body, kind = check_solution(**sol, single_check=False, **kwargs)
+        result_str += body
+        if kind is not None:
+            used_kinds.add(kind)
         if n < n_col:
             result_str += r" \quad & "
             n += 1
@@ -248,7 +260,11 @@ def check_solutions(sol_list, n_col=3, namespace=None, legend=False, **kwargs):
     result_str = re.sub(r"\\\\\s*{\s*}\s*\\end{align}", r"\n\\end{align}", result_str)
     display(Latex(result_str))
     if legend:
-        display(Latex(sol_legend))
+        # Only show legend entries for symbols that actually appear above --
+        # e.g. an all-correct batch shows only the checkmark's meaning.
+        legend_tex = build_legend(used_kinds)
+        if legend_tex:
+            display(Latex(legend_tex))
 
 
 def check_solution(
@@ -286,13 +302,16 @@ def check_solution(
         `KeyError` if `name` isn't in the database, instead of just
         displaying the indicator (Default value = False)
     :param single_check: display the result immediately as its own equation;
-        if `False`, return the formatted string instead (for :func:`check_solutions` to batch) (Default value = True)
+        if `False`, return `(result_str_body, kind)` instead (for :func:`check_solutions` to batch) (Default value = True)
     :param legend: currently unused here (see :func:`check_solutions`) (Default value = False)
     :param **kwargs: passed through to :func:`hashq`
-    :returns: the formatted result string if `single_check` is `False`, else `None`
+    :returns: `(result_str_body, kind)` if `single_check` is `False` (`kind` is
+        one of `"correct"`/`"partial"`/`"incorrect"`, or `None` if `name` had
+        no stored hash to check against), else `None`
     """
     namespace = namespace or get_caller_namespace()
     key = prefix + name
+    kind = None
 
     # If no value was provided, evaluate the variable name in the namespace
     try:
@@ -309,7 +328,7 @@ def check_solution(
         result_str_body = f"{to_latex(name)} &= {value} && "
     # Read the corresponding entry form the hash db
     try:
-        hash_db = read_solution_hash(key)
+        hash_db = read_solution_hash(key, filename=filename)
         # Set units and sigfigs to correspond to the hash db unless specified in the arguments
         units = units or hash_db["units"]
         if units == "None":
@@ -335,6 +354,7 @@ def check_solution(
                 print(f"hash: {hash_value} <-> target: {target_hashes}")
             assert hash_value in target_hashes
             result_str_body += sol_symbols["correct"]
+            kind = "correct"
         except AssertionError as err:
             # Try first sigfig only
             try:
@@ -347,8 +367,10 @@ def check_solution(
                     )
                 assert first_sigfig_hash_value in firt_sigfig_hashes
                 result_str_body += sol_symbols["partial"]
+                kind = "partial"
             except AssertionError as err2:
                 result_str_body += sol_symbols["incorrect"]
+                kind = "incorrect"
                 msg = f"Hash Mismatch for {key}: {hash_value} not in {target_hashes}"
                 if raise_error:
                     raise IncorrectValueError(msg)
@@ -361,7 +383,7 @@ def check_solution(
         result_str = f"\\begin{{align}}{result_str_body}\\end{{align}}"
         display(Latex(result_str))
     else:
-        return result_str_body  # +r'\\'
+        return result_str_body, kind
 
 
 def read_solution_hashes(filename=default_hash_filename):

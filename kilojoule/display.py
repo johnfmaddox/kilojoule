@@ -38,8 +38,8 @@ def enable_mathjax_colab():
     )
 
 
-math_delim_begin = r""
-math_delim_end = r""
+math_delim_begin = ""
+math_delim_end = ""
 math_latex_environment = r"align"
 multiplication_symbol = " \cdot "
 
@@ -788,7 +788,15 @@ class FormatCalculation:
                 symbolic = numeric = "\\sqrt{"
                 symbolic_close = numeric_close = "}"
             else:
-                fn_name_sym = re.sub("_", r"\_", fn_name_sym)
+                if not isinstance(node.func, ast.Attribute):
+                    # If node.func was an ast.Attribute, fn_name_sym came
+                    # from attr["symbolic"] above, which the Attribute
+                    # branch below (see its own re.sub("_", r"\_", ...))
+                    # already escaped -- escaping it again here would
+                    # double the backslash on any underscore (e.g.
+                    # `air.c_v(...)` -> `c\_v` -> `c\\_v`, which breaks
+                    # the LaTeX compile).
+                    fn_name_sym = re.sub("_", r"\_", fn_name_sym)
                 symbolic = numeric = f"\\mathrm{{ {fn_name_sym} }}\\left( "
                 symbolic_close = numeric_close = " \\right)"
             code = f"{fn_name_code}("
