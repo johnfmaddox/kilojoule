@@ -319,7 +319,8 @@ def preview_in_iframe(url, collapsed=True, **kwargs):
 """
     display(HTML(html))
 
-def export_html(show_code = False, capture_output=True, preview=False, filename=None, **kwargs):
+def export_html(show_code = False, capture_output=True, preview=False, filename=None,
+                 verbose=False, **kwargs):
     """Export the current Jupyter notebook to HTML via `jupyter nbconvert`
 
     Works in CoCalc, in a local Jupyter Notebook/JupyterLab session, or
@@ -337,6 +338,11 @@ def export_html(show_code = False, capture_output=True, preview=False, filename=
         in CoCalc (Default value = False)
     :param filename: notebook filename/path to export, overriding
         auto-detection (Default value = None)
+    :param verbose: warn about notebook issues this function already
+        repairs automatically (corrupted cell output JSON, unresolved
+        attachment: image references) -- silent by default, since these
+        are transparently fixed and not something the caller needs to act
+        on unless they're debugging the export itself (Default value = False)
     :param **kwargs: passed through to `subprocess.run` (and, if `preview`, to :func:`preview_in_iframe`)
     """
     import subprocess
@@ -364,7 +370,7 @@ def export_html(show_code = False, capture_output=True, preview=False, filename=
     if n_fixed or n_attachments_fixed:
         with open(sanitized_ipynb, "w", encoding="utf-8") as f:
             json.dump(nb, f)
-        if n_fixed:
+        if verbose and n_fixed:
             warnings.warn(
                 f"export_html(): {nb_file!r} has {n_fixed} corrupted cell "
                 "output(s) (a mimetype, e.g. `image/png`, duplicated as a "
@@ -373,7 +379,7 @@ def export_html(show_code = False, capture_output=True, preview=False, filename=
                 "a repaired copy -- re-running and re-saving the affected "
                 "cell(s) will fix this at the source."
             )
-        if n_attachments_fixed:
+        if verbose and n_attachments_fixed:
             warnings.warn(
                 f"export_html(): {nb_file!r} has {n_attachments_fixed} "
                 "markdown <img src=\"attachment:...\"> tag(s) that "
@@ -431,7 +437,7 @@ def export_html(show_code = False, capture_output=True, preview=False, filename=
 
 def export_pdf(show_code=False, capture_output=True, preview=False, filename=None,
                 title=None, engine=None, passes=2, keep_intermediate=False,
-                margin="0.75in", **kwargs):
+                margin="0.75in", verbose=False, **kwargs):
     """Export the current Jupyter notebook to a PDF via `jupyter nbconvert
     --to latex` + a LaTeX engine.
 
@@ -513,6 +519,12 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
         debugging a failed/broken compile)
     :param margin: page margin on every side, as a LaTeX length (Default
         value = `"0.75in"`; nbconvert's own default is `1in`)
+    :param verbose: warn about notebook issues this function already
+        repairs automatically (corrupted cell output JSON, attachment:
+        image references pandoc would otherwise drop, lists missing a
+        blank line pandoc needs) -- silent by default, since these are
+        transparently fixed and not something the caller needs to act on
+        unless they're debugging the export itself (Default value = False)
     :param **kwargs: passed through to the `nbconvert` `subprocess.run` call
         (and, if `preview`, to :func:`preview_in_iframe`)
     :raises RuntimeError: if no usable LaTeX engine is on `PATH` (or the
@@ -536,7 +548,7 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
      n_rows_split, n_lists_fixed) = _pdf.fix_notebook_tables(
         nb_file, fixed_ipynb, split_long_rows=True, engine=engine, margin=margin
     )
-    if n_sanitized:
+    if verbose and n_sanitized:
         warnings.warn(
             f"export_pdf(): {nb_file!r} has {n_sanitized} corrupted cell "
             "output(s) (a mimetype, e.g. `image/png`, duplicated as a "
@@ -545,7 +557,7 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
             "a repaired copy -- re-running and re-saving the affected "
             "cell(s) will fix this at the source."
         )
-    if n_attachments:
+    if verbose and n_attachments:
         warnings.warn(
             f"export_pdf(): {nb_file!r} has {n_attachments} markdown "
             "<img src=\"attachment:...\"> tag(s) that pandoc silently "
@@ -554,7 +566,7 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
             "files and rewritten as Markdown image syntax so they "
             "actually appear in the PDF."
         )
-    if n_lists_fixed:
+    if verbose and n_lists_fixed:
         warnings.warn(
             f"export_pdf(): {nb_file!r} has {n_lists_fixed} Markdown "
             "list(s) immediately following a paragraph with no blank "

@@ -232,7 +232,14 @@ def check_solutions(sol_list, n_col=3, namespace=None, legend=False, **kwargs):
         variable name string or a dict of kwargs for :func:`check_solution`
     :param n_col: number of checks per row (Default value = 3)
     :param namespace: namespace to evaluate variables in (Default value = None, uses the caller's namespace)
-    :param legend: also display the correct/partial/incorrect symbol legend (Default value = False)
+    :param legend: also display the correct/partial/incorrect symbol
+        legend below the results, restricted to the symbols actually
+        relevant here: omitted entirely when everything checked is
+        correct (nothing to decode), and otherwise always including the
+        checkmark's meaning alongside whichever of partial/incorrect
+        appear -- even if nothing in this batch happened to be fully
+        correct -- so the student knows what they're aiming for
+        (Default value = False)
     :param **kwargs: passed through to :func:`check_solution` for every item
     """
     namespace = namespace or get_caller_namespace()
@@ -259,12 +266,13 @@ def check_solutions(sol_list, n_col=3, namespace=None, legend=False, **kwargs):
     result_str += r" \end{align}"
     result_str = re.sub(r"\\\\\s*{\s*}\s*\\end{align}", r"\n\\end{align}", result_str)
     display(Latex(result_str))
-    if legend:
-        # Only show legend entries for symbols that actually appear above --
-        # e.g. an all-correct batch shows only the checkmark's meaning.
-        legend_tex = build_legend(used_kinds)
-        if legend_tex:
-            display(Latex(legend_tex))
+    if legend and used_kinds and used_kinds != {"correct"}:
+        # No legend at all when everything's correct -- nothing to
+        # decode. Once anything is partial/incorrect, though, always
+        # include the checkmark's meaning alongside them (even if nothing
+        # in this particular batch happened to be fully correct), so the
+        # student knows what they're aiming for.
+        display(Latex(build_legend(used_kinds | {"correct"})))
 
 
 def check_solution(

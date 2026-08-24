@@ -3,7 +3,13 @@
 export_html() and export_pdf() before handing a notebook to nbconvert."""
 
 import base64
+import json
+import subprocess
+import warnings
+from pathlib import Path
 
+import kilojoule.export as export_mod
+from kilojoule import _pdf_export as pdfx
 from kilojoule.export import (
     _decoded_len,
     _looks_like_valid_asset,
@@ -139,3 +145,115 @@ def test_resolve_cell_attachments_leaves_unmatched_reference_alone():
 def test_resolve_cell_attachments_skips_cells_without_attachments():
     nb = {"cells": [{"cell_type": "code", "source": "x = 1"}]}
     assert resolve_cell_attachments(nb) == 0
+
+
+# ---------------------------------------------------------------------------
+# export_html()/export_pdf(): the "N issue(s) auto-repaired" warnings are
+# gated behind verbose=, since these are transparently fixed and not
+# something a caller needs to see by default (regression test for that
+# gating, not just the repair functions themselves above).
+# ---------------------------------------------------------------------------
+def _notebook_with_fixable_issues():
+    return {
+        "cells": [
+            {
+                "cell_type": "code",
+                "outputs": [
+                    {
+                        "output_type": "display_data",
+                        "data": {"text/plain": "x"},
+                        "metadata": {},
+                        "image/png": _PNG_B64,  # stray top-level key
+                    }
+                ],
+            },
+            {
+                "cell_type": "markdown",
+                "source": '<img src="attachment:pic.png">',
+                "attachments": {"pic.png": {"image/png": _PNG_B64}},
+            },
+        ]
+    }
+
+
+def _assert_no_or_all_autofix_warnings(records, expect_present, *phrases):
+    messages = [str(r.message) for r in records]
+    for phrase in phrases:
+        found = any(phrase in m for m in messages)
+        assert found is expect_present, (
+            f"expected warning containing {phrase!r} to be "
+            f"{'present' if expect_present else 'absent'}, messages were: {messages}"
+        )
+
+
+def test_export_html_verbose_gates_autofix_warnings(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    nb_path = tmp_path / "nb.ipynb"
+    nb_path.write_text(json.dumps(_notebook_with_fixable_issues()), encoding="utf-8")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: None)
+
+    with warnings.catch_warnings(record=True) as rec:
+        warnings.simplefilter("always")
+        export_mod.export_html(filename=str(nb_path), verbose=False)
+    _assert_no_or_all_autofix_warnings(rec, False, "corrupted cell", "attachment:")
+
+    with warnings.catch_warnings(record=True) as rec:
+        warnings.simplefilter("always")
+        export_mod.export_html(filename=str(nb_path), verbose=True)
+    _assert_no_or_all_autofix_warnings(rec, True, "corrupted cell", "attachment:")
+
+
+def _patch_export_pdf_internals(monkeypatch, tmp_path, n_sanitized, n_attachments, n_lists_fixed):
+    def fake_fix_notebook_tables(in_path, out_path, **kwargs):
+        Path(out_path).write_text("{}", encoding="utf-8")
+        return (0, n_sanitized, n_attachments, 0, [], 0, n_lists_fixed)
+
+    def fake_convert_to_latex(*a, **k):
+        tex_path = tmp_path / "nb.tex"
+        tex_path.write_text("dummy", encoding="utf-8")
+        return tex_path
+
+    monkeypatch.setattr(pdfx, "pick_latex_engine", lambda engine=None: "xelatex")
+    monkeypatch.setattr(pdfx, "fix_notebook_tables", fake_fix_notebook_tables)
+    monkeypatch.setattr(pdfx, "convert_to_latex", fake_convert_to_latex)
+    for name in (
+        "patch_cancel_package", "patch_table_captions", "patch_margins",
+        "remove_title_block", "convert_lettered_lists",
+    ):
+        monkeypatch.setattr(pdfx, name, lambda *a, **k: None)
+    monkeypatch.setattr(pdfx, "compile_latex", lambda tex_path, **k: tex_path.with_suffix(".pdf"))
+    monkeypatch.setattr(pdfx, "cleanup_files", lambda *a, **k: None)
+
+
+def test_export_pdf_verbose_gates_autofix_warnings(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    nb_path = tmp_path / "nb.ipynb"
+    nb_path.write_text("{}", encoding="utf-8")
+    _patch_export_pdf_internals(monkeypatch, tmp_path, n_sanitized=2, n_attachments=1, n_lists_fixed=1)
+
+    with warnings.catch_warnings(record=True) as rec:
+        warnings.simplefilter("always")
+        export_mod.export_pdf(filename=str(nb_path), verbose=False)
+    _assert_no_or_all_autofix_warnings(
+        rec, False, "corrupted cell", "attachment:", "Markdown list"
+    )
+
+    with warnings.catch_warnings(record=True) as rec:
+        warnings.simplefilter("always")
+        export_mod.export_pdf(filename=str(nb_path), verbose=True)
+    _assert_no_or_all_autofix_warnings(
+        rec, True, "corrupted cell", "attachment:", "Markdown list"
+    )
+
+
+def test_export_pdf_no_warnings_at_all_when_nothing_needed_fixing(tmp_path, monkeypatch):
+    """verbose=True shouldn't manufacture warnings that don't apply."""
+    monkeypatch.chdir(tmp_path)
+    nb_path = tmp_path / "nb.ipynb"
+    nb_path.write_text("{}", encoding="utf-8")
+    _patch_export_pdf_internals(monkeypatch, tmp_path, n_sanitized=0, n_attachments=0, n_lists_fixed=0)
+
+    with warnings.catch_warnings(record=True) as rec:
+        warnings.simplefilter("always")
+        export_mod.export_pdf(filename=str(nb_path), verbose=True)
+    assert len(rec) == 0
