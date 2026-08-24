@@ -34,11 +34,27 @@ def test_escape_latex_strips_and_handles_empty():
 
 def test_captioned_block_wraps_in_indivisible_minipage():
     result = pdfx.captioned_block(r"\captionof{table}{Foo}", r"\begin{tabular}{l}x\end{tabular}")
-    assert result.startswith(r"\begin{minipage}{\linewidth}")
-    assert result.endswith(r"\end{minipage}")
+    assert r"\begin{minipage}{\linewidth}" in result
+    assert r"\end{minipage}" in result
     assert r"\centering" in result
     # caption appears before the content, in the order given
     assert result.index("Foo") < result.index("tabular")
+
+
+def test_captioned_block_forces_a_paragraph_break_before_and_after():
+    """Regression: a minipage is inline content -- it happily continues on
+    the same line as whatever precedes it (e.g. a Markdown ####-level
+    heading, which compiles to LaTeX's run-in \\paragraph) instead of
+    starting on its own line. A leading/trailing \\leavevmode\\par forces
+    the break regardless of what surrounds it -- a bare \\par alone isn't
+    enough, since TeX ignores \\par when nothing's been typeset since the
+    heading (an "empty" paragraph); \\leavevmode guarantees there's
+    something for it to actually end."""
+    result = pdfx.captioned_block("body")
+    assert result.startswith(r"\leavevmode\par")
+    assert result.endswith(r"\leavevmode\par")
+    minipage_pos = result.index(r"\begin{minipage}")
+    assert 0 < minipage_pos  # \leavevmode\par comes first, not after
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +94,7 @@ def test_html_table_to_latex_wraps_caption_and_table_together():
     captioned_block (a single indivisible minipage) so LaTeX can't split
     them across a page break."""
     result = pdfx.html_table_to_latex(_TABLE_HTML_WITH_CAPTION)
-    assert result.startswith(r"\begin{minipage}")
+    assert r"\begin{minipage}" in result
     cap_pos = result.index(r"\captionof{table}")
     tab_pos = result.index(r"\begin{tabular}")
     end_pos = result.rindex(r"\end{minipage}")

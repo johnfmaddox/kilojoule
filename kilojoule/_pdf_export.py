@@ -135,13 +135,31 @@ def captioned_block(*parts):
     from the table/figure it's describing across a page break -- unlike
     plain ``\\begin{center}...\\end{center}``, which imposes no such
     constraint.
+
+    Also a ``minipage`` is inline (horizontal-mode) content, like a large
+    character -- it happily continues on the same line as whatever
+    precedes it rather than starting on its own. This is invisible after
+    ordinary paragraph text (already its own line), but a Markdown
+    ``####``-level heading compiles to LaTeX's ``\\paragraph``, a
+    deliberately *run-in* heading style that never inserts a line break
+    before what follows it, regardless of blank lines in the source --
+    unlike nbconvert's own plain (uncaptioned) image embedding, which
+    happens to use a vertical-mode environment that forces one.
+    ``\\leavevmode\\par`` restores that same forced break here: a bare
+    ``\\par`` alone is not enough, since TeX treats ending an *empty*
+    paragraph (no content typeset since the heading) as a no-op --
+    ``\\leavevmode`` first guarantees there's something (a zero-width box)
+    for it to actually end. Harmless when what precedes/follows is
+    already its own paragraph.
     """
     body = "\n".join(parts)
     return (
-        r"\begin{minipage}{\linewidth}" + "\n"
+        r"\leavevmode\par" + "\n"
+        + r"\begin{minipage}{\linewidth}" + "\n"
         + r"\centering" + "\n"
         + body + "\n"
-        + r"\end{minipage}"
+        + r"\end{minipage}" + "\n"
+        + r"\leavevmode\par"
     )
 
 
