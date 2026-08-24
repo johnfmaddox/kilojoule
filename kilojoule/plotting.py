@@ -19,9 +19,15 @@ import base64
 import io
 import html as _html
 
-# Set matplotlib figure size defaults
+# Set matplotlib figure size/font defaults
 plt.rcParams["figure.figsize"] = [6 * 2, 4 * 2]
 plt.rcParams["figure.dpi"] = 100  # 200 e.g. is really fine, but slower
+# matplotlib's own default (10pt) reads small on a figure this large once
+# it's shrunk to fit a PDF page -- axis labels, tick labels, legends, and
+# titles all scale off this (via the 'medium'/'large'/etc. relative sizes
+# their own rcParams default to), so bumping it here raises all of them
+# consistently rather than needing a fontsize= kwarg at every call site.
+plt.rcParams["font.size"] = 14
 import sys
 
 if sys.version_info < (3, 8, 0):
@@ -48,7 +54,8 @@ labelprops_default = dict(
     rotation_mode="anchor",
     horizontalalignment="center",
     verticalalignment="bottom",
-    size="9",
+    size="12",  # state-point labels (e.g. "1", "2") -- set explicitly
+    # rather than inheriting plt.rcParams["font.size"], so scaled to match
 )
 
 gridlineprops_default = dict(linewidth=0.25, color="gray", linestyle=(0, (5, 10)))
@@ -154,6 +161,15 @@ class PropertyPlot:
             self.fig = plt.figure()
         else:
             self.fig = fig
+        # Take over how this figure displays itself -- IPython/matplotlib's
+        # inline backend checks an object's own `_ipython_display_` before
+        # any registered type-based formatter (the one that shows a plain
+        # Figure as an uncaptioned image), so this applies the exact same
+        # captioned rendering as an explicit show() call even when the
+        # user never calls it -- e.g. just leaving the figure open at the
+        # end of a cell, which the inline backend auto-displays on its
+        # own. See :meth:`_auto_display`.
+        self.fig._ipython_display_ = self._auto_display
         if subplot is None:
             self.ax = self.fig.add_subplot(1, 1, 1)
         else:
@@ -1442,15 +1458,11 @@ class PropertyPlot:
         """
         return f"{_property_name(self.y_symb)}-{_property_name(self.x_symb)} Diagram for {self.fluid}"
 
-    def show(self, caption=None):
-        """Clear prior output and (re-)display the figure, for redrawing a
-        plot in place across notebook cell re-executions.
-
-        Displayed as an HTML ``<figure>``/``<figcaption>`` (rather than
-        letting IPython display the `Figure` object directly) so the
-        caption below it survives through to the PDF export too (see
-        :func:`kilojoule._pdf_export.html_figure_to_latex`), and doubles
-        as the image's alt text for accessibility.
+    def _render_captioned_html(self, caption=None):
+        """Build and display the ``<figure>``/``<figcaption>`` HTML for
+        the current state of `self.fig` (shared by :meth:`show` and
+        :meth:`_auto_display`), without deciding whether the figure stays
+        open afterward.
 
         :param caption: caption text to show below the figure, and as its
             alt text (Default value = None, uses `self.caption` from
@@ -1471,9 +1483,38 @@ class PropertyPlot:
                 f"</figure>"
             )
         )
+
+    def show(self, caption=None):
+        """Clear prior output and (re-)display the figure, for redrawing a
+        plot in place across notebook cell re-executions.
+
+        Displayed as an HTML ``<figure>``/``<figcaption>`` (rather than
+        letting IPython display the `Figure` object directly) so the
+        caption below it survives through to the PDF export too (see
+        :func:`kilojoule._pdf_export.html_figure_to_latex`), and doubles
+        as the image's alt text for accessibility.
+
+        :param caption: caption text to show below the figure, and as its
+            alt text (Default value = None, uses `self.caption` from
+            `__init__`, or :meth:`default_caption` if that's also `None`)
+        """
+        self._render_captioned_html(caption)
         # Without this, matplotlib's inline backend still auto-displays
         # this same (still-open) figure a second time at the end of cell
         # execution, alongside the captioned HTML version just shown --
         # closing it here is what tells that backend there's nothing left
         # for it to display.
+        plt.close(self.fig)
+
+    def _auto_display(self):
+        """`self.fig`'s own ``_ipython_display_`` (see `__init__`) --
+        invoked by IPython/matplotlib's inline backend in place of its
+        default, uncaptioned Figure formatter whenever this plot is
+        displayed without an explicit :meth:`show` call, e.g. just left
+        open at the end of a cell. Renders the same captioned HTML
+        :meth:`show` does, and likewise closes the figure afterward
+        (matplotlib's inline backend does this itself by default anyway,
+        via its own `close_figures` setting, once the cell it auto-
+        displayed from finishes)."""
+        self._render_captioned_html()
         plt.close(self.fig)
