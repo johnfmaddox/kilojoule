@@ -2,6 +2,34 @@
 Changelog
 =========
 
+Unreleased
+==========
+- ``export_html()``/``export_pdf()`` now repair a notebook whose saved cell
+  outputs are invalid per the nbformat schema before handing it to
+  ``nbconvert`` -- specifically a mimetype (e.g. ``image/png``) duplicated
+  as a stray top-level key alongside the correctly-nested ``data`` entry,
+  which some notebook front-ends/extensions have been observed to write on
+  save. Previously this made ``nbconvert`` log ``Notebook JSON is invalid:
+  Additional properties are not allowed`` for the whole notebook. The fix
+  operates on a temporary copy -- written only when repair is actually
+  needed -- via the new ``kilojoule.export.sanitize_notebook_outputs()``.
+- Add ``kilojoule.export.export_pdf()``, an in-notebook counterpart to
+  ``export_html()`` (same calling convention: auto-detects the notebook via
+  ``get_notebook_path()``, takes ``show_code``/``capture_output``/``preview``/
+  ``filename``, and supports the CoCalc-only iframe ``preview``). It exports
+  via ``nbconvert --to latex`` + ``xelatex`` rather than ``--to pdf``
+  directly, working around two problems that break kilojoule notebooks
+  under plain ``nbconvert --to pdf``: ``\cancel{}`` terms failing to
+  compile (nbconvert's LaTeX template doesn't load the ``cancel`` package)
+  and ``Summary()`` state tables flattening into a list of numbers instead
+  of a table (pandoc drops the raw HTML ``<table>`` markup ``Summary()``
+  emits under the ``text/markdown`` mimetype). The fix logic is shared
+  with (but duplicated from, for dependency-isolation reasons -- see
+  ``kilojoule/_pdf_export.py``) the standalone
+  ``tools/pdf_export/export_notebook_to_pdf.py`` script, which remains the
+  right tool for headless/from-scratch batch conversion. Requires
+  ``xelatex`` (MiKTeX or TeX Live) on ``PATH``.
+
 Version 0.5.10
 ==============
 - Rename ``kilojoule.schemdraw.thermo.Pisotn`` to ``Piston`` (fixing the

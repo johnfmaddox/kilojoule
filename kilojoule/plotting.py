@@ -4,16 +4,30 @@
     Property-diagram plotting for thermodynamic states and processes.
     See :class:`PropertyPlot` for the main entry point.
 """
-from .common import preferred_units_from_type, preferred_units_from_symbol, invert_dict
+from .common import (
+    preferred_units_from_type,
+    preferred_units_from_symbol,
+    invert_dict,
+    predefined_unit_types,
+)
 from .units import ureg, Quantity
 import matplotlib.pyplot as plt
 from IPython.display import display as mpldisplay
-from IPython.display import clear_output
+from IPython.display import clear_output, HTML
 import numpy as np
+import base64
+import io
+import html as _html
 
-# Set matplotlib figure size defaults
+# Set matplotlib figure size/font defaults
 plt.rcParams["figure.figsize"] = [6 * 2, 4 * 2]
 plt.rcParams["figure.dpi"] = 100  # 200 e.g. is really fine, but slower
+# matplotlib's own default (10pt) reads small on a figure this large once
+# it's shrunk to fit a PDF page -- axis labels, tick labels, legends, and
+# titles all scale off this (via the 'medium'/'large'/etc. relative sizes
+# their own rcParams default to), so bumping it here raises all of them
+# consistently rather than needing a fontsize= kwarg at every call site.
+plt.rcParams["font.size"] = 14
 import sys
 
 if sys.version_info < (3, 8, 0):
@@ -23,11 +37,25 @@ else:
 
 n_points_default = 100
 
+
+def _property_name(symb):
+    """Human-readable name for a property symbol, e.g. ``"T"`` ->
+    ``"Temperature"``, ``"s"`` -> ``"Specific Entropy"`` -- looked up from
+    the same symbol -> type mapping :func:`~kilojoule.common.preferred_units_from_symbol`
+    uses; falls back to `symb` itself, unchanged, if it's not in that mapping.
+
+    :param symb: property symbol, e.g. `"T"`
+    :returns: title-cased type name, or `symb` unchanged if not recognized
+    """
+    name = predefined_unit_types.get(symb)
+    return name.title() if name else symb
+
 labelprops_default = dict(
     rotation_mode="anchor",
     horizontalalignment="center",
     verticalalignment="bottom",
-    size="9",
+    size="12",  # state-point labels (e.g. "1", "2") -- set explicitly
+    # rather than inheriting plt.rcParams["font.size"], so scaled to match
 )
 
 gridlineprops_default = dict(linewidth=0.25, color="gray", linestyle=(0, (5, 10)))
@@ -89,6 +117,7 @@ class PropertyPlot:
         subplot=None,
         log_x=False,
         log_y=False,
+        caption=None,
         **kwargs,
     ):
         """
@@ -103,6 +132,10 @@ class PropertyPlot:
         :param subplot: `(nrows, ncols, index)` subplot spec passed to `fig.add_subplot`; a single full-figure axes is used if omitted (Default value = None)
         :param log_x: use a log scale for the x-axis (Default value = False)
         :param log_y: use a log scale for the y-axis (Default value = False)
+        :param caption: caption shown below the figure by :meth:`show` (also used
+            as the image's alt text, for accessibility) (Default value = None, uses
+            :meth:`default_caption` -- the axis property names and fluid, e.g.
+            "Temperature-Specific Entropy Diagram for Water")
         :param **kwargs:
         """
         self.props = property_table
@@ -111,6 +144,7 @@ class PropertyPlot:
         self.props.unit_system = self.unit_system
         self.x_symb = x
         self.y_symb = y
+        self.caption = caption
         self.x_units = x_units or preferred_units_from_symbol(
             self.x_symb, self.unit_system
         )
@@ -127,6 +161,15 @@ class PropertyPlot:
             self.fig = plt.figure()
         else:
             self.fig = fig
+        # Take over how this figure displays itself -- IPython/matplotlib's
+        # inline backend checks an object's own `_ipython_display_` before
+        # any registered type-based formatter (the one that shows a plain
+        # Figure as an uncaptioned image), so this applies the exact same
+        # captioned rendering as an explicit show() call even when the
+        # user never calls it -- e.g. just leaving the figure open at the
+        # end of a cell, which the inline backend auto-displays on its
+        # own. See :meth:`_auto_display`.
+        self.fig._ipython_display_ = self._auto_display
         if subplot is None:
             self.ax = self.fig.add_subplot(1, 1, 1)
         else:
@@ -1406,8 +1449,72 @@ class PropertyPlot:
             y = getattr(self.props, self.y_symb)(T=self.T_critical, x=0)
         self.plot_point(x, y, label=label, label_loc=label_loc, **kwargs)
 
-    def show(self):
-        """Clear prior output and (re-)display the figure, for redrawing a
-        plot in place across notebook cell re-executions"""
+    def default_caption(self):
+        """The caption :meth:`show` uses when `caption` wasn't given (to
+        `__init__` or to :meth:`show` itself): the axis property names and
+        fluid, e.g. ``"Temperature-Specific Entropy Diagram for Water"``.
+
+        :returns: the default caption string
+        """
+        return f"{_property_name(self.y_symb)}-{_property_name(self.x_symb)} Diagram for {self.fluid}"
+
+    def _render_captioned_html(self, caption=None):
+        """Build and display the ``<figure>``/``<figcaption>`` HTML for
+        the current state of `self.fig` (shared by :meth:`show` and
+        :meth:`_auto_display`), without deciding whether the figure stays
+        open afterward.
+
+        :param caption: caption text to show below the figure, and as its
+            alt text (Default value = None, uses `self.caption` from
+            `__init__`, or :meth:`default_caption` if that's also `None`)
+        """
         clear_output()
-        mpldisplay(self.fig)
+        if caption is None:
+            caption = self.caption if self.caption is not None else self.default_caption()
+        buf = io.BytesIO()
+        self.fig.savefig(buf, format="png", bbox_inches="tight")
+        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        escaped_caption = _html.escape(caption)
+        mpldisplay(
+            HTML(
+                f'<figure style="text-align:center">'
+                f'<img src="data:image/png;base64,{b64}" alt="{escaped_caption}" style="max-width:100%">'
+                f"<figcaption>{escaped_caption}</figcaption>"
+                f"</figure>"
+            )
+        )
+
+    def show(self, caption=None):
+        """Clear prior output and (re-)display the figure, for redrawing a
+        plot in place across notebook cell re-executions.
+
+        Displayed as an HTML ``<figure>``/``<figcaption>`` (rather than
+        letting IPython display the `Figure` object directly) so the
+        caption below it survives through to the PDF export too (see
+        :func:`kilojoule._pdf_export.html_figure_to_latex`), and doubles
+        as the image's alt text for accessibility.
+
+        :param caption: caption text to show below the figure, and as its
+            alt text (Default value = None, uses `self.caption` from
+            `__init__`, or :meth:`default_caption` if that's also `None`)
+        """
+        self._render_captioned_html(caption)
+        # Without this, matplotlib's inline backend still auto-displays
+        # this same (still-open) figure a second time at the end of cell
+        # execution, alongside the captioned HTML version just shown --
+        # closing it here is what tells that backend there's nothing left
+        # for it to display.
+        plt.close(self.fig)
+
+    def _auto_display(self):
+        """`self.fig`'s own ``_ipython_display_`` (see `__init__`) --
+        invoked by IPython/matplotlib's inline backend in place of its
+        default, uncaptioned Figure formatter whenever this plot is
+        displayed without an explicit :meth:`show` call, e.g. just left
+        open at the end of a cell. Renders the same captioned HTML
+        :meth:`show` does, and likewise closes the figure afterward
+        (matplotlib's inline backend does this itself by default anyway,
+        via its own `close_figures` setting, once the cell it auto-
+        displayed from finishes)."""
+        self._render_captioned_html()
+        plt.close(self.fig)
