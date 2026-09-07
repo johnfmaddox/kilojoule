@@ -28,7 +28,7 @@ from numpy import unique
 
 default_hash_filename = ".solution_hashes"
 default_student_dir = "student/"
-default_ext_hash_location = Path.home() / "src/solution_hashes/"
+default_ext_hash_location = Path.home() / ".src/solution_hashes/"
 default_sigfigs = 3
 default_machine_zero = 1e-12
 
