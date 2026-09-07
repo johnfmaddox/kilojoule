@@ -4,6 +4,16 @@ Changelog
 
 Unreleased
 ==========
+- Fix ``export_html()``/``export_pdf()`` invoking a bare ``jupyter`` looked
+  up on ``PATH`` to run ``nbconvert``, which could silently resolve to an
+  unrelated Python environment's ``jupyter`` launcher (e.g. a different
+  venv earlier on ``PATH``) that doesn't have ``nbconvert`` installed at
+  all -- even though the environment actually running kilojoule does. Both
+  now invoke ``sys.executable -m nbconvert`` instead, guaranteeing
+  ``nbconvert`` runs in the same environment kilojoule itself is running
+  in. Also add ``nbconvert``, previously an undeclared dependency, to
+  kilojoule's own dependency list so ``pip install kilojoule`` is
+  sufficient on its own.
 - ``export_html()``/``export_pdf()`` now repair a notebook whose saved cell
   outputs are invalid per the nbformat schema before handing it to
   ``nbconvert`` -- specifically a mimetype (e.g. ``image/png``) duplicated
