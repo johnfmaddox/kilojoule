@@ -1212,6 +1212,62 @@ def ensure_blank_lines_before_lists(nb):
     return n_fixed
 
 
+# Math regions in Markdown/LaTeX text: $$...$$, $...$, \[...\], and
+# align/equation/gather/multline environments.
+_MATH_REGION_RE = re.compile(
+    r"\$\$.*?\$\$"
+    r"|(?<!\\)\$[^$]*?(?<!\\)\$"
+    r"|\\\[.*?\\\]"
+    r"|\\begin\{(align|equation|gather|multline)\*?\}.*?\\end\{\1\*?\}",
+    re.DOTALL,
+)
+# Kept identical to kilojoule.display._MULTI_SUBSCRIPT_NAME_RE.
+_MULTI_SUBSCRIPT_NAME_RE = re.compile(r"(?<![\\\w])([A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+){2,})(?!\w)")
+
+
+def fix_double_subscripts(nb):
+    r"""Inside math regions of every markdown cell's source and every code
+    cell's `text/markdown`/`text/latex` output, rewrite each bare
+    identifier with two or more unbraced subscripts (e.g. `eta_II_DL`) as
+    `\mathtt{eta\_II\_DL}` (mutates `nb` in place).
+
+    Such an identifier always fails to compile with `! Double subscript.`,
+    so this only ever touches content that would otherwise abort the
+    export. The usual source is a kilojoule calculation display that
+    referenced an undefined variable: the display falls back to the raw
+    variable name as the "numeric" value, which MathJax flags only in red
+    in the notebook, but which stops LaTeX outright.
+
+    Returns the number of identifiers rewritten.
+    """
+    count = 0
+
+    def fix_name(m):
+        nonlocal count
+        count += 1
+        return r"\mathtt{" + m.group(1).replace("_", r"\_") + "}"
+
+    def fix_region(m):
+        return _MULTI_SUBSCRIPT_NAME_RE.sub(fix_name, m.group(0))
+
+    def fix_text(src):
+        was_list = isinstance(src, list)
+        text = "".join(src) if was_list else src
+        new = _MATH_REGION_RE.sub(fix_region, text)
+        return new.splitlines(keepends=True) if was_list else new
+
+    for cell in nb.get("cells", []):
+        if cell.get("cell_type") == "markdown":
+            cell["source"] = fix_text(cell.get("source", ""))
+        elif cell.get("cell_type") == "code":
+            for out in cell.get("outputs", []) or []:
+                data = out.get("data") or {}
+                for key in ("text/markdown", "text/latex"):
+                    if data.get(key) is not None:
+                        data[key] = fix_text(data[key])
+    return count
+
+
 def fix_notebook_tables(in_path, out_path, split_long_rows=False, engine=None, margin="0.75in"):
     """Read the notebook at `in_path`, rewrite every `text/markdown`/
     `text/html` cell output containing an HTML `<table>` into a LaTeX
@@ -1227,8 +1283,9 @@ def fix_notebook_tables(in_path, out_path, split_long_rows=False, engine=None, m
     split long multi-step equation rows onto multiple lines (see
     `measure_latex_widths` and `convert_notebook_long_rows`), insert blank
     lines before Markdown lists that need one for pandoc to recognize them
-    (see `ensure_blank_lines_before_lists`), and write the result to
-    `out_path`.
+    (see `ensure_blank_lines_before_lists`), make multi-subscript names
+    like `eta_II_DL` in math LaTeX-safe (see `fix_double_subscripts`), and
+    write the result to `out_path`.
 
     `split_long_rows` also measures and applies
     `convert_notebook_long_rows` (default `False`); requires `engine`.
@@ -1284,6 +1341,8 @@ def fix_notebook_tables(in_path, out_path, split_long_rows=False, engine=None, m
     n_attachments, attachment_paths = extract_cell_attachments(nb, Path(in_path).stem)
     n_figures, figure_paths = extract_cell_figures(nb, Path(in_path).stem)
     attachment_paths = attachment_paths + figure_paths
+    # Before width measurement, which compiles these same equations.
+    fix_double_subscripts(nb)
     if split_long_rows:
         requests = collect_width_measurement_requests(nb)
         row_width, widths = measure_latex_widths(requests, engine, margin=margin)
@@ -1317,25 +1376,29 @@ def convert_to_latex(python_exe, ipynb_path, out_basename):
 
 def patch_cancel_package(tex_path):
     """Add `\\usepackage{cancel}` (so kilojoule's `\\cancel{}` terms
-    compile) and `\\usepackage{capt-of}` (so `html_table_to_latex`/
+    compile), `\\usepackage{capt-of}` (so `html_table_to_latex`/
     `html_figure_to_latex` can caption a table/figure via `\\captionof`
-    without it being a floating `table`/`figure` environment) to a
+    without it being a floating `table`/`figure` environment), and
+    `\\usepackage[version=4]{mhchem}` (so `\\ce{...}` chemical-formula/
+    reaction macros -- common in combustion problems -- compile) to a
     generated `.tex` file."""
     content = tex_path.read_text(encoding="utf-8")
     anchor = r"\usepackage{amsmath} % Equations"
     if anchor not in content:
         print(
             "WARNING: could not find the expected amsmath line to patch "
-            "\\usepackage{cancel}/\\usepackage{capt-of} after -- "
-            "nbconvert's template may have changed. \\cancel{} terms (if "
-            "any) will fail to compile, and table/figure captions will "
-            "fail to compile too.",
+            "\\usepackage{cancel}/\\usepackage{capt-of}/\\usepackage{mhchem} "
+            "after -- nbconvert's template may have changed. \\cancel{} "
+            "terms (if any) will fail to compile, table/figure captions "
+            "will fail to compile too, and so will any \\ce{...} chemical "
+            "formulas.",
             file=sys.stderr,
         )
         return
     replacement = (
         anchor + "\n    " + r"\usepackage{cancel} % Strikethrough cancellation in equations"
         + "\n    " + r"\usepackage{capt-of} % \captionof{table/figure}{...} outside a float"
+        + "\n    " + r"\usepackage[version=4]{mhchem} % \ce{...} chemical formulas/reactions"
     )
     tex_path.write_text(content.replace(anchor, replacement, 1), encoding="utf-8")
 

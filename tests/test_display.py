@@ -46,3 +46,14 @@ def test_plain_function_call_with_underscore_still_escapes():
 
     output = _format("result = my_func(1)", {"my_func": my_func})
     assert r"my\_func" in output
+
+
+def test_to_numeric_undefined_multi_subscript_name_is_latex_safe():
+    """An undefined name falls back to its raw code; with two or more
+    underscores that raw code is a LaTeX "Double subscript" error, so it
+    must come back as escaped literal code instead."""
+    from kilojoule.display import to_numeric
+
+    assert to_numeric("eta_II_DL", namespace={}) == r"\mathtt{eta\_II\_DL}"
+    # single-subscript fallback is valid LaTeX and stays as it was
+    assert to_numeric("T_1", namespace={}) == "T_1"

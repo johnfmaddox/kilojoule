@@ -2,8 +2,30 @@
 Changelog
 =========
 
-Unreleased
-==========
+Version 0.6.0
+=============
+- ``export_pdf()`` (and ``tools/pdf_export/export_notebook_to_pdf.py``)
+  now loads ``\usepackage[version=4]{mhchem}`` so ``\ce{...}`` chemical
+  formulas/reactions -- common in combustion problems -- compile instead
+  of failing with ``! Undefined control sequence.``
+- Fix ``export_pdf()`` (and ``tools/pdf_export/export_notebook_to_pdf.py``)
+  aborting with ``! Double subscript.`` when a calculation display
+  references an undefined variable with two or more underscores (e.g.
+  ``eta_II_DL``): the display falls back to the raw name, which MathJax
+  only flags in red but LaTeX rejects outright. ``to_numeric()`` now
+  renders such names as escaped literal code (``\mathtt{eta\_II\_DL}``),
+  and the PDF export applies the same rewrite to math in already-saved
+  notebooks via the new ``fix_double_subscripts()``. Single-subscript
+  names like ``T_1`` are unchanged.
+- Fix the default ``Quantity`` print format raising ``ValueError:
+  Precision not allowed in integer format specifier`` for integer
+  magnitudes (e.g. ``Quantity(3, "m")`` or a NumPy integer). The default
+  format is now ``.5g~P`` instead of ``.5~P``; the only visible difference
+  is that whole-number floats print without a trailing ``.0`` (``3 m``
+  rather than ``3.0 m``). The format is now set via
+  ``ureg.formatter.default_format`` on pint >= 0.24 (falling back to
+  ``ureg.default_format`` on older pint), silencing pint's deprecation
+  warning.
 - Fix ``export_html()``/``export_pdf()`` invoking a bare ``jupyter`` looked
   up on ``PATH`` to run ``nbconvert``, which could silently resolve to an
   unrelated Python environment's ``jupyter`` launcher (e.g. a different

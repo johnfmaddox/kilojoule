@@ -156,6 +156,24 @@ def _ast_to_string(ast_node, line_indent=""):
         return repr(ast_node)
 
 
+# A bare identifier with two or more unbraced subscripts (e.g. `eta_II_DL`),
+# which LaTeX rejects outright with "! Double subscript." inside math mode
+# (MathJax only shows the error inline in red, so it's easy to miss until
+# a PDF export fails). Not preceded by a backslash or word character, so
+# macros like `\dot_...` and the middle of longer words are left alone.
+_MULTI_SUBSCRIPT_NAME_RE = re.compile(r"(?<![\\\w])([A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+){2,})(?!\w)")
+
+
+def escape_multi_subscript_names(text):
+    r"""Render every bare multi-subscript identifier in `text` (e.g.
+    `eta_II_DL`) as literal code, `\mathtt{eta\_II\_DL}`, so it can't
+    trigger LaTeX's "Double subscript" error. Identifiers with at most one
+    underscore (e.g. `T_1`) are valid LaTeX and are left unchanged."""
+    return _MULTI_SUBSCRIPT_NAME_RE.sub(
+        lambda m: r"\mathtt{" + m.group(1).replace("_", r"\_") + "}", text
+    )
+
+
 def to_numeric(code, namespace=None, verbose=False, line_indent="", to_units=None):
     """Evaluate a code string (or pass through a value) and format the result
     as a numeric string, for the "numeric" stage of a calculation progression
@@ -167,7 +185,10 @@ def to_numeric(code, namespace=None, verbose=False, line_indent="", to_units=Non
     :param to_units: convert the evaluated Quantity to these units before formatting (Default value = None)
     :returns: formatted numeric string (via :func:`numeric_to_string`), or the
         original `code` unchanged if evaluation raises `NameError`/`SyntaxError`,
-        or `"??"` on any other evaluation error (unless `verbose`, which re-raises)
+        or `"??"` on any other evaluation error (unless `verbose`, which re-raises).
+        In the unchanged-`code` case, multi-subscript names such as an
+        undefined `eta_II_DL` are made LaTeX-safe via
+        :func:`escape_multi_subscript_names`.
     """
     namespace = namespace or get_caller_namespace()
     if isinstance(code, str):
@@ -181,11 +202,11 @@ def to_numeric(code, namespace=None, verbose=False, line_indent="", to_units=Non
         except NameError:
             if verbose:
                 print(f"Handling NameError")
-            numeric = code
+            numeric = escape_multi_subscript_names(code)
         except SyntaxError:
             if verbose:
                 print(f"Handling SyntaxError")
-            numeric = code
+            numeric = escape_multi_subscript_names(code)
         except Exception as e:
             if verbose:
                 print(f"{line_indent}Error in to_numeric: {e}")
