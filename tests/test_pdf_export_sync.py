@@ -68,6 +68,7 @@ _SHARED_NAMES = [
     "convert_long_rows_to_multiline",
     "convert_notebook_long_rows",
     "ensure_blank_lines_before_lists",
+    "fix_double_subscripts",
     "patch_cancel_package",
     "patch_table_captions",
     "patch_margins",
@@ -126,6 +127,29 @@ def test_ensure_blank_lines_before_lists_matches(standalone):
     module_impl.ensure_blank_lines_before_lists(nb_a)
     standalone.ensure_blank_lines_before_lists(nb_b)
     assert nb_a == nb_b
+
+
+def test_fix_double_subscripts_matches(standalone):
+    nb_a = {
+        "cells": [
+            {"cell_type": "markdown", "source": "Text eta_II_DL and $x_a_b + T_1$\n"},
+            {
+                "cell_type": "code",
+                "outputs": [{"data": {"text/markdown": [
+                    "\\begin{align}{ \\eta_{II,DL} }&={ eta_II_DL }\\end{align}\n"
+                ]}}],
+            },
+        ]
+    }
+    nb_b = json.loads(json.dumps(nb_a))
+    assert module_impl.fix_double_subscripts(nb_a) == standalone.fix_double_subscripts(nb_b) == 2
+    assert nb_a == nb_b
+
+
+def test_multi_subscript_regex_matches_display():
+    from kilojoule import display
+
+    assert module_impl._MULTI_SUBSCRIPT_NAME_RE.pattern == display._MULTI_SUBSCRIPT_NAME_RE.pattern
 
 
 def test_split_progression_row_matches(standalone):

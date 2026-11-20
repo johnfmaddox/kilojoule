@@ -49,6 +49,7 @@ dependencies = [
     "seaborn",
     "ipython",
     "ipynbname",   # used by kilojoule.export to find the notebook path outside CoCalc
+    "nbconvert",   # used by kilojoule.export.export_html()/export_pdf()
     "pytz",
 ]
 

@@ -450,6 +450,41 @@ def test_ensure_blank_lines_before_lists_ignores_code_cells():
 
 
 # ---------------------------------------------------------------------------
+# fix_double_subscripts
+# ---------------------------------------------------------------------------
+def test_fix_double_subscripts_rewrites_undefined_name_in_align_output():
+    # Shape of a real failing export: an undefined variable echoed raw as
+    # the right-hand side of a calculation display.
+    src = (
+        r"\begin{align}{ \eta_{II,DL} }&={ eta_II_DL }\\"
+        r"{ { \frac{ \dot{m}_{R} }{ \dot{m}_{P} } } }&={ mdot_R_over_mdot_P }\end{align}"
+    )
+    nb = {"cells": [{"cell_type": "code", "outputs": [{"data": {"text/markdown": src}}]}]}
+    assert pdfx.fix_double_subscripts(nb) == 2
+    out = nb["cells"][0]["outputs"][0]["data"]["text/markdown"]
+    assert r"\mathtt{eta\_II\_DL}" in out
+    assert r"\mathtt{mdot\_R\_over\_mdot\_P}" in out
+    # valid LaTeX around it is untouched
+    assert r"\eta_{II,DL}" in out and r"\dot{m}_{R}" in out
+
+
+def test_fix_double_subscripts_only_touches_math_and_leaves_valid_names():
+    source = ["Plain text eta_II_DL stays.\n", "$T_1 + x_a_b$ and $$h_f$$\n"]
+    nb = {"cells": [{"cell_type": "markdown", "source": source}]}
+    assert pdfx.fix_double_subscripts(nb) == 1
+    assert nb["cells"][0]["source"] == [
+        "Plain text eta_II_DL stays.\n",
+        "$T_1 + \\mathtt{x\\_a\\_b}$ and $$h_f$$\n",
+    ]
+
+
+def test_fix_double_subscripts_ignores_code_cell_source():
+    nb = {"cells": [{"cell_type": "code", "source": "$eta_II_DL$", "outputs": []}]}
+    assert pdfx.fix_double_subscripts(nb) == 0
+    assert nb["cells"][0]["source"] == "$eta_II_DL$"
+
+
+# ---------------------------------------------------------------------------
 # patch_cancel_package / patch_table_captions / patch_margins /
 # remove_title_block
 # ---------------------------------------------------------------------------
@@ -465,6 +500,7 @@ def test_patch_cancel_package_adds_both_packages(tmp_path):
     content = tex.read_text(encoding="utf-8")
     assert r"\usepackage{cancel}" in content
     assert r"\usepackage{capt-of}" in content
+    assert r"\usepackage[version=4]{mhchem}" in content
 
 
 def test_patch_cancel_package_warns_when_anchor_missing(tmp_path):

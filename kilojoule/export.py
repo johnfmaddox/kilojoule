@@ -9,6 +9,7 @@
     :func:`sanitize_notebook_outputs`) before handing it to nbconvert.
 """
 import subprocess
+import sys
 import os
 import json
 import re
@@ -354,7 +355,12 @@ def export_html(show_code = False, capture_output=True, preview=False, filename=
     nb_file = nb_file_relative.name
     stem = nb_file_relative.stem
     html_file = nb_file_relative.with_suffix('.html')
-    jupyter_path = "jupyter"
+    # Invoke nbconvert as `sys.executable -m nbconvert` rather than a bare
+    # `jupyter` looked up on PATH -- the latter can silently resolve to an
+    # unrelated Python environment's `jupyter` launcher (e.g. a different
+    # venv earlier on PATH) that doesn't have `nbconvert` installed at all,
+    # even though the environment actually running this code does.
+    nbconvert_cmd = [sys.executable, "-m", "nbconvert"]
 
     # Repair invalid output JSON (see sanitize_notebook_outputs) and
     # resolve attachment: refs inside raw <img> tags that nbconvert's HTML
@@ -392,7 +398,7 @@ def export_html(show_code = False, capture_output=True, preview=False, filename=
     try:
         if show_code:
             result = subprocess.run(
-                [jupyter_path, 'nbconvert',
+                [*nbconvert_cmd,
                  '--no-input',
                  '--to', 'html',
                  '--ClearMetadataPreprocessor.enabled=True',
@@ -402,7 +408,7 @@ def export_html(show_code = False, capture_output=True, preview=False, filename=
             )
         else:
             result = subprocess.run(
-                [jupyter_path, 'nbconvert',
+                [*nbconvert_cmd,
                  '--no-input',
                  '--no-prompt',
                  '--to', 'html',
@@ -577,7 +583,9 @@ def export_pdf(show_code=False, capture_output=True, preview=False, filename=Non
             "source will fix this at the source."
         )
     tex_path = _pdf.convert_to_latex(
-        ["jupyter"], fixed_ipynb, stem,
+        # `sys.executable -m nbconvert`, not a bare `jupyter` from PATH --
+        # see the matching comment in export_html() above for why.
+        [sys.executable, "-m"], fixed_ipynb, stem,
         show_code=show_code, capture_output=capture_output, **kwargs
     )
     _pdf.patch_cancel_package(tex_path)

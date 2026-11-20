@@ -28,5 +28,17 @@ def test_custom_unit_defined(unit_name):
 
 
 def test_default_formats_are_set():
-    assert ureg.default_format
+    fmt = (
+        ureg.formatter.default_format
+        if hasattr(ureg, "formatter")
+        else ureg.default_format
+    )
+    assert fmt
     assert ureg.default_LaTeX_format
+
+
+@pytest.mark.parametrize("value", [3, 3.0, 2.5, 1.23456789e-7])
+def test_default_format_handles_ints_and_floats(value):
+    """Default format must not raise for integer magnitudes."""
+    str(Quantity(value, "m"))
+    f"{Quantity(value, 'm')}"
